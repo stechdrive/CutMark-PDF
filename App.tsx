@@ -399,6 +399,9 @@ export default function App() {
               <p className="text-xl">
                 {isDragging ? 'ここにドロップして開く' : <>PDFファイルをドラッグ＆ドロップ<br/>または「PDFを開く」から読み込んでください</>}
               </p>
+              <p className="mt-4 text-xs text-gray-500">
+                読み込んだPDFはこのブラウザ内だけで処理されサーバーには送信されません
+              </p>
             </div>
           ) : (
             <>
@@ -720,7 +723,7 @@ export default function App() {
           </div>
           
           <div className="p-4 border-t border-gray-200 text-center text-xs text-gray-400">
-             CutMark PDF v1.0.0 <br/> All processing is done locally.
+             CutMark PDF v1.0.0 <br/> このツールはブラウザ内でのみ処理を行い<br/>読み込んだPDFや保存したテンプレートがサーバーに送信されることはありません
           </div>
         </div>
       </div>
