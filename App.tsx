@@ -605,17 +605,34 @@ export default function App() {
                     />
                  </div>
                  
-                 <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-sm text-gray-600">白座布団 (背景)</span>
-                    <div className={`w-10 h-5 rounded-full p-0.5 transition-colors ${settings.useWhiteBackground ? 'bg-green-500' : 'bg-gray-300'}`}>
-                       <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${settings.useWhiteBackground ? 'translate-x-5' : 'translate-x-0'}`} />
-                       <input 
-                          type="checkbox" className="hidden"
-                          checked={settings.useWhiteBackground}
-                          onChange={e => setSettings({...settings, useWhiteBackground: e.target.checked})}
-                       />
-                    </div>
-                 </label>
+                 <div className="space-y-2">
+                   <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-sm text-gray-600">白座布団 (背景)</span>
+                      <div className={`w-10 h-5 rounded-full p-0.5 transition-colors ${settings.useWhiteBackground ? 'bg-green-500' : 'bg-gray-300'}`}>
+                         <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${settings.useWhiteBackground ? 'translate-x-5' : 'translate-x-0'}`} />
+                         <input 
+                            type="checkbox" className="hidden"
+                            checked={settings.useWhiteBackground}
+                            onChange={e => setSettings({...settings, useWhiteBackground: e.target.checked})}
+                         />
+                      </div>
+                   </label>
+                   
+                   {settings.useWhiteBackground && (
+                      <div className="bg-gray-50 rounded-md p-2 border border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
+                         <div className="flex justify-between mb-1 text-xs text-gray-500">
+                            <span>余白サイズ</span>
+                            <span>{settings.backgroundPadding}px</span>
+                         </div>
+                         <input 
+                            type="range" min="0" max="20" 
+                            value={settings.backgroundPadding}
+                            onChange={e => setSettings({...settings, backgroundPadding: parseInt(e.target.value)})}
+                            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-500"
+                         />
+                      </div>
+                   )}
+                 </div>
               </div>
             </div>
 
@@ -723,7 +740,7 @@ export default function App() {
           </div>
           
           <div className="p-4 border-t border-gray-200 text-center text-xs text-gray-400">
-             CutMark PDF v1.0.0 <br/>このツールはブラウザ内でのみ処理を行い<br/>読み込んだPDFや保存したテンプレートが<br/>サーバーに送信されることはありません
+             CutMark PDF v1.0.0<br/>Copyright (c) 2025 stechdrive<br/>このツールはブラウザ内でのみ処理を行い<br/>読み込んだPDFや保存したテンプレートが<br/>サーバーに送信されることはありません
           </div>
         </div>
       </div>
