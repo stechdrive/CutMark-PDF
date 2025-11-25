@@ -3,9 +3,9 @@
 絵コンテ用PDFにカット番号を配置し、新しいPDFとして書き出すためのブラウザツールです。  
 すべての処理はクライアント側（ブラウザ内）で完結し、PDFデータが外部に送信されることはありません。
 
-[✨CutMark PDF✨](https://stechdrive.github.io/CutMark-PDF/)
+## [✨CutMark PDF✨](https://stechdrive.github.io/CutMark-PDF/)
+## [✨連番画像用Photoshopプラグインはこちら✨](https://github.com/stechdrive/CutMark)
 
-[✨連番画像用Photoshopプラグインはこちら✨](https://github.com/stechdrive/CutMark)
 ---
 
 ## 概要
@@ -101,3 +101,4 @@ PDFを画像化せず、ベクターデータとして文字や白座布団を�
 - PDFデータをサーバーに送信する処理はありません。
 - 書き出しPDFもブラウザ内で生成され、ダウンロードとして保存されます。
 - 外部CDNから読み込むのはライブラリ本体のみであり、PDF内容が送信されることはありません。
+
