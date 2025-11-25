@@ -723,7 +723,7 @@ export default function App() {
           </div>
           
           <div className="p-4 border-t border-gray-200 text-center text-xs text-gray-400">
-             CutMark PDF v1.0.0 <br/> このツールはブラウザ内でのみ処理を行い<br/>読み込んだPDFや保存したテンプレートが<br/>サーバーに送信されることはありません
+             CutMark PDF v1.0.0 <br/>このツールはブラウザ内でのみ処理を行い<br/>読み込んだPDFや保存したテンプレートが<br/>サーバーに送信されることはありません
           </div>
         </div>
       </div>
