@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Cut, AppSettings } from '../types';
 import { X } from 'lucide-react';
@@ -9,6 +8,8 @@ interface CutMarkerProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdatePosition: (id: string, x: number, y: number) => void;
+  onDragEnd: () => void;
   containerRef: React.RefObject<HTMLDivElement>;
 }
 
@@ -18,7 +19,61 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
   isSelected,
   onSelect,
   onDelete,
+  onUpdatePosition,
+  onDragEnd,
+  containerRef,
 }) => {
+  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    onSelect(cut.id);
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+
+    // Calculate initial mouse percentage relative to container
+    const mouseX = (clientX - rect.left) / rect.width;
+    const mouseY = (clientY - rect.top) / rect.height;
+
+    // Maintain the offset between mouse and element anchor to avoid jumping
+    const offsetX = cut.x - mouseX;
+    const offsetY = cut.y - mouseY;
+
+    const update = (cx: number, cy: number) => {
+      const newMouseX = (cx - rect.left) / rect.width;
+      const newMouseY = (cy - rect.top) / rect.height;
+      
+      const newX = Math.max(0, Math.min(1, newMouseX + offsetX));
+      const newY = Math.max(0, Math.min(1, newMouseY + offsetY));
+      
+      onUpdatePosition(cut.id, newX, newY);
+    };
+
+    const handleMove = (ev: MouseEvent | TouchEvent) => {
+      ev.preventDefault(); // Prevent scrolling on mobile
+      const cx = 'touches' in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX;
+      const cy = 'touches' in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY;
+      update(cx, cy);
+    };
+
+    const handleUp = () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener('touchend', handleUp);
+      // Notify App to commit history
+      onDragEnd();
+    };
+
+    window.addEventListener('mousemove', handleMove, { passive: false });
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('mouseup', handleUp);
+    window.addEventListener('touchend', handleUp);
+  };
+
   return (
     <div
       className={`absolute flex items-start justify-start cursor-move group select-none transition-transform ${
@@ -30,10 +85,9 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
         // X: Center (translateX -50%), Y: Top (no translate needed as top is 0)
         transform: 'translateX(-50%)', 
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect(cut.id);
-      }}
+      onMouseDown={handleDragStart}
+      onTouchStart={handleDragStart}
+      onClick={(e) => e.stopPropagation()}
     >
       {/* Background (Visual Simulation of the PDF output) */}
       <div
@@ -62,6 +116,10 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
         {/* Delete Button (Visible on Hover/Select) */}
         {(isSelected) && (
           <button
+            onMouseDown={(e) => {
+               // Prevent drag start
+               e.stopPropagation();
+            }}
             onClick={(e) => {
               e.stopPropagation();
               onDelete(cut.id);

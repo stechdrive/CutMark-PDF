@@ -44,6 +44,10 @@ export default function App() {
   const [scale, setScale] = useState<number>(1.0);
   
   const [cuts, setCuts] = useState<Cut[]>([]);
+  // Use ref to track cuts for drag operations to avoid stale closures
+  const cutsRef = useRef(cuts);
+  cutsRef.current = cuts;
+
   const [history, setHistory] = useState<Cut[][]>([]);
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
 
@@ -95,8 +99,9 @@ export default function App() {
 
   const undo = () => {
     if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
-      setCuts(history[historyIndex + 1]);
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setCuts(history[newIndex]);
     } else if (historyIndex === 0) {
       setHistoryIndex(-1);
       setCuts([]);
@@ -105,8 +110,9 @@ export default function App() {
 
   const redo = () => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
-      setCuts(history[historyIndex + 1]);
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setCuts(history[newIndex]);
     }
   };
 
@@ -198,6 +204,17 @@ export default function App() {
     
     pushHistory([...cuts, newCut]);
     incrementCounter();
+  };
+
+  // --- Cut Dragging Logic ---
+  const updateCutPosition = (id: string, x: number, y: number) => {
+    setCuts(prev => prev.map(c => c.id === id ? { ...c, x, y } : c));
+  };
+
+  const handleCutDragEnd = () => {
+    // Commit the current state to history after drag ends
+    // Use ref to get the most up-to-date state including the drag updates
+    pushHistory(cutsRef.current);
   };
 
   const handlePageClick = (e: React.MouseEvent) => {
@@ -331,7 +348,7 @@ export default function App() {
   }, [cuts, history, historyIndex, numPages, template, settings, currentPage]); // Heavy dependency array but necessary for closure freshness
 
   // --- Render Helpers ---
-  const currentCuts = cuts.filter(c => c.pageIndex === currentPage - 1);
+  const currentCuts = (cuts || []).filter(c => c.pageIndex === currentPage - 1);
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 text-gray-800 font-sans overflow-hidden">
@@ -439,6 +456,8 @@ export default function App() {
                            isSelected={selectedCutId === cut.id}
                            onSelect={setSelectedCutId}
                            onDelete={deleteCut}
+                           onUpdatePosition={updateCutPosition}
+                           onDragEnd={handleCutDragEnd}
                            containerRef={pdfContainerRef}
                          />
                        ))
