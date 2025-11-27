@@ -3,7 +3,7 @@
 PDFにまとめた絵コンテにカット番号を配置し、新しいPDFとして保存するためのブラウザツールです。  
 すべての処理はクライアント側（ブラウザ内）で完結し、PDFデータが外部に送信されることはありません。
 
-## [✨CutMark PDF✨](https://stechdrive.github.io/CutMark-PDF/)
+## [✨CutMark PDF ここから使えます✨](https://stechdrive.github.io/CutMark-PDF/)
 ## [✨連番画像用Photoshopプラグインはこちら✨](https://github.com/stechdrive/CutMark)
 
 ---
