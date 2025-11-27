@@ -1,10 +1,15 @@
-import React, { useRef } from 'react';
-import { Upload, Download, RotateCcw, RotateCw, Layers, Settings } from 'lucide-react';
+
+import React, { useRef, useState } from 'react';
+import { Upload, Download, RotateCcw, RotateCw, Layers, Settings, FolderOpen, ChevronDown } from 'lucide-react';
+import { DocType } from '../types';
 
 interface HeaderProps {
-  pdfFile: File | null;
-  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onExport: () => void;
+  docType: DocType | null;
+  onPdfFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onFolderChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onExportPdf: () => void;
+  onExportImages: () => void;
+  isExporting: boolean;
   mode: 'edit' | 'template';
   setMode: (mode: 'edit' | 'template') => void;
   canUndo: boolean;
@@ -14,9 +19,12 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  pdfFile,
-  onFileChange,
-  onExport,
+  docType,
+  onPdfFileChange,
+  onFolderChange,
+  onExportPdf,
+  onExportImages,
+  isExporting,
   mode,
   setMode,
   canUndo,
@@ -24,7 +32,9 @@ export const Header: React.FC<HeaderProps> = ({
   onUndo,
   onRedo,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   return (
     <div className="bg-slate-800 text-white p-3 flex items-center justify-between shadow-md z-50">
@@ -34,21 +44,43 @@ export const Header: React.FC<HeaderProps> = ({
           CutMark PDF
         </div>
         <div className="h-6 w-px bg-slate-600 mx-2" />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
-        >
-          <Upload size={16} /> PDFを開く
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".pdf"
-          className="hidden"
-          onChange={onFileChange}
-        />
+        
+        <div className="flex gap-2">
+            <button
+            onClick={() => pdfInputRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
+            title="PDFファイルを開く"
+            >
+            <Upload size={16} /> PDF
+            </button>
+            <input
+            ref={pdfInputRef}
+            type="file"
+            accept=".pdf"
+            className="hidden"
+            onChange={onPdfFileChange}
+            />
 
-        {pdfFile && (
+            <button
+            onClick={() => folderInputRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
+            title="連番画像の入ったフォルダを開く"
+            >
+            <FolderOpen size={16} /> フォルダ
+            </button>
+            <input
+            ref={folderInputRef}
+            type="file"
+            // @ts-ignore: webkitdirectory is standard in browsers but not in React types sometimes
+            webkitdirectory=""
+            directory=""
+            multiple
+            className="hidden"
+            onChange={onFolderChange}
+            />
+        </div>
+
+        {docType && (
           <div className="flex items-center gap-2 ml-4">
             <button
               onClick={onUndo}
@@ -94,13 +126,45 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        <button
-          onClick={onExport}
-          disabled={!pdfFile}
-          className="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 rounded font-medium text-sm transition-colors shadow-sm"
-        >
-          <Download size={16} /> 保存
-        </button>
+        <div className="relative">
+            <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={!docType || isExporting}
+                className="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 rounded font-medium text-sm transition-colors shadow-sm"
+            >
+                <Download size={16} /> 保存 <ChevronDown size={14} />
+            </button>
+            
+            {showExportMenu && (
+                <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 text-gray-800">
+                        <button
+                            onClick={() => { setShowExportMenu(false); onExportPdf(); }}
+                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                            PDFとして書き出し
+                        </button>
+                        {docType === 'images' ? (
+                          <button
+                              onClick={() => { setShowExportMenu(false); onExportImages(); }}
+                              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                              連番画像(ZIP)として書き出し
+                          </button>
+                        ) : (
+                          <button
+                              disabled
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-400 cursor-not-allowed"
+                              title="連番画像モードでのみ利用可能です"
+                          >
+                              連番画像(ZIP)として書き出し
+                          </button>
+                        )}
+                    </div>
+                </>
+            )}
+        </div>
       </div>
     </div>
   );

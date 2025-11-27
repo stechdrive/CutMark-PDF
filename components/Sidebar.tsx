@@ -86,9 +86,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 text-center text-xs text-gray-400 bg-white">
-        CutMark PDF v1.0.0<br />Copyright (c) 2025 stechdrive<br />
-        このツールはブラウザ内でのみ処理を行い<br />
-        読み込んだPDFや保存したテンプレートが<br />
+        CutMark PDF v2.0.0<br />Copyright (c) 2025 stechdrive<br />
+        ブラウザ内でのみ処理を行います<br />
+        読み込みんだデータや保存したテンプレートが<br />
         サーバーに送信されることはありません
       </div>
     </div>

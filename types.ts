@@ -1,4 +1,6 @@
 
+export type DocType = 'pdf' | 'images';
+
 export interface Cut {
   id: string;
   pageIndex: number; // 0-based index

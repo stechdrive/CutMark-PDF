@@ -1,0 +1,219 @@
+
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { DocType } from '../types';
+
+export const useDocumentViewer = (onLoadComplete?: () => void) => {
+  const [docType, setDocType] = useState<DocType | null>(null);
+  
+  // PDF State
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  
+  // Images State
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  
+  // Shared State
+  const [numPages, setNumPages] = useState<number>(0);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [scale, setScale] = useState<number>(1.0);
+  const [isDragging, setIsDragging] = useState(false);
+  
+  const dragCounter = useRef(0);
+
+  // Manage Image URL lifecycle
+  useEffect(() => {
+    if (docType === 'images' && imageFiles.length > 0 && currentPage >= 1) {
+        const file = imageFiles[currentPage - 1];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            setCurrentImageUrl(url);
+            return () => {
+                URL.revokeObjectURL(url);
+            };
+        }
+    }
+    setCurrentImageUrl(null);
+  }, [docType, imageFiles, currentPage]);
+
+  const loadPdf = useCallback((file: File) => {
+    setPdfFile(file);
+    setImageFiles([]);
+    setDocType('pdf');
+    setCurrentPage(1);
+    if (onLoadComplete) onLoadComplete();
+  }, [onLoadComplete]);
+
+  const loadImages = useCallback((files: File[]) => {
+    // Sort files naturally
+    const sorted = [...files].sort((a, b) => 
+      a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+    );
+    
+    setImageFiles(sorted);
+    setPdfFile(null);
+    setDocType('images');
+    setNumPages(sorted.length);
+    setCurrentPage(1);
+    if (onLoadComplete) onLoadComplete();
+  }, [onLoadComplete]);
+
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) {
+      setIsDragging(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  // Helper to scan files from DataTransferItems
+  const scanFiles = async (items: DataTransferItemList): Promise<{ pdf: File | null, images: File[] }> => {
+    // Use any[] to avoid TypeScript errors with non-standard FileSystemEntry types
+    const entries: any[] = [];
+    
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        // webkitGetAsEntry is non-standard but widely supported in Chrome/Safari/Edge
+        // Cast to any to avoid TS error
+        const getAsEntry = (item as any).webkitGetAsEntry;
+        if (typeof getAsEntry === 'function') {
+            const entry = getAsEntry.call(item);
+            if (entry) entries.push(entry);
+        }
+    }
+
+    const imageList: File[] = [];
+    let pdfItem: File | null = null;
+    const validExts = ['.jpg', '.jpeg', '.png'];
+
+    const readEntry = async (entry: any) => {
+        if (entry.isFile) {
+            return new Promise<void>((resolve) => {
+                // entry.file() gets the File object
+                entry.file((file: File) => {
+                    const lowerName = file.name.toLowerCase();
+                    if (file.type === 'application/pdf' || lowerName.endsWith('.pdf')) {
+                        pdfItem = file;
+                    } else if (validExts.some(ext => lowerName.endsWith(ext))) {
+                        imageList.push(file);
+                    }
+                    resolve();
+                }, () => resolve()); // Error handler resolves anyway
+            });
+        } else if (entry.isDirectory) {
+            // Create a reader to read entries in the directory
+            const dirReader = entry.createReader();
+            return new Promise<void>((resolve) => {
+                // readEntries returns an array of entries
+                dirReader.readEntries(async (subEntries: any[]) => {
+                    // Only scan first level children, no recursion as per requirements
+                    // "フォルダ内の連番静止画JPG/PNG（子フォルダの再帰なし）"
+                    for (const sub of subEntries) {
+                         if (sub.isFile) {
+                             await new Promise<void>((res) => {
+                                 sub.file((file: File) => {
+                                     const lowerName = file.name.toLowerCase();
+                                     if (validExts.some(ext => lowerName.endsWith(ext))) {
+                                         imageList.push(file);
+                                     }
+                                     res();
+                                 }, () => res());
+                             });
+                         }
+                    }
+                    resolve();
+                }, () => resolve());
+            });
+        }
+    };
+
+    // If multiple items dropped (e.g. multiple images selected), we process all.
+    // If a single folder is dropped, we process its content.
+    // If FileSystem API is not available (entries empty), fallback logic could be added here if needed,
+    // but drag-and-drop usually supports this in modern browsers.
+    if (entries.length > 0) {
+        await Promise.all(entries.map(readEntry));
+    } else {
+        // Fallback for browsers not supporting webkitGetAsEntry (very rare nowadays for DnD)
+        // Just treat them as flat files
+        for (let i = 0; i < items.length; i++) {
+            const file = items[i].getAsFile();
+            if (file) {
+                 const lowerName = file.name.toLowerCase();
+                 if (file.type === 'application/pdf' || lowerName.endsWith('.pdf')) {
+                     pdfItem = file;
+                 } else if (validExts.some(ext => lowerName.endsWith(ext))) {
+                     imageList.push(file);
+                 }
+            }
+        }
+    }
+    
+    return { pdf: pdfItem, images: imageList };
+  };
+
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    dragCounter.current = 0;
+
+    const items = e.dataTransfer.items;
+    if (!items || items.length === 0) return;
+
+    const { pdf, images } = await scanFiles(items);
+
+    if (pdf) {
+        loadPdf(pdf);
+    } else if (images.length > 0) {
+        loadImages(images);
+    }
+  }, [loadPdf, loadImages]);
+
+  const setPage = useCallback((newPage: number | ((prev: number) => number)) => {
+    if (typeof newPage === 'function') {
+      setCurrentPage(prev => {
+        const next = newPage(prev);
+        return Math.max(1, Math.min(numPages || 1, next));
+      });
+    } else {
+      setCurrentPage(Math.max(1, Math.min(numPages || 1, newPage)));
+    }
+  }, [numPages]);
+
+  return {
+    docType,
+    pdfFile,
+    imageFiles,
+    currentImageUrl,
+    numPages,
+    currentPage,
+    scale,
+    isDragging,
+    loadPdf,
+    loadImages,
+    setNumPages,
+    setCurrentPage: setPage,
+    setScale,
+    dragHandlers: {
+      onDragEnter: handleDragEnter,
+      onDragLeave: handleDragLeave,
+      onDragOver: handleDragOver,
+      onDrop: handleDrop
+    }
+  };
+};
