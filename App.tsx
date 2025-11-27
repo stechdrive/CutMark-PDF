@@ -230,6 +230,11 @@ export default function App() {
       addCut(x, y);
     }
   };
+  
+  const handleBackgroundClick = (e: React.MouseEvent) => {
+    // Clear selection when clicking on the background or areas not handling click
+    setSelectedCutId(null);
+  };
 
   const handleRowSnap = (rowIndex: number) => {
     if (rowIndex >= template.rowPositions.length) return;
@@ -409,6 +414,7 @@ export default function App() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          onClick={handleBackgroundClick}
         >
           {!pdfFile ? (
             <div className={`m-auto text-center ${isDragging ? 'text-blue-500' : 'text-gray-400'}`}>
