@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Template } from '../types';
 
@@ -48,39 +49,46 @@ export const useTemplates = () => {
     }
   }, [templates]);
 
-  const saveCurrentTemplate = useCallback(() => {
-    setTemplates(prev => prev.map(t => t.id === template.id ? template : t));
-    // Alert logic removed for better UX, usually implicit save is fine or UI feedback
-  }, [template]);
+  // Unified save logic
+  const saveTemplateByName = useCallback((name: string) => {
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
 
-  const saveAsNewTemplate = useCallback(() => {
-    // Automatically generate name to avoid window.prompt issues
-    const newName = `${template.name} のコピー`;
-    const newTemplate: Template = {
-      ...template,
-      id: generateId(),
-      name: newName,
-    };
+    // Check if a template with this name already exists
+    const existingTemplate = templates.find(t => t.name === trimmedName);
 
-    setTemplates(prev => [...prev, newTemplate]);
-    setTemplate(newTemplate);
-  }, [template]);
-
-  const updateTemplateName = useCallback((newName: string) => {
-    if (!newName || !newName.trim()) return;
-    const trimmedName = newName.trim();
-    
-    // Update local state
-    setTemplate(prev => ({ ...prev, name: trimmedName }));
-    // Update list
-    setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, name: trimmedName } : t));
-  }, [template.id]);
+    if (existingTemplate) {
+      // If the name matches the currently selected template ID, or simply matches the current template by name
+      if (existingTemplate.id === template.id) {
+        // Overwrite current
+        const updated = { ...template, name: trimmedName };
+        setTemplates(prev => prev.map(t => t.id === template.id ? updated : t));
+        setTemplate(updated);
+      } else {
+        // Name exists but belongs to another ID.
+        if (window.confirm(`テンプレート "${trimmedName}" は既に存在します。内容を上書きしますか？`)) {
+             // Overwrite the OTHER template with current settings
+             const updated = { ...template, id: existingTemplate.id, name: trimmedName };
+             setTemplates(prev => prev.map(t => t.id === existingTemplate.id ? updated : t));
+             setTemplate(updated);
+        }
+      }
+    } else {
+      // New Name -> Create New
+      const newTemplate = {
+        ...template,
+        id: generateId(),
+        name: trimmedName,
+      };
+      setTemplates(prev => [...prev, newTemplate]);
+      setTemplate(newTemplate);
+    }
+  }, [template, templates]);
 
   const deleteTemplate = useCallback(() => {
     if (templates.length <= 1) {
       return;
     }
-    // Logic moved to UI: Confirm dialog removed from here
 
     const newTemplates = templates.filter(t => t.id !== template.id);
     setTemplates(newTemplates);
@@ -111,9 +119,7 @@ export const useTemplates = () => {
     template,
     setTemplate,
     changeTemplate,
-    saveCurrentTemplate,
-    saveAsNewTemplate,
-    updateTemplateName,
+    saveTemplateByName,
     deleteTemplate,
     distributeRows
   };

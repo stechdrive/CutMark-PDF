@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { AppSettings, Template } from '../types';
 import { SidebarRowSnapper } from './SidebarRowSnapper';
@@ -14,9 +15,7 @@ interface SidebarProps {
   template: Template;
   setTemplate: React.Dispatch<React.SetStateAction<Template>>;
   changeTemplate: (id: string) => void;
-  saveCurrentTemplate: () => void;
-  saveAsNewTemplate: () => void;
-  updateTemplateName: (name: string) => void;
+  saveTemplateByName: (name: string) => void;
   deleteTemplate: () => void;
   distributeRows: () => void;
   onRowSnap: (index: number) => void;
@@ -33,9 +32,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   template,
   setTemplate,
   changeTemplate,
-  saveCurrentTemplate,
-  saveAsNewTemplate,
-  updateTemplateName,
+  saveTemplateByName,
   deleteTemplate,
   distributeRows,
   onRowSnap,
@@ -44,10 +41,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col shadow-xl z-20">
-      
+
       {/* Scrollable Settings Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        
+
         {/* 1. Template Settings (Top priority) */}
         <SidebarTemplatePanel
           mode={mode}
@@ -56,9 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           template={template}
           setTemplate={setTemplate}
           changeTemplate={changeTemplate}
-          saveCurrentTemplate={saveCurrentTemplate}
-          saveAsNewTemplate={saveAsNewTemplate}
-          updateTemplateName={updateTemplateName}
+          saveTemplateByName={saveTemplateByName}
           deleteTemplate={deleteTemplate}
           distributeRows={distributeRows}
         />
@@ -86,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 text-center text-xs text-gray-400 bg-white">
-        CutMark PDF v2.0.0<br />Copyright (c) 2025 stechdrive<br />
+        CutMark PDF v2.1.0<br />Copyright (c) 2025 stechdrive<br />
         ブラウザ内でのみ処理を行います<br />
         読み込みんだデータや保存したテンプレートが<br />
         サーバーに送信されることはありません

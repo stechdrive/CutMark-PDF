@@ -38,7 +38,7 @@ export default function App() {
 
   const {
     templates, template, setTemplate, changeTemplate,
-    saveCurrentTemplate, saveAsNewTemplate, updateTemplateName, deleteTemplate, distributeRows
+    saveTemplateByName, deleteTemplate, distributeRows
   } = useTemplates();
 
   const {
@@ -259,9 +259,7 @@ export default function App() {
           template={template}
           setTemplate={setTemplate}
           changeTemplate={changeTemplate}
-          saveCurrentTemplate={saveCurrentTemplate}
-          saveAsNewTemplate={saveAsNewTemplate}
-          updateTemplateName={updateTemplateName}
+          saveTemplateByName={saveTemplateByName}
           deleteTemplate={deleteTemplate}
           distributeRows={distributeRows}
           onRowSnap={handleRowSnap}
