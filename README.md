@@ -6,6 +6,7 @@ PDF/JPG/PNGの絵コンテにカット番号を配置し、新しいPDF/JPG/PNG�
 ## [✨CutMark PDF ここから使えます✨](https://stechdrive.github.io/CutMark-PDF/)
 ## [✨連番画像用Photoshopプラグインはこちら✨](https://github.com/stechdrive/CutMark)
 
+![CutMark PDFスクリーンショット](./img/screenshot.jpg)
 ---
 
 ## 概要
