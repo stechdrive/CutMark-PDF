@@ -257,7 +257,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
             {docType === 'images' && currentImageUrl && (
                 <div 
-                    className="relative cursor-crosshair bg-white"
+                    className="relative pdf-page-container cursor-crosshair bg-white"
                     ref={containerRef}
                     style={{
                         width: imgSize ? imgSize.width : 'auto',
@@ -269,7 +269,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     <img 
                         src={currentImageUrl}
                         alt="Current page"
-                        className="block pointer-events-none" // prevent drag of image itself
+                        className="block select-none pointer-events-none" // prevent drag of image itself
+                        draggable={false}
                         onLoad={handleImageLoad}
                     />
                     {/* Overlays (Only show if image is loaded to have correct dimensions) */}
