@@ -1,6 +1,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { DocType } from '../types';
+import { getExifOrientation, renderImageWithOrientation } from '../services/imageProcessing';
 
 export const useDocumentViewer = (onLoadComplete?: () => void) => {
   const [docType, setDocType] = useState<DocType | null>(null);
@@ -22,17 +23,57 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
 
   // Manage Image URL lifecycle
   useEffect(() => {
-    if (docType === 'images' && imageFiles.length > 0 && currentPage >= 1) {
-        const file = imageFiles[currentPage - 1];
-        if (file) {
-            const url = URL.createObjectURL(file);
-            setCurrentImageUrl(url);
-            return () => {
-                URL.revokeObjectURL(url);
-            };
+    let isCancelled = false;
+    let urlToRevoke: string | null = null;
+
+    const loadImage = async () => {
+      try {
+        if (docType !== 'images' || imageFiles.length === 0 || currentPage < 1) {
+          setCurrentImageUrl(null);
+          return;
         }
-    }
-    setCurrentImageUrl(null);
+
+        const file = imageFiles[currentPage - 1];
+        if (!file) {
+          setCurrentImageUrl(null);
+          return;
+        }
+
+        const buffer = await file.arrayBuffer();
+        const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+        const fileType = isPng ? 'png' : 'jpeg';
+        const orientation = getExifOrientation(buffer, fileType);
+
+        let url: string;
+        if (orientation && orientation !== 1) {
+          try {
+            const rendered = await renderImageWithOrientation(file, orientation, fileType);
+            url = URL.createObjectURL(rendered.blob);
+          } catch {
+            url = URL.createObjectURL(file);
+          }
+        } else {
+          url = URL.createObjectURL(file);
+        }
+
+        if (isCancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+
+        urlToRevoke = url;
+        setCurrentImageUrl(url);
+      } catch {
+        if (!isCancelled) setCurrentImageUrl(null);
+      }
+    };
+
+    loadImage();
+
+    return () => {
+      isCancelled = true;
+      if (urlToRevoke) URL.revokeObjectURL(urlToRevoke);
+    };
   }, [docType, imageFiles, currentPage]);
 
   const loadPdf = useCallback((file: File) => {

@@ -153,6 +153,239 @@ export const getImageResolution = (buffer: ArrayBuffer, type: 'jpeg' | 'png'): {
   return null;
 };
 
+export type ExifOrientation = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+
+const readExifOrientationFromTiff = (
+  view: DataView,
+  tiffStart: number,
+  dataEnd: number
+): ExifOrientation | null => {
+  if (tiffStart + 8 > dataEnd) return null;
+
+  const endian = view.getUint16(tiffStart);
+  const isLittle = endian === 0x4949; // 'II'
+  if (!isLittle && endian !== 0x4D4D) return null; // 'MM'
+
+  if (view.getUint16(tiffStart + 2, isLittle) !== 0x002A) return null;
+
+  const firstIFDOffset = view.getUint32(tiffStart + 4, isLittle);
+  if (firstIFDOffset < 8) return null;
+
+  const ifdOffset = tiffStart + firstIFDOffset;
+  if (ifdOffset + 2 > dataEnd) return null;
+
+  const numEntries = view.getUint16(ifdOffset, isLittle);
+
+  for (let i = 0; i < numEntries; i++) {
+    const entryOffset = ifdOffset + 2 + (i * 12);
+    if (entryOffset + 12 > dataEnd) break;
+
+    const tag = view.getUint16(entryOffset, isLittle);
+    if (tag !== 0x0112) continue; // Orientation
+
+    const type = view.getUint16(entryOffset + 2, isLittle); // 3 = SHORT
+    const count = view.getUint32(entryOffset + 4, isLittle);
+    if (type !== 3 || count < 1) return null;
+
+    const value = view.getUint16(entryOffset + 8, isLittle);
+    if (value >= 1 && value <= 8) return value as ExifOrientation;
+    return null;
+  }
+
+  return null;
+};
+
+export const getExifOrientation = (buffer: ArrayBuffer, type: 'jpeg' | 'png'): ExifOrientation | null => {
+  const view = new DataView(buffer);
+
+  try {
+    if (type === 'jpeg') {
+      if (view.getUint16(0) !== 0xFFD8) return null; // SOI
+
+      let offset = 2;
+      while (offset + 4 <= view.byteLength) {
+        const marker = view.getUint16(offset);
+        const length = view.getUint16(offset + 2);
+        const segmentEnd = Math.min(offset + 2 + length, view.byteLength);
+
+        if (marker === 0xFFE1) {
+          // APP1 (Exif)
+          if (
+            view.getUint8(offset + 4) === 0x45 && // E
+            view.getUint8(offset + 5) === 0x78 && // x
+            view.getUint8(offset + 6) === 0x69 && // i
+            view.getUint8(offset + 7) === 0x66 && // f
+            view.getUint16(offset + 8) === 0x0000 // \0\0
+          ) {
+            const tiffStart = offset + 10;
+            const orientation = readExifOrientationFromTiff(view, tiffStart, segmentEnd);
+            if (orientation) return orientation;
+          }
+        }
+
+        offset += 2 + length;
+      }
+    } else if (type === 'png') {
+      let offset = 8; // Signature
+      while (offset + 8 <= view.byteLength) {
+        const length = view.getUint32(offset);
+        const chunkType = view.getUint32(offset + 4);
+        const chunkStart = offset + 8;
+        const chunkEnd = Math.min(chunkStart + length, view.byteLength);
+
+        // 'eXIf' = 0x65584966
+        if (chunkType === 0x65584966) {
+          let tiffStart = chunkStart;
+          if (chunkStart + 6 <= chunkEnd) {
+            const hasExifHeader =
+              view.getUint8(chunkStart) === 0x45 &&
+              view.getUint8(chunkStart + 1) === 0x78 &&
+              view.getUint8(chunkStart + 2) === 0x69 &&
+              view.getUint8(chunkStart + 3) === 0x66 &&
+              view.getUint16(chunkStart + 4) === 0x0000;
+            if (hasExifHeader) tiffStart = chunkStart + 6;
+          }
+
+          const orientation = readExifOrientationFromTiff(view, tiffStart, chunkEnd);
+          if (orientation) return orientation;
+          return null;
+        }
+
+        offset += 12 + length;
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to parse image orientation", e);
+  }
+
+  return null;
+};
+
+export const getOrientedDimensions = (
+  width: number,
+  height: number,
+  orientation: ExifOrientation | null
+): { width: number; height: number } => {
+  if (orientation && orientation >= 5 && orientation <= 8) {
+    return { width: height, height: width };
+  }
+  return { width, height };
+};
+
+export const adjustDpiForOrientation = (
+  dpi: { x: number; y: number } | null,
+  orientation: ExifOrientation | null
+): { x: number; y: number } | null => {
+  if (!dpi) return null;
+  if (orientation && orientation >= 5 && orientation <= 8) {
+    return { x: dpi.y, y: dpi.x };
+  }
+  return dpi;
+};
+
+export const applyExifOrientation = (
+  ctx: CanvasRenderingContext2D,
+  orientation: ExifOrientation | null,
+  width: number,
+  height: number
+): void => {
+  if (!orientation || orientation === 1) return;
+
+  switch (orientation) {
+    case 2:
+      ctx.transform(-1, 0, 0, 1, width, 0);
+      break;
+    case 3:
+      ctx.transform(-1, 0, 0, -1, width, height);
+      break;
+    case 4:
+      ctx.transform(1, 0, 0, -1, 0, height);
+      break;
+    case 5:
+      ctx.transform(0, 1, 1, 0, 0, 0);
+      break;
+    case 6:
+      ctx.transform(0, 1, -1, 0, height, 0);
+      break;
+    case 7:
+      ctx.transform(0, -1, -1, 0, height, width);
+      break;
+    case 8:
+      ctx.transform(0, -1, 1, 0, 0, width);
+      break;
+    default:
+      break;
+  }
+};
+
+export const loadImageSource = async (
+  blob: Blob
+): Promise<{ source: CanvasImageSource; width: number; height: number; cleanup?: () => void }> => {
+  try {
+    const bitmap = await createImageBitmap(blob, { imageOrientation: 'none' });
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      cleanup: () => bitmap.close(),
+    };
+  } catch {
+    const img = new Image();
+    img.decoding = 'async';
+    img.style.setProperty('image-orientation', 'none');
+    const url = URL.createObjectURL(blob);
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = url;
+    });
+    URL.revokeObjectURL(url);
+    return { source: img, width: img.naturalWidth, height: img.naturalHeight };
+  }
+};
+
+export const renderImageWithOrientation = async (
+  blob: Blob,
+  orientation: ExifOrientation,
+  type: 'jpeg' | 'png',
+  quality: number = 0.92
+): Promise<{ blob: Blob; width: number; height: number }> => {
+  const { source, width: sourceWidth, height: sourceHeight, cleanup } = await loadImageSource(blob);
+  const { width, height } = getOrientedDimensions(sourceWidth, sourceHeight, orientation);
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    cleanup?.();
+    throw new Error('Canvas context not available');
+  }
+
+  canvas.width = width;
+  canvas.height = height;
+
+  ctx.save();
+  applyExifOrientation(ctx, orientation, sourceWidth, sourceHeight);
+  ctx.drawImage(source, 0, 0);
+  ctx.restore();
+
+  cleanup?.();
+
+  const mime = type === 'png' ? 'image/png' : 'image/jpeg';
+  const result = await new Promise<Blob | null>((resolve) => {
+    if (type === 'jpeg') {
+      canvas.toBlob(resolve, mime, quality);
+    } else {
+      canvas.toBlob(resolve, mime);
+    }
+  });
+
+  if (!result) {
+    throw new Error('Failed to render image');
+  }
+
+  return { blob: result, width, height };
+};
+
 // CRC32 implementation for PNG chunks
 const makeCrcTable = () => {
     let c;

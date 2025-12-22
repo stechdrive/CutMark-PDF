@@ -1,7 +1,12 @@
 
 import { PDFDocument, rgb, StandardFonts, PDFOperator, PDFName, PDFNumber, PDFPage } from 'pdf-lib';
 import { Cut, AppSettings } from '../types';
-import { getImageResolution } from './imageProcessing';
+import {
+  adjustDpiForOrientation,
+  getExifOrientation,
+  getImageResolution,
+  renderImageWithOrientation,
+} from './imageProcessing';
 
 // Helper to draw cuts on a page (Shared logic)
 const drawCutsOnPage = async (page: PDFPage, pageIndex: number, cuts: Cut[], settings: AppSettings, font: any, scaleFactor: number = 1.0) => {
@@ -151,13 +156,27 @@ export const saveImagesAsPdf = async (
     let imgType: 'jpeg' | 'png' | null = null;
 
     if (file.type === 'image/jpeg' || file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) {
-      image = await pdfDoc.embedJpg(arrayBuffer);
       imgType = 'jpeg';
     } else if (file.type === 'image/png' || file.name.toLowerCase().endsWith('.png')) {
-      image = await pdfDoc.embedPng(arrayBuffer);
       imgType = 'png';
     } else {
       continue; // Skip unsupported
+    }
+
+    const orientation = getExifOrientation(arrayBuffer, imgType);
+
+    let imageBytes: ArrayBuffer = arrayBuffer;
+    if (orientation && orientation !== 1) {
+      const rendered = await renderImageWithOrientation(file, orientation, imgType);
+      imageBytes = await rendered.blob.arrayBuffer();
+    }
+
+    if (imgType === 'jpeg') {
+      image = await pdfDoc.embedJpg(imageBytes);
+    } else if (imgType === 'png') {
+      image = await pdfDoc.embedPng(imageBytes);
+    } else {
+      continue;
     }
     
     // Default to image pixel dimensions (72dpi equivalent)
@@ -168,11 +187,12 @@ export const saveImagesAsPdf = async (
     // Try to detect DPI and scale down if found
     if (imgType) {
       const res = getImageResolution(arrayBuffer, imgType);
-      if (res && res.x > 0 && res.y > 0) {
+      const adjustedRes = adjustDpiForOrientation(res, orientation);
+      if (adjustedRes && adjustedRes.x > 0 && adjustedRes.y > 0) {
         // PDF standard is 72 points per inch
         // Scale = 72 / DPI
-        const scaleX = 72 / res.x;
-        const scaleY = 72 / res.y;
+        const scaleX = 72 / adjustedRes.x;
+        const scaleY = 72 / adjustedRes.y;
         
         drawWidth = image.width * scaleX;
         drawHeight = image.height * scaleY;

@@ -1,7 +1,15 @@
 
 import JSZip from 'jszip';
 import { Cut, AppSettings } from '../types';
-import { getImageResolution, setBlobDpi } from './imageProcessing';
+import {
+  adjustDpiForOrientation,
+  applyExifOrientation,
+  getExifOrientation,
+  getImageResolution,
+  getOrientedDimensions,
+  loadImageSource,
+  setBlobDpi,
+} from './imageProcessing';
 
 // Native browser download function
 const saveAs = (blob: Blob, filename: string) => {
@@ -39,36 +47,25 @@ export const exportImagesAsZip = async (
     const originalBuffer = await file.arrayBuffer();
     const fileType = file.type === 'image/png' ? 'png' : 'jpeg';
     const originalDpi = getImageResolution(originalBuffer, fileType);
+    const orientation = getExifOrientation(originalBuffer, fileType);
+    const adjustedDpi = adjustDpiForOrientation(originalDpi, orientation);
 
-    // Create Bitmap
-    let imageBitmap: ImageBitmap | HTMLImageElement;
-    let width: number;
-    let height: number;
-
-    try {
-        imageBitmap = await createImageBitmap(file);
-        width = imageBitmap.width;
-        height = imageBitmap.height;
-    } catch (e) {
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-        await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-            img.src = url;
-        });
-        imageBitmap = img;
-        width = img.naturalWidth;
-        height = img.naturalHeight;
-        URL.revokeObjectURL(url);
-    }
+    // Create source image (keep raw orientation; apply EXIF ourselves)
+    const { source, width: sourceWidth, height: sourceHeight, cleanup } = await loadImageSource(file);
+    const { width, height } = getOrientedDimensions(sourceWidth, sourceHeight, orientation);
 
     // Resize canvas
     canvas.width = width;
     canvas.height = height;
 
-    // Draw Image
-    ctx.drawImage(imageBitmap, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw image with EXIF orientation applied
+    ctx.save();
+    applyExifOrientation(ctx, orientation, sourceWidth, sourceHeight);
+    ctx.drawImage(source, 0, 0);
+    ctx.restore();
 
     // Draw Cuts
     const pageCuts = cuts.filter(c => c.pageIndex === i);
@@ -133,9 +130,7 @@ export const exportImagesAsZip = async (
     }
 
     // Cleanup
-    if (imageBitmap instanceof ImageBitmap) {
-        imageBitmap.close();
-    }
+    cleanup?.();
 
     // Convert to Blob
     const isPng = file.type === 'image/png';
@@ -148,8 +143,8 @@ export const exportImagesAsZip = async (
     });
 
     // Inject DPI
-    if (blob && originalDpi) {
-        blob = await setBlobDpi(blob, originalDpi, isPng ? 'png' : 'jpeg');
+    if (blob && adjustedDpi) {
+        blob = await setBlobDpi(blob, adjustedDpi, isPng ? 'png' : 'jpeg');
     }
 
     if (blob) {
