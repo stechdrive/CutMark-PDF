@@ -6,13 +6,19 @@ interface SidebarNumberingSettingsProps {
   settings: AppSettings;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
   setNumberingState: (next: NumberingState) => void;
+  selectedCutId: string | null;
+  onRenumberFromSelected: (cutId: string) => void;
 }
 
 export const SidebarNumberingSettings: React.FC<SidebarNumberingSettingsProps> = ({
   settings,
   setSettings,
   setNumberingState,
+  selectedCutId,
+  onRenumberFromSelected,
 }) => {
+  const canRenumber = !!selectedCutId;
+
   return (
     <div>
       <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -103,6 +109,28 @@ export const SidebarNumberingSettings: React.FC<SidebarNumberingSettingsProps> =
           />
           入力時に自動進行する
         </label>
+
+        <div className="pt-2">
+          <button
+            type="button"
+            disabled={!canRenumber}
+            onClick={() => {
+              if (!selectedCutId) return;
+              onRenumberFromSelected(selectedCutId);
+            }}
+            className={`w-full px-3 py-2 rounded text-xs font-bold transition-colors ${
+              canRenumber
+                ? 'bg-slate-700 text-white hover:bg-slate-600'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+            title={canRenumber ? '選択したカットから再採番します' : 'カットを選択してください'}
+          >
+            選択カット以降を再採番
+          </button>
+          <p className="text-[11px] text-gray-500 mt-1">
+            開始番号は「次の番号」を使用します
+          </p>
+        </div>
       </div>
     </div>
   );

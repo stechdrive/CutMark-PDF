@@ -8,6 +8,42 @@ type HistoryEntry = {
   numbering: NumberingState;
 };
 
+const formatNumberLabel = (number: number, minDigits: number) => {
+  return number.toString().padStart(minDigits, '0');
+};
+
+const buildLabel = (numbering: NumberingState, minDigits: number) => {
+  const numStr = formatNumberLabel(numbering.nextNumber, minDigits);
+  if (numbering.branchChar) {
+    return `${numStr}\n${numbering.branchChar}`;
+  }
+  return numStr;
+};
+
+const advanceNumbering = (numbering: NumberingState, autoIncrement: boolean): NumberingState => {
+  if (!autoIncrement) return { ...numbering };
+
+  if (numbering.branchChar) {
+    const nextChar = String.fromCharCode(numbering.branchChar.charCodeAt(0) + 1);
+    return {
+      nextNumber: numbering.nextNumber,
+      branchChar: nextChar,
+    };
+  }
+
+  return {
+    nextNumber: numbering.nextNumber + 1,
+    branchChar: null,
+  };
+};
+
+const sortCutsForRenumber = (a: Cut, b: Cut) => {
+  if (a.pageIndex !== b.pageIndex) return a.pageIndex - b.pageIndex;
+  if (a.y !== b.y) return a.y - b.y;
+  if (a.x !== b.x) return a.x - b.x;
+  return a.id.localeCompare(b.id);
+};
+
 interface UseCutsOptions {
   numberingState: NumberingState;
   setNumberingState: (next: NumberingState) => void;
@@ -135,6 +171,41 @@ export const useCuts = ({ numberingState, setNumberingState }: UseCutsOptions) =
     pushHistoryWithNumbering(cutsRef.current, nextNumbering);
   }, [pushHistoryWithNumbering]);
 
+  const renumberFromCut = useCallback((
+    startCutId: string,
+    startNumbering: NumberingState,
+    minDigits: number,
+    autoIncrement: boolean
+  ) => {
+    const sortedCuts = [...cutsRef.current].sort(sortCutsForRenumber);
+    const startIndex = sortedCuts.findIndex(cut => cut.id === startCutId);
+    if (startIndex === -1) return;
+
+    const updates = new Map<string, { label: string; isBranch: boolean }>();
+    let currentNumbering = { ...startNumbering };
+
+    for (let i = startIndex; i < sortedCuts.length; i++) {
+      const cut = sortedCuts[i];
+      updates.set(cut.id, {
+        label: buildLabel(currentNumbering, minDigits),
+        isBranch: !!currentNumbering.branchChar,
+      });
+      currentNumbering = advanceNumbering(currentNumbering, autoIncrement);
+    }
+
+    const newCuts = cutsRef.current.map(cut => {
+      const update = updates.get(cut.id);
+      if (!update) return cut;
+      return {
+        ...cut,
+        label: update.label,
+        isBranch: update.isBranch,
+      };
+    });
+
+    pushHistoryWithNumbering(newCuts, currentNumbering);
+  }, [pushHistoryWithNumbering]);
+
   return {
     cuts,
     selectedCutId,
@@ -146,6 +217,7 @@ export const useCuts = ({ numberingState, setNumberingState }: UseCutsOptions) =
     handleCutDragEnd,
     deleteCut,
     setNumberingStateWithHistory,
+    renumberFromCut,
     undo,
     redo,
     resetCuts

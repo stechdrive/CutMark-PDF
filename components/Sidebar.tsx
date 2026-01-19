@@ -10,6 +10,7 @@ interface SidebarProps {
   mode: 'edit' | 'template';
   setMode: (mode: 'edit' | 'template') => void;
   pdfFile: File | null;
+  selectedCutId: string | null;
   // Template Props
   templates: Template[];
   template: Template;
@@ -23,12 +24,14 @@ interface SidebarProps {
   settings: AppSettings;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
   setNumberingState: (next: NumberingState) => void;
+  onRenumberFromSelected: (cutId: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   mode,
   setMode,
   pdfFile,
+  selectedCutId,
   templates,
   template,
   setTemplate,
@@ -40,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   settings,
   setSettings,
   setNumberingState,
+  onRenumberFromSelected,
 }) => {
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col shadow-xl z-20">
@@ -65,6 +69,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           settings={settings}
           setSettings={setSettings}
           setNumberingState={setNumberingState}
+          selectedCutId={selectedCutId}
+          onRenumberFromSelected={onRenumberFromSelected}
         />
 
         {/* 3. Style Settings */}

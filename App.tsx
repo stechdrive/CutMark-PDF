@@ -109,7 +109,7 @@ export default function App() {
   const {
     cuts, selectedCutId, historyIndex, historyLength,
     setSelectedCutId, addCut, updateCutPosition, handleCutDragEnd, 
-    deleteCut, setNumberingStateWithHistory, undo, redo, resetCuts
+    deleteCut, setNumberingStateWithHistory, renumberFromCut, undo, redo, resetCuts
   } = useCuts({ numberingState, setNumberingState });
 
   const {
@@ -229,6 +229,18 @@ export default function App() {
     const x = template.xPosition;
     createCutAt(x, y);
   };
+
+  const handleRenumberFromSelected = useCallback((cutId: string) => {
+    renumberFromCut(
+      cutId,
+      {
+        nextNumber: settings.nextNumber,
+        branchChar: settings.branchChar,
+      },
+      settings.minDigits,
+      settings.autoIncrement
+    );
+  }, [renumberFromCut, settings.autoIncrement, settings.branchChar, settings.minDigits, settings.nextNumber]);
 
   const applyPdfDefaultFontSize = useCallback((page: { originalWidth: number }) => {
     if (docType !== 'pdf') return;
@@ -581,6 +593,7 @@ export default function App() {
           mode={mode}
           setMode={setMode}
           pdfFile={pdfFile || (imageFiles.length > 0 ? imageFiles[0] : null)}
+          selectedCutId={selectedCutId}
           templates={templates}
           template={template}
           setTemplate={setTemplate}
@@ -592,6 +605,7 @@ export default function App() {
           settings={settings}
           setSettings={setSettings}
           setNumberingState={setNumberingStateWithHistory}
+          onRenumberFromSelected={handleRenumberFromSelected}
         />
         
       </div>
