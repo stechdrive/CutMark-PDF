@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { pdfjs } from 'react-pdf';
 
 import { Cut, NumberingState } from './types';
@@ -23,6 +23,58 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url
 ).toString();
+
+type DebugLog = {
+  at: string;
+  level: 'info' | 'warn' | 'error';
+  message: string;
+  data?: unknown;
+};
+
+const MAX_DEBUG_LOGS = 200;
+const IMAGE_FILE_LOG_LIMIT = 30;
+
+const toFileInfo = (file: File | null) => {
+  if (!file) return null;
+  return {
+    name: file.name,
+    size: file.size,
+    type: file.type,
+    lastModified: new Date(file.lastModified).toISOString(),
+  };
+};
+
+const normalizeError = (error: unknown) => {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    };
+  }
+  return error;
+};
+
+const safeJsonStringify = (value: unknown) => {
+  const seen = new WeakSet();
+  return JSON.stringify(
+    value,
+    (key, val) => {
+      if (val instanceof Error) {
+        return normalizeError(val);
+      }
+      if (val instanceof File) {
+        return toFileInfo(val);
+      }
+      if (typeof val === 'object' && val !== null) {
+        if (seen.has(val)) return '[Circular]';
+        seen.add(val);
+      }
+      return val;
+    },
+    2
+  );
+};
 
 export default function App() {
   // --- Hooks ---
@@ -64,6 +116,57 @@ export default function App() {
   // --- UI State ---
   const [mode, setMode] = useState<'edit' | 'template'>('edit');
   const [isExporting, setIsExporting] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
+  const [debugCopyStatus, setDebugCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const debugTextRef = useRef<HTMLTextAreaElement>(null);
+
+  const pushDebugLog = useCallback((level: DebugLog['level'], message: string, data?: unknown) => {
+    setDebugLogs(prev => {
+      const next = [
+        ...prev,
+        {
+          at: new Date().toISOString(),
+          level,
+          message,
+          data,
+        },
+      ];
+      if (next.length > MAX_DEBUG_LOGS) {
+        return next.slice(next.length - MAX_DEBUG_LOGS);
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      pushDebugLog('error', 'window.error', {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        error: normalizeError(event.error),
+      });
+    };
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      pushDebugLog('error', 'unhandledrejection', {
+        reason: normalizeError(event.reason),
+      });
+    };
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, [pushDebugLog]);
+
+  useEffect(() => {
+    if (debugOpen) {
+      setDebugCopyStatus('idle');
+    }
+  }, [debugOpen]);
 
   // --- Logic Orchestration ---
   
@@ -95,7 +198,10 @@ export default function App() {
     const file = e.target.files?.[0];
     if (file) {
         loadPdf(file);
+        pushDebugLog('info', 'PDF読み込み開始', { file: toFileInfo(file) });
         // resetCuts called via callback
+    } else {
+        pushDebugLog('warn', 'PDF読み込みキャンセル');
     }
   };
 
@@ -129,15 +235,28 @@ export default function App() {
     }
 
     if (validFiles.length > 0) {
+        pushDebugLog('info', 'フォルダ読み込み開始', {
+          totalFiles: files.length,
+          validFiles: validFiles.length,
+          sampleNames: validFiles.slice(0, IMAGE_FILE_LOG_LIMIT).map(file => file.name),
+          truncated: validFiles.length > IMAGE_FILE_LOG_LIMIT,
+        });
         loadImages(validFiles);
         // resetCuts called via callback
     } else {
         alert("有効な画像(JPG/PNG)がフォルダ直下に見つかりませんでした。");
+        pushDebugLog('warn', 'フォルダ読み込み失敗', {
+          totalFiles: files.length,
+        });
     }
   };
   
   // Reset logic when file dropped
   const onFileDropped = (e: React.DragEvent<HTMLDivElement>) => {
+    pushDebugLog('info', 'ファイルドロップ', {
+      types: Array.from(e.dataTransfer?.types ?? []),
+      itemCount: e.dataTransfer?.items?.length ?? 0,
+    });
     dragHandlers.onDrop(e);
     // onLoadComplete callback in hook handles resetCuts
   };
@@ -150,12 +269,14 @@ export default function App() {
         let filename = 'marked.pdf';
 
         if (docType === 'pdf' && pdfFile) {
+            filename = `marked_${pdfFile.name}`;
+            pushDebugLog('info', 'PDF書き出し開始', { mode: 'pdf', filename });
             const arrayBuffer = await pdfFile.arrayBuffer();
             pdfBytes = await saveMarkedPdf(arrayBuffer, cuts, settings);
-            filename = `marked_${pdfFile.name}`;
         } else if (docType === 'images' && imageFiles.length > 0) {
-            pdfBytes = await saveImagesAsPdf(imageFiles, cuts, settings);
             filename = 'marked_images.pdf';
+            pushDebugLog('info', 'PDF書き出し開始', { mode: 'images', filename });
+            pdfBytes = await saveImagesAsPdf(imageFiles, cuts, settings);
         } else {
             return;
         }
@@ -169,9 +290,11 @@ export default function App() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+        pushDebugLog('info', 'PDF書き出し完了', { filename });
     } catch (e) {
         console.error(e);
         alert('PDF書き出し中にエラーが発生しました');
+        pushDebugLog('error', 'PDF書き出し失敗', { error: normalizeError(e) });
     } finally {
         setIsExporting(false);
     }
@@ -181,18 +304,22 @@ export default function App() {
   const handleExportImages = async () => {
     if (docType !== 'images' || imageFiles.length === 0) {
         alert("画像の書き出しは連番画像モードでのみ利用可能です（PDFからの画像化は未対応）");
+        pushDebugLog('warn', '画像書き出し不可', { docType, imageCount: imageFiles.length });
         return;
     }
     
     setIsExporting(true);
     try {
+        pushDebugLog('info', '画像書き出し開始', { imageCount: imageFiles.length });
         await exportImagesAsZip(imageFiles, cuts, settings, (curr, total) => {
             // Optional: Update progress UI
             console.log(`Processing ${curr}/${total}`);
         });
+        pushDebugLog('info', '画像書き出し完了');
     } catch (e) {
         console.error(e);
         alert('画像書き出し中にエラーが発生しました');
+        pushDebugLog('error', '画像書き出し失敗', { error: normalizeError(e) });
     } finally {
         setIsExporting(false);
     }
@@ -212,6 +339,121 @@ export default function App() {
     cuts.filter(c => c.pageIndex === currentPage - 1), 
   [cuts, currentPage]);
 
+  const debugReport = useMemo(() => {
+    const imageFileSummary = {
+      count: imageFiles.length,
+      totalBytes: imageFiles.reduce((sum, file) => sum + file.size, 0),
+      sampleNames: imageFiles.slice(0, IMAGE_FILE_LOG_LIMIT).map(file => file.name),
+      truncated: imageFiles.length > IMAGE_FILE_LOG_LIMIT,
+    };
+
+    const deviceMemory =
+      'deviceMemory' in navigator
+        ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
+        : undefined;
+    const pdfjsVersion = (pdfjs as { version?: string }).version;
+
+    const reportSections = [
+      'CutMark PDF Debug Report',
+      `timestamp: ${new Date().toISOString()}`,
+      '',
+      '[App]',
+      `version: ${__APP_VERSION__}`,
+      `baseUrl: ${import.meta.env.BASE_URL}`,
+      `location: ${window.location.href}`,
+      '',
+      '[Environment]',
+      `userAgent: ${navigator.userAgent}`,
+      `language: ${navigator.language}`,
+      `platform: ${navigator.platform}`,
+      `deviceMemory: ${deviceMemory ?? 'n/a'}`,
+      `hardwareConcurrency: ${navigator.hardwareConcurrency ?? 'n/a'}`,
+      `screen: ${window.screen.width}x${window.screen.height}`,
+      `devicePixelRatio: ${window.devicePixelRatio}`,
+      '',
+      '[Document]',
+      `docType: ${docType ?? 'none'}`,
+      `mode: ${mode}`,
+      `isExporting: ${isExporting}`,
+      `currentPage: ${currentPage} / ${numPages}`,
+      `scale: ${scale}`,
+      `cuts: total=${cuts.length}, currentPage=${currentCuts.length}`,
+      `selectedCutId: ${selectedCutId ?? 'none'}`,
+      '',
+      '[PDF File]',
+      safeJsonStringify(toFileInfo(pdfFile)),
+      '',
+      '[Image Files]',
+      safeJsonStringify(imageFileSummary),
+      '',
+      '[Settings]',
+      safeJsonStringify(settings),
+      '',
+      '[Template]',
+      safeJsonStringify(template),
+      '',
+      '[History]',
+      safeJsonStringify({ historyIndex, historyLength }),
+      '',
+      '[PDF.js]',
+      safeJsonStringify({
+        version: pdfjsVersion ?? 'unknown',
+        workerSrc: pdfjs.GlobalWorkerOptions.workerSrc ?? 'unknown',
+      }),
+      '',
+      '[Logs]',
+      safeJsonStringify(debugLogs),
+    ];
+
+    return reportSections.join('\n');
+  }, [
+    debugLogs,
+    docType,
+    mode,
+    isExporting,
+    currentPage,
+    numPages,
+    scale,
+    cuts.length,
+    currentCuts.length,
+    selectedCutId,
+    pdfFile,
+    imageFiles,
+    settings,
+    template,
+    historyIndex,
+    historyLength,
+  ]);
+
+  const handleCopyDebugReport = async () => {
+    try {
+      await navigator.clipboard.writeText(debugReport);
+      setDebugCopyStatus('copied');
+      return;
+    } catch (error) {
+      const fallbackTarget = debugTextRef.current;
+      if (!fallbackTarget) {
+        setDebugCopyStatus('failed');
+        pushDebugLog('error', 'デバッグログのコピー失敗', { error: normalizeError(error) });
+        return;
+      }
+      fallbackTarget.focus();
+      fallbackTarget.select();
+      try {
+        const ok = document.execCommand('copy');
+        setDebugCopyStatus(ok ? 'copied' : 'failed');
+        if (!ok) {
+          pushDebugLog('error', 'デバッグログのコピー失敗', { error: normalizeError(error) });
+        }
+      } catch (fallbackError) {
+        setDebugCopyStatus('failed');
+        pushDebugLog('error', 'デバッグログのコピー失敗', {
+          error: normalizeError(fallbackError),
+        });
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-100 text-gray-800 font-sans overflow-hidden">
       
@@ -228,6 +470,7 @@ export default function App() {
         canRedo={historyIndex < historyLength - 1}
         onUndo={undo}
         onRedo={redo}
+        onOpenDebug={() => setDebugOpen(true)}
       />
 
       <div className="flex flex-1 overflow-hidden relative">
@@ -265,6 +508,11 @@ export default function App() {
           setTemplate={setTemplate}
           settings={settings}
           onContentClick={createCutAt}
+          onPdfLoadSuccess={(pages) => pushDebugLog('info', 'PDF読み込み成功', { numPages: pages })}
+          onPdfLoadError={(error) => pushDebugLog('error', 'PDF読み込み失敗', { error: normalizeError(error) })}
+          onPdfSourceError={(error) => pushDebugLog('error', 'PDFソース読み込み失敗', { error: normalizeError(error) })}
+          onPdfPageError={(error) => pushDebugLog('error', 'PDFページ読み込み失敗', { error: normalizeError(error) })}
+          onImageLoadError={(src) => pushDebugLog('error', '画像読み込み失敗', { src })}
         />
 
         <Sidebar
@@ -285,6 +533,49 @@ export default function App() {
         />
         
       </div>
+
+      {debugOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-3xl bg-white rounded-lg shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <div className="font-bold text-sm text-gray-800">デバッグログ</div>
+              <button
+                onClick={() => setDebugOpen(false)}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                閉じる
+              </button>
+            </div>
+            <div className="p-4 space-y-3">
+              <textarea
+                ref={debugTextRef}
+                readOnly
+                value={debugReport}
+                className="w-full h-80 p-3 text-xs font-mono border border-gray-200 rounded bg-gray-50 text-gray-700"
+              />
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  このログをコピーして共有してください
+                </div>
+                <div className="flex items-center gap-2">
+                  {debugCopyStatus === 'copied' && (
+                    <span className="text-xs text-green-600">コピーしました</span>
+                  )}
+                  {debugCopyStatus === 'failed' && (
+                    <span className="text-xs text-red-600">コピーできませんでした</span>
+                  )}
+                  <button
+                    onClick={handleCopyDebugReport}
+                    className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white"
+                  >
+                    コピー
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -41,6 +41,11 @@ interface DocumentPreviewProps {
   
   // Events
   onContentClick: (x: number, y: number) => void;
+  onPdfLoadSuccess?: (numPages: number) => void;
+  onPdfLoadError?: (error: unknown) => void;
+  onPdfSourceError?: (error: unknown) => void;
+  onPdfPageError?: (error: unknown) => void;
+  onImageLoadError?: (src: string | null) => void;
 }
 
 export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
@@ -67,6 +72,11 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   setTemplate,
   settings,
   onContentClick,
+  onPdfLoadSuccess,
+  onPdfLoadError,
+  onPdfSourceError,
+  onPdfPageError,
+  onImageLoadError,
 }) => {
   const viewportRef = useRef<HTMLDivElement>(null); // Scrollable container
   const containerRef = useRef<HTMLDivElement>(null); // Content wrapper
@@ -257,7 +267,12 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             {docType === 'pdf' && pdfFile && (
                 <Document
                 file={pdfFile}
-                onLoadSuccess={({ numPages }) => setNumPages(numPages)}
+                onLoadSuccess={({ numPages }) => {
+                  setNumPages(numPages);
+                  onPdfLoadSuccess?.(numPages);
+                }}
+                onLoadError={(error) => onPdfLoadError?.(error)}
+                onSourceError={(error) => onPdfSourceError?.(error)}
                 loading={
                     <div className="w-[595px] h-[842px] flex items-center justify-center bg-white text-gray-400">
                     Loading PDF...
@@ -277,6 +292,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     renderTextLayer={false}
                     renderAnnotationLayer={false}
                     onLoadSuccess={handlePdfPageLoad}
+                    onLoadError={(error) => onPdfPageError?.(error)}
                     />
                     {/* Overlays */}
                     {mode === 'template' ? (
@@ -319,6 +335,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                         className="block select-none pointer-events-none" // prevent drag of image itself
                         draggable={false}
                         onLoad={handleImageLoad}
+                        onError={() => onImageLoadError?.(currentImageUrl)}
                     />
                     {/* Overlays (Only show if image is loaded to have correct dimensions) */}
                     {activeImgSize && (
