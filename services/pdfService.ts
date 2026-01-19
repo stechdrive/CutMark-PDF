@@ -156,6 +156,57 @@ export const saveImagesAsPdf = async (
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const DEFAULT_DPI = 96;
   const POINTS_PER_INCH = 72;
+  const DPI_TOLERANCE = 0.01;
+
+  const normalizeDpi = (dpi: { x: number; y: number }) => ({
+    x: Math.round(dpi.x * 100) / 100,
+    y: Math.round(dpi.y * 100) / 100,
+  });
+
+  const isSameDpi = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+    Math.abs(a.x - b.x) <= DPI_TOLERANCE && Math.abs(a.y - b.y) <= DPI_TOLERANCE;
+
+  const detectDpi = async (file: File): Promise<{ x: number; y: number } | null> => {
+    let imgType: 'jpeg' | 'png' | null = null;
+    const lowerName = file.name.toLowerCase();
+
+    if (file.type === 'image/jpeg' || lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg')) {
+      imgType = 'jpeg';
+    } else if (file.type === 'image/png' || lowerName.endsWith('.png')) {
+      imgType = 'png';
+    }
+
+    if (!imgType) return null;
+
+    const buffer = await file.arrayBuffer();
+    const orientation = getExifOrientation(buffer, imgType);
+    const res = getImageResolution(buffer, imgType);
+    const adjustedRes = adjustDpiForOrientation(res, orientation);
+    if (!adjustedRes || adjustedRes.x <= 0 || adjustedRes.y <= 0) return null;
+
+    return normalizeDpi(adjustedRes);
+  };
+
+  let baseDpi: { x: number; y: number } | null = null;
+  let hasMixedDpi = false;
+
+  for (const file of imageFiles) {
+    const dpi = await detectDpi(file);
+    if (!dpi) {
+      hasMixedDpi = true;
+      break;
+    }
+    if (!baseDpi) {
+      baseDpi = dpi;
+      continue;
+    }
+    if (!isSameDpi(baseDpi, dpi)) {
+      hasMixedDpi = true;
+      break;
+    }
+  }
+
+  const effectiveDpi = hasMixedDpi || !baseDpi ? { x: DEFAULT_DPI, y: DEFAULT_DPI } : baseDpi;
 
   for (let i = 0; i < imageFiles.length; i++) {
     const file = imageFiles[i];
@@ -193,24 +244,19 @@ export const saveImagesAsPdf = async (
     let drawHeight = image.height;
     let scaleFactor = 1.0;
 
-    // Try to detect DPI and scale down if found
-    if (imgType) {
-      const res = getImageResolution(arrayBuffer, imgType);
-      const adjustedRes = adjustDpiForOrientation(res, orientation);
-      const dpiX = adjustedRes?.x ?? DEFAULT_DPI;
-      const dpiY = adjustedRes?.y ?? DEFAULT_DPI;
-      if (dpiX > 0 && dpiY > 0) {
-        // PDF standard is 72 points per inch
-        // Scale = 72 / DPI
-        const scaleX = POINTS_PER_INCH / dpiX;
-        const scaleY = POINTS_PER_INCH / dpiY;
-        
-        drawWidth = image.width * scaleX;
-        drawHeight = image.height * scaleY;
-        
-        // Use Y scale (height) as reference for font scaling
-        scaleFactor = scaleY;
-      }
+    const dpiX = effectiveDpi.x;
+    const dpiY = effectiveDpi.y;
+    if (dpiX > 0 && dpiY > 0) {
+      // PDF standard is 72 points per inch
+      // Scale = 72 / DPI
+      const scaleX = POINTS_PER_INCH / dpiX;
+      const scaleY = POINTS_PER_INCH / dpiY;
+      
+      drawWidth = image.width * scaleX;
+      drawHeight = image.height * scaleY;
+      
+      // Use Y scale (height) as reference for font scaling
+      scaleFactor = scaleY;
     }
 
     // Create page with calculated dimensions
