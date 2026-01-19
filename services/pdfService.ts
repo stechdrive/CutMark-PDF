@@ -157,6 +157,7 @@ export const saveImagesAsPdf = async (
   const DEFAULT_DPI = 96;
   const POINTS_PER_INCH = 72;
   const DPI_TOLERANCE = 0.01;
+  const DPI_SCAN_BYTES = 256 * 1024;
 
   const normalizeDpi = (dpi: { x: number; y: number }) => ({
     x: Math.round(dpi.x * 100) / 100,
@@ -178,7 +179,7 @@ export const saveImagesAsPdf = async (
 
     if (!imgType) return null;
 
-    const buffer = await file.arrayBuffer();
+    const buffer = await file.slice(0, DPI_SCAN_BYTES).arrayBuffer();
     const orientation = getExifOrientation(buffer, imgType);
     const res = getImageResolution(buffer, imgType);
     const adjustedRes = adjustDpiForOrientation(res, orientation);

@@ -23,6 +23,15 @@ const saveAs = (blob: Blob, filename: string) => {
   setTimeout(() => URL.revokeObjectURL(url), 100);
 };
 
+const yieldToBrowser = () =>
+  new Promise<void>((resolve) => {
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+
 export const exportImagesAsZip = async (
   imageFiles: File[],
   cuts: Cut[],
@@ -149,6 +158,10 @@ export const exportImagesAsZip = async (
 
     if (blob) {
         zip.file(file.name, blob);
+    }
+
+    if ((i + 1) % 10 === 0) {
+      await yieldToBrowser();
     }
   }
 
