@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Upload, Download, RotateCcw, RotateCw, Layers, FolderOpen, ChevronDown } from 'lucide-react';
+import { Upload, Download, RotateCcw, RotateCw, FolderOpen, ChevronDown } from 'lucide-react';
 import { DocType } from '../types';
 
 interface HeaderProps {
@@ -35,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const logoUrl = `${import.meta.env.BASE_URL}favicon.svg`;
 
   useEffect(() => {
     if (!folderInputRef.current) return;
@@ -46,7 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
     <div className="bg-slate-800 text-white p-3 flex items-center justify-between shadow-md z-50">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2 font-bold text-lg">
-          <Layers className="text-blue-400" />
+          <img src={logoUrl} alt="CutMark PDF" className="h-6 w-6" />
           CutMark PDF
         </div>
         <div className="h-6 w-px bg-slate-600 mx-2" />
