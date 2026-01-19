@@ -154,6 +154,8 @@ export const saveImagesAsPdf = async (
 ): Promise<Uint8Array> => {
   const pdfDoc = await PDFDocument.create();
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const DEFAULT_DPI = 96;
+  const POINTS_PER_INCH = 72;
 
   for (let i = 0; i < imageFiles.length; i++) {
     const file = imageFiles[i];
@@ -195,11 +197,13 @@ export const saveImagesAsPdf = async (
     if (imgType) {
       const res = getImageResolution(arrayBuffer, imgType);
       const adjustedRes = adjustDpiForOrientation(res, orientation);
-      if (adjustedRes && adjustedRes.x > 0 && adjustedRes.y > 0) {
+      const dpiX = adjustedRes?.x ?? DEFAULT_DPI;
+      const dpiY = adjustedRes?.y ?? DEFAULT_DPI;
+      if (dpiX > 0 && dpiY > 0) {
         // PDF standard is 72 points per inch
         // Scale = 72 / DPI
-        const scaleX = 72 / adjustedRes.x;
-        const scaleY = 72 / adjustedRes.y;
+        const scaleX = POINTS_PER_INCH / dpiX;
+        const scaleY = POINTS_PER_INCH / dpiY;
         
         drawWidth = image.width * scaleX;
         drawHeight = image.height * scaleY;
