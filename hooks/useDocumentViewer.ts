@@ -163,6 +163,21 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
     let pdfItem: File | null = null;
     const validExts = ['.jpg', '.jpeg', '.png'];
 
+    const readAllEntries = async (reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> => {
+        const all: FileSystemEntry[] = [];
+
+        while (true) {
+            const batch = await new Promise<FileSystemEntry[]>((resolve) => {
+                reader.readEntries((entries) => resolve(entries), () => resolve([]));
+            });
+
+            if (batch.length === 0) break;
+            all.push(...batch);
+        }
+
+        return all;
+    };
+
     const readEntry = async (entry: FileSystemEntry) => {
         if (isFileEntry(entry)) {
             return new Promise<void>((resolve) => {
@@ -182,24 +197,26 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
             const dirReader = entry.createReader();
             return new Promise<void>((resolve) => {
                 // readEntries returns an array of entries
-                dirReader.readEntries(async (subEntries: FileSystemEntry[]) => {
-                    // Only scan first level children, no recursion as per requirements
-                    // "フォルダ内の連番静止画JPG/PNG（子フォルダの再帰なし）"
-                    for (const sub of subEntries) {
-                         if (isFileEntry(sub)) {
-                             await new Promise<void>((res) => {
-                                 sub.file((file: File) => {
-                                     const lowerName = file.name.toLowerCase();
-                                     if (validExts.some(ext => lowerName.endsWith(ext))) {
-                                         imageList.push(file);
-                                     }
-                                     res();
-                                 }, () => res());
-                             });
-                         }
-                    }
-                    resolve();
-                }, () => resolve());
+                readAllEntries(dirReader)
+                  .then(async (subEntries) => {
+                      // Only scan first level children, no recursion as per requirements
+                      // "フォルダ内の連番静止画JPG/PNG（子フォルダの再帰なし）"
+                      for (const sub of subEntries) {
+                           if (isFileEntry(sub)) {
+                               await new Promise<void>((res) => {
+                                   sub.file((file: File) => {
+                                       const lowerName = file.name.toLowerCase();
+                                       if (validExts.some(ext => lowerName.endsWith(ext))) {
+                                           imageList.push(file);
+                                       }
+                                       res();
+                                   }, () => res());
+                               });
+                           }
+                      }
+                      resolve();
+                  })
+                  .catch(() => resolve());
             });
         }
     };
