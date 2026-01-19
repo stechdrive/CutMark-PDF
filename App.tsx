@@ -18,8 +18,11 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { DocumentPreview } from './components/DocumentPreview';
 
-// Worker setup
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+// Worker setup: GH-Pages でもローカルのワーカーを利用する
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 export default function App() {
   // --- Hooks ---
