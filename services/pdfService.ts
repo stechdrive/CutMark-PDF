@@ -1,5 +1,5 @@
 
-import { PDFDocument, rgb, StandardFonts, PDFOperator, PDFName, PDFNumber, PDFPage } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFOperator, PDFName, PDFNumber, PDFPage, PDFFont, PDFOperatorNames } from 'pdf-lib';
 import { Cut, AppSettings } from '../types';
 import {
   adjustDpiForOrientation,
@@ -9,13 +9,20 @@ import {
 } from './imageProcessing';
 
 // Helper to draw cuts on a page (Shared logic)
-const drawCutsOnPage = async (page: PDFPage, pageIndex: number, cuts: Cut[], settings: AppSettings, font: any, scaleFactor: number = 1.0) => {
+const drawCutsOnPage = async (
+  page: PDFPage,
+  pageIndex: number,
+  cuts: Cut[],
+  settings: AppSettings,
+  font: PDFFont,
+  scaleFactor: number = 1.0
+) => {
   const { width, height } = page.getSize();
   const pageCuts = cuts.filter(c => c.pageIndex === pageIndex);
 
   for (const cut of pageCuts) {
     // Save Graphics State to ensure isolation between cuts and from page content
-    page.pushOperators(PDFOperator.of('q' as any));
+    page.pushOperators(PDFOperator.of(PDFOperatorNames.PushGraphicsState));
 
     // Dimensions (Scaled by DPI factor)
     // When the page size is scaled down (e.g. for high DPI), we must also scale down the font and padding
@@ -50,7 +57,7 @@ const drawCutsOnPage = async (page: PDFPage, pageIndex: number, cuts: Cut[], set
 
     // Start Marked Content Group (BMC /Span)
     page.pushOperators(
-      PDFOperator.of('BMC' as any, [PDFName.of('Span')])
+      PDFOperator.of(PDFOperatorNames.BeginMarkedContent, [PDFName.of('Span')])
     );
 
     // Draw Background (Zabuton) if enabled
@@ -76,16 +83,16 @@ const drawCutsOnPage = async (page: PDFPage, pageIndex: number, cuts: Cut[], set
 
     // Draw Outline (Native Stroke)
     if (settings.textOutlineWidth > 0) {
-       page.pushOperators(PDFOperator.of('q' as any));
-       page.pushOperators(PDFOperator.of('Tr' as any, [PDFNumber.of(3)])); // Tr 3 = Stroke, no fill (but usually for text we want just stroke here)
+       page.pushOperators(PDFOperator.of(PDFOperatorNames.PushGraphicsState));
+       page.pushOperators(PDFOperator.of(PDFOperatorNames.SetTextRenderingMode, [PDFNumber.of(3)])); // Tr 3 = Stroke, no fill (but usually for text we want just stroke here)
        // Actually mode 3 is "Neither fill nor stroke" if not careful? No, mode 3 is Invisible.
        // Mode 1 is Stroke, Mode 2 is Fill and Stroke. 
        // We want stroke only for the outline layer underneath. Mode 1.
-       page.pushOperators(PDFOperator.of('Tr' as any, [PDFNumber.of(1)]));
-       page.pushOperators(PDFOperator.of('w' as any, [PDFNumber.of(outlineWidth * 2)]));
-       page.pushOperators(PDFOperator.of('RG' as any, [PDFNumber.of(1), PDFNumber.of(1), PDFNumber.of(1)])); // White stroke
-       page.pushOperators(PDFOperator.of('j' as any, [PDFNumber.of(1)])); // Round join
-       page.pushOperators(PDFOperator.of('J' as any, [PDFNumber.of(1)])); // Round cap
+       page.pushOperators(PDFOperator.of(PDFOperatorNames.SetTextRenderingMode, [PDFNumber.of(1)]));
+       page.pushOperators(PDFOperator.of(PDFOperatorNames.SetLineWidth, [PDFNumber.of(outlineWidth * 2)]));
+       page.pushOperators(PDFOperator.of(PDFOperatorNames.StrokingColorRgb, [PDFNumber.of(1), PDFNumber.of(1), PDFNumber.of(1)])); // White stroke
+       page.pushOperators(PDFOperator.of(PDFOperatorNames.SetLineJoinStyle, [PDFNumber.of(1)])); // Round join
+       page.pushOperators(PDFOperator.of(PDFOperatorNames.SetLineCapStyle, [PDFNumber.of(1)])); // Round cap
 
        for (const linePos of linePositions) {
          page.drawText(linePos.text, {
@@ -99,7 +106,7 @@ const drawCutsOnPage = async (page: PDFPage, pageIndex: number, cuts: Cut[], set
             // But pdf-lib's drawText resets text state.
          });
        }
-       page.pushOperators(PDFOperator.of('Q' as any));
+       page.pushOperators(PDFOperator.of(PDFOperatorNames.PopGraphicsState));
     }
 
     // Draw Main Text (Fill)
@@ -115,11 +122,11 @@ const drawCutsOnPage = async (page: PDFPage, pageIndex: number, cuts: Cut[], set
 
     // End Marked Content Group
     page.pushOperators(
-      PDFOperator.of('EMC' as any)
+      PDFOperator.of(PDFOperatorNames.EndMarkedContent)
     );
 
     // Restore Graphics State
-    page.pushOperators(PDFOperator.of('Q' as any));
+    page.pushOperators(PDFOperator.of(PDFOperatorNames.PopGraphicsState));
   }
 };
 

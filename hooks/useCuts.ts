@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Cut } from '../types';
 
 export const useCuts = () => {
@@ -9,7 +9,9 @@ export const useCuts = () => {
 
   // Use ref to track cuts for drag operations to avoid stale closures in event listeners
   const cutsRef = useRef(cuts);
-  cutsRef.current = cuts;
+  useEffect(() => {
+    cutsRef.current = cuts;
+  }, [cuts]);
 
   const pushHistory = useCallback((newCuts: Cut[]) => {
     const newHistory = history.slice(0, historyIndex + 1);

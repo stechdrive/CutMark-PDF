@@ -73,13 +73,15 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const autoFitDone = useRef<boolean>(false); // Track if we've fitted the current doc
 
   // Image sizing state
-  const [imgSize, setImgSize] = useState<{width: number, height: number} | null>(null);
+  const [imgSize, setImgSize] = useState<{ key: string; width: number; height: number } | null>(null);
+  const activeImgSize =
+    imgSize && currentImageUrl && imgSize.key === currentImageUrl
+      ? { width: imgSize.width, height: imgSize.height }
+      : null;
 
   // Reset auto-fit flag when document changes
   useEffect(() => {
     autoFitDone.current = false;
-    // Also reset image size
-    setImgSize(null);
   }, [pdfFile, docType]); // Don't reset on page change, only file change
 
   // Additional reset for image files specifically when the folder (list) changes logic might be needed,
@@ -90,7 +92,6 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   useEffect(() => {
     if (docType === 'images') {
         autoFitDone.current = false;
-        setImgSize(null);
     }
   }, [currentPage, docType]);
 
@@ -133,7 +134,9 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
-    setImgSize({ width: naturalWidth, height: naturalHeight });
+    if (currentImageUrl) {
+      setImgSize({ key: currentImageUrl, width: naturalWidth, height: naturalHeight });
+    }
 
     if (!autoFitDone.current && viewportRef.current) {
         const newScale = calculateFitScale(naturalWidth, naturalHeight);
@@ -260,8 +263,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     className="relative pdf-page-container cursor-crosshair bg-white"
                     ref={containerRef}
                     style={{
-                        width: imgSize ? imgSize.width : 'auto',
-                        height: imgSize ? imgSize.height : 'auto',
+                        width: activeImgSize ? activeImgSize.width : 'auto',
+                        height: activeImgSize ? activeImgSize.height : 'auto',
                         // Optional: Limit max display size if needed, but scaling handles it
                     }}
                     onClick={handlePageClick}
@@ -274,7 +277,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                         onLoad={handleImageLoad}
                     />
                     {/* Overlays (Only show if image is loaded to have correct dimensions) */}
-                    {imgSize && (
+                    {activeImgSize && (
                         <>
                             {mode === 'template' ? (
                                 <TemplateOverlay template={template} onChange={setTemplate} />

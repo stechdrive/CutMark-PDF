@@ -26,25 +26,35 @@ export const SidebarTemplatePanel: React.FC<SidebarTemplatePanelProps> = ({
   deleteTemplate,
   distributeRows,
 }) => {
-  const [inputValue, setInputValue] = useState(template.name);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  const [localState, setLocalState] = useState(() => ({
+    templateId: template.id,
+    inputValue: template.name,
+    isDropdownOpen: false,
+    isDeleting: false,
+    showSaveSuccess: false,
+  }));
   
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Sync input when template changes externally
-  useEffect(() => {
-    setInputValue(template.name);
-    setIsDropdownOpen(false);
-    setIsDeleting(false);
-  }, [template.id, template.name]);
+  const isSameTemplate = localState.templateId === template.id;
+  const inputValue = isSameTemplate ? localState.inputValue : template.name;
+  const isDropdownOpen = isSameTemplate ? localState.isDropdownOpen : false;
+  const isDeleting = isSameTemplate ? localState.isDeleting : false;
+  const showSaveSuccess = isSameTemplate ? localState.showSaveSuccess : false;
+
+  const updateLocalState = (updates: Partial<typeof localState>) => {
+    setLocalState((prev) => ({
+      ...prev,
+      templateId: template.id,
+      ...updates,
+    }));
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+        setLocalState((prev) => ({ ...prev, isDropdownOpen: false }));
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -53,21 +63,28 @@ export const SidebarTemplatePanel: React.FC<SidebarTemplatePanelProps> = ({
 
   const handleSave = () => {
     saveTemplateByName(inputValue);
-    setShowSaveSuccess(true);
-    setTimeout(() => setShowSaveSuccess(false), 2000);
+    updateLocalState({ showSaveSuccess: true });
+    const savedTemplateId = template.id;
+    setTimeout(() => {
+      setLocalState((prev) =>
+        prev.templateId === savedTemplateId
+          ? { ...prev, showSaveSuccess: false }
+          : prev
+      );
+    }, 2000);
   };
 
   const handleSelect = (id: string) => {
     changeTemplate(id);
-    setIsDropdownOpen(false);
+    updateLocalState({ isDropdownOpen: false, isDeleting: false });
   };
 
   const handleDeleteClick = () => {
     if (isDeleting) {
       deleteTemplate();
-      setIsDeleting(false);
+      updateLocalState({ isDeleting: false });
     } else {
-      setIsDeleting(true);
+      updateLocalState({ isDeleting: true });
     }
   };
 
@@ -89,14 +106,14 @@ export const SidebarTemplatePanel: React.FC<SidebarTemplatePanelProps> = ({
             <input
               type="text"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onFocus={() => setIsDropdownOpen(true)}
+              onChange={(e) => updateLocalState({ inputValue: e.target.value })}
+              onFocus={() => updateLocalState({ isDropdownOpen: true })}
               disabled={isDeleting}
               placeholder="テンプレート名を入力..."
               className="flex-1 px-3 text-sm outline-none bg-transparent min-w-0"
             />
             <button
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              onClick={() => updateLocalState({ isDropdownOpen: !isDropdownOpen })}
               disabled={isDeleting}
               className="px-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 border-l border-gray-200"
             >
@@ -141,7 +158,7 @@ export const SidebarTemplatePanel: React.FC<SidebarTemplatePanelProps> = ({
               </button>
               
               <button
-                onClick={() => setIsDeleting(true)}
+                onClick={() => updateLocalState({ isDeleting: true })}
                 disabled={templates.length <= 1}
                 className="px-3 py-1.5 bg-white text-gray-600 border border-gray-300 hover:bg-gray-50 hover:text-red-600 rounded text-xs flex items-center justify-center disabled:opacity-50"
                 title="削除"
@@ -158,7 +175,7 @@ export const SidebarTemplatePanel: React.FC<SidebarTemplatePanelProps> = ({
                     <AlertTriangle size={14} /> 削除する
                 </button>
                 <button
-                    onClick={() => setIsDeleting(false)}
+                    onClick={() => updateLocalState({ isDeleting: false })}
                     className="px-3 py-1.5 bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200 rounded text-xs"
                 >
                     キャンセル

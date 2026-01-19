@@ -70,7 +70,7 @@ export const getImageResolution = (buffer: ArrayBuffer, type: 'jpeg' | 'png'): {
                    continue;
               }
 
-              let ifdOffset = tiffStart + firstIFDOffset;
+              const ifdOffset = tiffStart + firstIFDOffset;
               if (ifdOffset + 2 > view.byteLength) break;
 
               const numEntries = view.getUint16(ifdOffset, isLittle);
@@ -102,7 +102,6 @@ export const getImageResolution = (buffer: ArrayBuffer, type: 'jpeg' | 'png'): {
                           else yRes = val;
                       }
                   } else if (tag === 0x0128) {
-                      const type = view.getUint16(entryOffset + 2, isLittle); // 3 = SHORT
                       // For SHORT(3), if count=1, value is in the first 2 bytes of the 4-byte offset field
                       const val = view.getUint16(entryOffset + 8, isLittle);
                       unit = val;

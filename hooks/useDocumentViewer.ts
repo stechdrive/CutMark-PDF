@@ -3,6 +3,33 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { DocType } from '../types';
 import { getExifOrientation, renderImageWithOrientation } from '../services/imageProcessing';
 
+type FileSystemEntry = {
+  isFile: boolean;
+  isDirectory: boolean;
+};
+
+type FileSystemFileEntry = FileSystemEntry & {
+  isFile: true;
+  file: (success: (file: File) => void, error?: () => void) => void;
+};
+
+type FileSystemDirectoryEntry = FileSystemEntry & {
+  isDirectory: true;
+  createReader: () => FileSystemDirectoryReader;
+};
+
+type FileSystemDirectoryReader = {
+  readEntries: (success: (entries: FileSystemEntry[]) => void, error?: () => void) => void;
+};
+
+type DataTransferItemWithEntry = DataTransferItem & {
+  webkitGetAsEntry?: () => FileSystemEntry | null;
+};
+
+const isFileEntry = (entry: FileSystemEntry): entry is FileSystemFileEntry => entry.isFile;
+const isDirectoryEntry = (entry: FileSystemEntry): entry is FileSystemDirectoryEntry =>
+  entry.isDirectory;
+
 export const useDocumentViewer = (onLoadComplete?: () => void) => {
   const [docType, setDocType] = useState<DocType | null>(null);
   
@@ -123,26 +150,21 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
 
   // Helper to scan files from DataTransferItems
   const scanFiles = async (items: DataTransferItemList): Promise<{ pdf: File | null, images: File[] }> => {
-    // Use any[] to avoid TypeScript errors with non-standard FileSystemEntry types
-    const entries: any[] = [];
+    const entries: FileSystemEntry[] = [];
     
     for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        // webkitGetAsEntry is non-standard but widely supported in Chrome/Safari/Edge
-        // Cast to any to avoid TS error
-        const getAsEntry = (item as any).webkitGetAsEntry;
-        if (typeof getAsEntry === 'function') {
-            const entry = getAsEntry.call(item);
-            if (entry) entries.push(entry);
-        }
+        const item = items[i] as DataTransferItemWithEntry;
+        // webkitGetAsEntry は非標準だが主要ブラウザで利用可能
+        const entry = item.webkitGetAsEntry?.();
+        if (entry) entries.push(entry);
     }
 
     const imageList: File[] = [];
     let pdfItem: File | null = null;
     const validExts = ['.jpg', '.jpeg', '.png'];
 
-    const readEntry = async (entry: any) => {
-        if (entry.isFile) {
+    const readEntry = async (entry: FileSystemEntry) => {
+        if (isFileEntry(entry)) {
             return new Promise<void>((resolve) => {
                 // entry.file() gets the File object
                 entry.file((file: File) => {
@@ -155,16 +177,16 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
                     resolve();
                 }, () => resolve()); // Error handler resolves anyway
             });
-        } else if (entry.isDirectory) {
+        } else if (isDirectoryEntry(entry)) {
             // Create a reader to read entries in the directory
             const dirReader = entry.createReader();
             return new Promise<void>((resolve) => {
                 // readEntries returns an array of entries
-                dirReader.readEntries(async (subEntries: any[]) => {
+                dirReader.readEntries(async (subEntries: FileSystemEntry[]) => {
                     // Only scan first level children, no recursion as per requirements
                     // "フォルダ内の連番静止画JPG/PNG（子フォルダの再帰なし）"
                     for (const sub of subEntries) {
-                         if (sub.isFile) {
+                         if (isFileEntry(sub)) {
                              await new Promise<void>((res) => {
                                  sub.file((file: File) => {
                                      const lowerName = file.name.toLowerCase();

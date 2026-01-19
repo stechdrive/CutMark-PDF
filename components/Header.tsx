@@ -1,6 +1,6 @@
 
-import React, { useRef, useState } from 'react';
-import { Upload, Download, RotateCcw, RotateCw, Layers, Settings, FolderOpen, ChevronDown } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Upload, Download, RotateCcw, RotateCw, Layers, FolderOpen, ChevronDown } from 'lucide-react';
 import { DocType } from '../types';
 
 interface HeaderProps {
@@ -35,6 +35,12 @@ export const Header: React.FC<HeaderProps> = ({
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+
+  useEffect(() => {
+    if (!folderInputRef.current) return;
+    folderInputRef.current.setAttribute('webkitdirectory', '');
+    folderInputRef.current.setAttribute('directory', '');
+  }, []);
 
   return (
     <div className="bg-slate-800 text-white p-3 flex items-center justify-between shadow-md z-50">
@@ -71,9 +77,6 @@ export const Header: React.FC<HeaderProps> = ({
             <input
             ref={folderInputRef}
             type="file"
-            // @ts-ignore: webkitdirectory is standard in browsers but not in React types sometimes
-            webkitdirectory=""
-            directory=""
             multiple
             className="hidden"
             onChange={onFolderChange}

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Template } from '../types';
 
 const STORAGE_KEY_TEMPLATES = 'cutmark_templates';
@@ -17,25 +17,25 @@ const generateId = () => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 };
 
-export const useTemplates = () => {
-  const [templates, setTemplates] = useState<Template[]>([DEFAULT_TEMPLATE]);
-  const [template, setTemplate] = useState<Template>(DEFAULT_TEMPLATE);
-
-  // Load
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_TEMPLATES);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setTemplates(parsed);
-          setTemplate(parsed[0]);
-        }
-      } catch (e) {
-        console.error("Failed to load templates", e);
-      }
+const loadTemplatesFromStorage = (): Template[] => {
+  if (typeof window === 'undefined') return [DEFAULT_TEMPLATE];
+  const saved = localStorage.getItem(STORAGE_KEY_TEMPLATES);
+  if (!saved) return [DEFAULT_TEMPLATE];
+  try {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed;
     }
-  }, []);
+  } catch (e) {
+    console.error('テンプレートの読み込みに失敗しました', e);
+  }
+  return [DEFAULT_TEMPLATE];
+};
+
+export const useTemplates = () => {
+  const initialTemplates = useMemo(() => loadTemplatesFromStorage(), []);
+  const [templates, setTemplates] = useState<Template[]>(initialTemplates);
+  const [template, setTemplate] = useState<Template>(() => initialTemplates[0]);
 
   // Save
   useEffect(() => {
