@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { AppSettings } from '../types';
+import { AppSettings, NumberingState } from '../types';
 
 const DEFAULT_SETTINGS: AppSettings = {
   fontSize: 12,
@@ -25,6 +25,28 @@ export const useAppSettings = () => {
     return numStr;
   }, [settings]);
 
+  const getNextNumberingState = useCallback((): NumberingState => {
+    if (!settings.autoIncrement) {
+      return {
+        nextNumber: settings.nextNumber,
+        branchChar: settings.branchChar,
+      };
+    }
+
+    if (settings.branchChar) {
+      const nextChar = String.fromCharCode(settings.branchChar.charCodeAt(0) + 1);
+      return {
+        nextNumber: settings.nextNumber,
+        branchChar: nextChar,
+      };
+    }
+
+    return {
+      nextNumber: settings.nextNumber + 1,
+      branchChar: null,
+    };
+  }, [settings]);
+
   const incrementCounter = useCallback(() => {
     if (!settings.autoIncrement) return;
 
@@ -40,6 +62,7 @@ export const useAppSettings = () => {
     settings,
     setSettings,
     getNextLabel,
+    getNextNumberingState,
     incrementCounter
   };
 };

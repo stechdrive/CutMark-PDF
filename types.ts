@@ -29,6 +29,8 @@ export interface AppSettings {
   textOutlineWidth: number; // Pixel width for white text outline
 }
 
+export type NumberingState = Pick<AppSettings, 'nextNumber' | 'branchChar'>;
+
 export interface PDFDimensions {
   width: number;
   height: number;

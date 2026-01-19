@@ -1,15 +1,17 @@
 import React from 'react';
 import { Settings } from 'lucide-react';
-import { AppSettings } from '../types';
+import { AppSettings, NumberingState } from '../types';
 
 interface SidebarNumberingSettingsProps {
   settings: AppSettings;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
+  setNumberingState: (next: NumberingState) => void;
 }
 
 export const SidebarNumberingSettings: React.FC<SidebarNumberingSettingsProps> = ({
   settings,
   setSettings,
+  setNumberingState,
 }) => {
   return (
     <div>
@@ -25,9 +27,9 @@ export const SidebarNumberingSettings: React.FC<SidebarNumberingSettingsProps> =
               type="number"
               value={settings.nextNumber}
               onChange={(e) =>
-                setSettings({
-                  ...settings,
+                setNumberingState({
                   nextNumber: parseInt(e.target.value) || 1,
+                  branchChar: settings.branchChar,
                 })
               }
               className="w-16 p-1 text-right border rounded text-lg font-bold"
@@ -68,14 +70,16 @@ export const SidebarNumberingSettings: React.FC<SidebarNumberingSettingsProps> =
             onClick={() => {
               if (settings.branchChar) {
                 // Turn off, increment parent
-                setSettings((s) => ({
-                  ...s,
+                setNumberingState({
+                  nextNumber: settings.nextNumber + 1,
                   branchChar: null,
-                  nextNumber: s.nextNumber + 1,
-                }));
+                });
               } else {
                 // Turn on
-                setSettings((s) => ({ ...s, branchChar: 'A' }));
+                setNumberingState({
+                  nextNumber: settings.nextNumber,
+                  branchChar: 'A',
+                });
               }
             }}
             className={`px-3 py-1 rounded text-xs font-bold transition-colors ${

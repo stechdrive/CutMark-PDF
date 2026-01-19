@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AppSettings, Template } from '../types';
+import { AppSettings, NumberingState, Template } from '../types';
 import { SidebarRowSnapper } from './SidebarRowSnapper';
 import { SidebarNumberingSettings } from './SidebarNumberingSettings';
 import { SidebarStyleSettings } from './SidebarStyleSettings';
@@ -22,6 +22,7 @@ interface SidebarProps {
   // Settings Props
   settings: AppSettings;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
+  setNumberingState: (next: NumberingState) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -38,6 +39,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRowSnap,
   settings,
   setSettings,
+  setNumberingState,
 }) => {
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col shadow-xl z-20">
@@ -62,6 +64,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <SidebarNumberingSettings
           settings={settings}
           setSettings={setSettings}
+          setNumberingState={setNumberingState}
         />
 
         {/* 3. Style Settings */}

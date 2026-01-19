@@ -1,8 +1,8 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { pdfjs } from 'react-pdf';
 
-import { Cut } from './types';
+import { Cut, NumberingState } from './types';
 import { saveMarkedPdf, saveImagesAsPdf } from './services/pdfService';
 import { exportImagesAsZip } from './services/imageExportService';
 
@@ -22,13 +22,30 @@ import { DocumentPreview } from './components/DocumentPreview';
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export default function App() {
+  // --- Hooks ---
+  const {
+    settings, setSettings, getNextLabel, getNextNumberingState
+  } = useAppSettings();
+
+  const setNumberingState = useCallback((next: NumberingState) => {
+    setSettings(prev => ({
+      ...prev,
+      nextNumber: next.nextNumber,
+      branchChar: next.branchChar,
+    }));
+  }, [setSettings]);
+
+  const numberingState = useMemo(() => ({
+    nextNumber: settings.nextNumber,
+    branchChar: settings.branchChar,
+  }), [settings.nextNumber, settings.branchChar]);
+
   const {
     cuts, selectedCutId, historyIndex, historyLength,
     setSelectedCutId, addCut, updateCutPosition, handleCutDragEnd, 
-    deleteCut, undo, redo, resetCuts
-  } = useCuts();
+    deleteCut, setNumberingStateWithHistory, undo, redo, resetCuts
+  } = useCuts({ numberingState, setNumberingState });
 
-  // --- Hooks ---
   const {
     docType, pdfFile, imageFiles, currentImageUrl,
     numPages, currentPage, scale, isDragging,
@@ -40,10 +57,6 @@ export default function App() {
     templates, template, setTemplate, changeTemplate,
     saveTemplateByName, deleteTemplate, distributeRows
   } = useTemplates();
-
-  const {
-    settings, setSettings, getNextLabel, incrementCounter
-  } = useAppSettings();
 
   // --- UI State ---
   const [mode, setMode] = useState<'edit' | 'template'>('edit');
@@ -62,8 +75,8 @@ export default function App() {
       isBranch: !!settings.branchChar,
     };
     
-    addCut(newCut);
-    incrementCounter();
+    const nextNumbering = getNextNumberingState();
+    addCut(newCut, nextNumbering);
   };
 
   // Row Snap (Keyboard 1-9 or Button)
@@ -265,6 +278,7 @@ export default function App() {
           onRowSnap={handleRowSnap}
           settings={settings}
           setSettings={setSettings}
+          setNumberingState={setNumberingStateWithHistory}
         />
         
       </div>
