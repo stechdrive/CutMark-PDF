@@ -31,6 +31,8 @@ type DebugLog = {
   data?: unknown;
 };
 
+type DebugLogData = unknown | (() => unknown);
+
 const MAX_DEBUG_LOGS = 200;
 const IMAGE_FILE_LOG_LIMIT = 30;
 
@@ -77,6 +79,11 @@ const safeJsonStringify = (value: unknown) => {
 };
 
 export default function App() {
+  const debugEnabled = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('debug') === '1';
+  }, []);
+
   // --- Hooks ---
   const {
     settings, setSettings, getNextLabel, getNextNumberingState
@@ -121,7 +128,9 @@ export default function App() {
   const [debugCopyStatus, setDebugCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const debugTextRef = useRef<HTMLTextAreaElement>(null);
 
-  const pushDebugLog = useCallback((level: DebugLog['level'], message: string, data?: unknown) => {
+  const logDebug = useCallback((level: DebugLog['level'], message: string, data?: DebugLogData) => {
+    if (!debugEnabled) return;
+    const payload = typeof data === 'function' ? data() : data;
     setDebugLogs(prev => {
       const next = [
         ...prev,
@@ -129,7 +138,7 @@ export default function App() {
           at: new Date().toISOString(),
           level,
           message,
-          data,
+          data: payload,
         },
       ];
       if (next.length > MAX_DEBUG_LOGS) {
@@ -137,22 +146,23 @@ export default function App() {
       }
       return next;
     });
-  }, []);
+  }, [debugEnabled]);
 
   useEffect(() => {
+    if (!debugEnabled) return;
     const handleError = (event: ErrorEvent) => {
-      pushDebugLog('error', 'window.error', {
+      logDebug('error', 'window.error', () => ({
         message: event.message,
         filename: event.filename,
         lineno: event.lineno,
         colno: event.colno,
         error: normalizeError(event.error),
-      });
+      }));
     };
     const handleRejection = (event: PromiseRejectionEvent) => {
-      pushDebugLog('error', 'unhandledrejection', {
+      logDebug('error', 'unhandledrejection', () => ({
         reason: normalizeError(event.reason),
-      });
+      }));
     };
     window.addEventListener('error', handleError);
     window.addEventListener('unhandledrejection', handleRejection);
@@ -160,13 +170,19 @@ export default function App() {
       window.removeEventListener('error', handleError);
       window.removeEventListener('unhandledrejection', handleRejection);
     };
-  }, [pushDebugLog]);
+  }, [debugEnabled, logDebug]);
 
   useEffect(() => {
     if (debugOpen) {
       setDebugCopyStatus('idle');
     }
   }, [debugOpen]);
+
+  useEffect(() => {
+    if (!debugEnabled) {
+      setDebugOpen(false);
+    }
+  }, [debugEnabled]);
 
   // --- Logic Orchestration ---
   
@@ -198,10 +214,10 @@ export default function App() {
     const file = e.target.files?.[0];
     if (file) {
         loadPdf(file);
-        pushDebugLog('info', 'PDF読み込み開始', { file: toFileInfo(file) });
+        logDebug('info', 'PDF読み込み開始', () => ({ file: toFileInfo(file) }));
         // resetCuts called via callback
     } else {
-        pushDebugLog('warn', 'PDF読み込みキャンセル');
+        logDebug('warn', 'PDF読み込みキャンセル');
     }
   };
 
@@ -235,28 +251,28 @@ export default function App() {
     }
 
     if (validFiles.length > 0) {
-        pushDebugLog('info', 'フォルダ読み込み開始', {
+        logDebug('info', 'フォルダ読み込み開始', () => ({
           totalFiles: files.length,
           validFiles: validFiles.length,
           sampleNames: validFiles.slice(0, IMAGE_FILE_LOG_LIMIT).map(file => file.name),
           truncated: validFiles.length > IMAGE_FILE_LOG_LIMIT,
-        });
+        }));
         loadImages(validFiles);
         // resetCuts called via callback
     } else {
         alert("有効な画像(JPG/PNG)がフォルダ直下に見つかりませんでした。");
-        pushDebugLog('warn', 'フォルダ読み込み失敗', {
+        logDebug('warn', 'フォルダ読み込み失敗', () => ({
           totalFiles: files.length,
-        });
+        }));
     }
   };
   
   // Reset logic when file dropped
   const onFileDropped = (e: React.DragEvent<HTMLDivElement>) => {
-    pushDebugLog('info', 'ファイルドロップ', {
+    logDebug('info', 'ファイルドロップ', () => ({
       types: Array.from(e.dataTransfer?.types ?? []),
       itemCount: e.dataTransfer?.items?.length ?? 0,
-    });
+    }));
     dragHandlers.onDrop(e);
     // onLoadComplete callback in hook handles resetCuts
   };
@@ -270,12 +286,12 @@ export default function App() {
 
         if (docType === 'pdf' && pdfFile) {
             filename = `marked_${pdfFile.name}`;
-            pushDebugLog('info', 'PDF書き出し開始', { mode: 'pdf', filename });
+            logDebug('info', 'PDF書き出し開始', () => ({ mode: 'pdf', filename }));
             const arrayBuffer = await pdfFile.arrayBuffer();
             pdfBytes = await saveMarkedPdf(arrayBuffer, cuts, settings);
         } else if (docType === 'images' && imageFiles.length > 0) {
             filename = 'marked_images.pdf';
-            pushDebugLog('info', 'PDF書き出し開始', { mode: 'images', filename });
+            logDebug('info', 'PDF書き出し開始', () => ({ mode: 'images', filename }));
             pdfBytes = await saveImagesAsPdf(imageFiles, cuts, settings);
         } else {
             return;
@@ -290,11 +306,11 @@ export default function App() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-        pushDebugLog('info', 'PDF書き出し完了', { filename });
+        logDebug('info', 'PDF書き出し完了', () => ({ filename }));
     } catch (e) {
         console.error(e);
         alert('PDF書き出し中にエラーが発生しました');
-        pushDebugLog('error', 'PDF書き出し失敗', { error: normalizeError(e) });
+        logDebug('error', 'PDF書き出し失敗', () => ({ error: normalizeError(e) }));
     } finally {
         setIsExporting(false);
     }
@@ -304,22 +320,22 @@ export default function App() {
   const handleExportImages = async () => {
     if (docType !== 'images' || imageFiles.length === 0) {
         alert("画像の書き出しは連番画像モードでのみ利用可能です（PDFからの画像化は未対応）");
-        pushDebugLog('warn', '画像書き出し不可', { docType, imageCount: imageFiles.length });
+        logDebug('warn', '画像書き出し不可', () => ({ docType, imageCount: imageFiles.length }));
         return;
     }
     
     setIsExporting(true);
     try {
-        pushDebugLog('info', '画像書き出し開始', { imageCount: imageFiles.length });
+        logDebug('info', '画像書き出し開始', () => ({ imageCount: imageFiles.length }));
         await exportImagesAsZip(imageFiles, cuts, settings, (curr, total) => {
             // Optional: Update progress UI
             console.log(`Processing ${curr}/${total}`);
         });
-        pushDebugLog('info', '画像書き出し完了');
+        logDebug('info', '画像書き出し完了');
     } catch (e) {
         console.error(e);
         alert('画像書き出し中にエラーが発生しました');
-        pushDebugLog('error', '画像書き出し失敗', { error: normalizeError(e) });
+        logDebug('error', '画像書き出し失敗', () => ({ error: normalizeError(e) }));
     } finally {
         setIsExporting(false);
     }
@@ -340,6 +356,9 @@ export default function App() {
   [cuts, currentPage]);
 
   const debugReport = useMemo(() => {
+    if (!debugEnabled) {
+      return 'Debug disabled';
+    }
     const imageFileSummary = {
       count: imageFiles.length,
       totalBytes: imageFiles.reduce((sum, file) => sum + file.size, 0),
@@ -407,6 +426,7 @@ export default function App() {
 
     return reportSections.join('\n');
   }, [
+    debugEnabled,
     debugLogs,
     docType,
     mode,
@@ -434,7 +454,7 @@ export default function App() {
       const fallbackTarget = debugTextRef.current;
       if (!fallbackTarget) {
         setDebugCopyStatus('failed');
-        pushDebugLog('error', 'デバッグログのコピー失敗', { error: normalizeError(error) });
+        logDebug('error', 'デバッグログのコピー失敗', () => ({ error: normalizeError(error) }));
         return;
       }
       fallbackTarget.focus();
@@ -443,13 +463,13 @@ export default function App() {
         const ok = document.execCommand('copy');
         setDebugCopyStatus(ok ? 'copied' : 'failed');
         if (!ok) {
-          pushDebugLog('error', 'デバッグログのコピー失敗', { error: normalizeError(error) });
+          logDebug('error', 'デバッグログのコピー失敗', () => ({ error: normalizeError(error) }));
         }
       } catch (fallbackError) {
         setDebugCopyStatus('failed');
-        pushDebugLog('error', 'デバッグログのコピー失敗', {
+        logDebug('error', 'デバッグログのコピー失敗', () => ({
           error: normalizeError(fallbackError),
-        });
+        }));
       }
     }
   };
@@ -471,6 +491,7 @@ export default function App() {
         onUndo={undo}
         onRedo={redo}
         onOpenDebug={() => setDebugOpen(true)}
+        showDebug={debugEnabled}
       />
 
       <div className="flex flex-1 overflow-hidden relative">
@@ -508,11 +529,11 @@ export default function App() {
           setTemplate={setTemplate}
           settings={settings}
           onContentClick={createCutAt}
-          onPdfLoadSuccess={(pages) => pushDebugLog('info', 'PDF読み込み成功', { numPages: pages })}
-          onPdfLoadError={(error) => pushDebugLog('error', 'PDF読み込み失敗', { error: normalizeError(error) })}
-          onPdfSourceError={(error) => pushDebugLog('error', 'PDFソース読み込み失敗', { error: normalizeError(error) })}
-          onPdfPageError={(error) => pushDebugLog('error', 'PDFページ読み込み失敗', { error: normalizeError(error) })}
-          onImageLoadError={(src) => pushDebugLog('error', '画像読み込み失敗', { src })}
+          onPdfLoadSuccess={(pages) => logDebug('info', 'PDF読み込み成功', () => ({ numPages: pages }))}
+          onPdfLoadError={(error) => logDebug('error', 'PDF読み込み失敗', () => ({ error: normalizeError(error) }))}
+          onPdfSourceError={(error) => logDebug('error', 'PDFソース読み込み失敗', () => ({ error: normalizeError(error) }))}
+          onPdfPageError={(error) => logDebug('error', 'PDFページ読み込み失敗', () => ({ error: normalizeError(error) }))}
+          onImageLoadError={(src) => logDebug('error', '画像読み込み失敗', () => ({ src }))}
         />
 
         <Sidebar

@@ -16,7 +16,8 @@ interface HeaderProps {
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
-  onOpenDebug: () => void;
+  onOpenDebug?: () => void;
+  showDebug?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   onUndo,
   onRedo,
   onOpenDebug,
+  showDebug = false,
 }) => {
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -171,12 +173,14 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
             )}
         </div>
-        <button
-          onClick={onOpenDebug}
-          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200 transition-colors"
-        >
-          デバッグ
-        </button>
+        {showDebug && onOpenDebug && (
+          <button
+            onClick={onOpenDebug}
+            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs text-slate-200 transition-colors"
+          >
+            デバッグ
+          </button>
+        )}
       </div>
     </div>
   );
