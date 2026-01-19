@@ -35,6 +35,10 @@ type DebugLogData = unknown | (() => unknown);
 
 const MAX_DEBUG_LOGS = 200;
 const IMAGE_FILE_LOG_LIMIT = 30;
+const DEFAULT_IMAGE_FONT_SIZE = 28;
+const IMAGE_A4_WIDTH_AT_150_DPI = 1240.5; // 8.27inch * 150dpi
+const FONT_SIZE_MIN = 12;
+const FONT_SIZE_MAX = 72;
 
 const toFileInfo = (file: File | null) => {
   if (!file) return null;
@@ -127,6 +131,8 @@ export default function App() {
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
   const [debugCopyStatus, setDebugCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const debugTextRef = useRef<HTMLTextAreaElement>(null);
+  const pdfFontSizeAppliedRef = useRef(false);
+  const pdfAutoFontSizeRef = useRef<number | null>(null);
 
   const logDebug = useCallback((level: DebugLog['level'], message: string, data?: DebugLogData) => {
     if (!debugEnabled) return;
@@ -179,6 +185,21 @@ export default function App() {
   }, [debugOpen]);
 
   useEffect(() => {
+    pdfFontSizeAppliedRef.current = false;
+  }, [pdfFile]);
+
+  useEffect(() => {
+    if (docType !== 'images') return;
+    if (pdfAutoFontSizeRef.current !== null && settings.fontSize === pdfAutoFontSizeRef.current) {
+      setSettings(prev => ({
+        ...prev,
+        fontSize: DEFAULT_IMAGE_FONT_SIZE,
+      }));
+    }
+    pdfAutoFontSizeRef.current = null;
+  }, [docType, settings.fontSize, setSettings]);
+
+  useEffect(() => {
     if (!debugEnabled) {
       setDebugOpen(false);
     }
@@ -208,6 +229,25 @@ export default function App() {
     const x = template.xPosition;
     createCutAt(x, y);
   };
+
+  const applyPdfDefaultFontSize = useCallback((page: { originalWidth: number }) => {
+    if (docType !== 'pdf') return;
+    if (pdfFontSizeAppliedRef.current) return;
+    if (settings.fontSize !== DEFAULT_IMAGE_FONT_SIZE) return;
+
+    const ratio = DEFAULT_IMAGE_FONT_SIZE / IMAGE_A4_WIDTH_AT_150_DPI;
+    const proposed = Math.round(page.originalWidth * ratio);
+    const nextFontSize = Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, proposed));
+
+    pdfFontSizeAppliedRef.current = true;
+    pdfAutoFontSizeRef.current = nextFontSize;
+    if (nextFontSize !== settings.fontSize) {
+      setSettings(prev => ({
+        ...prev,
+        fontSize: nextFontSize,
+      }));
+    }
+  }, [docType, settings.fontSize, setSettings]);
 
   // PDF Load
   const onPdfLoaded = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -532,6 +572,7 @@ export default function App() {
           onPdfLoadSuccess={(pages) => logDebug('info', 'PDF読み込み成功', () => ({ numPages: pages }))}
           onPdfLoadError={(error) => logDebug('error', 'PDF読み込み失敗', () => ({ error: normalizeError(error) }))}
           onPdfSourceError={(error) => logDebug('error', 'PDFソース読み込み失敗', () => ({ error: normalizeError(error) }))}
+          onPdfPageLoadSuccess={applyPdfDefaultFontSize}
           onPdfPageError={(error) => logDebug('error', 'PDFページ読み込み失敗', () => ({ error: normalizeError(error) }))}
           onImageLoadError={(src) => logDebug('error', '画像読み込み失敗', () => ({ src }))}
         />

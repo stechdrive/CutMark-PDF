@@ -44,6 +44,7 @@ interface DocumentPreviewProps {
   onPdfLoadSuccess?: (numPages: number) => void;
   onPdfLoadError?: (error: unknown) => void;
   onPdfSourceError?: (error: unknown) => void;
+  onPdfPageLoadSuccess?: (page: { originalWidth: number; originalHeight: number }) => void;
   onPdfPageError?: (error: unknown) => void;
   onImageLoadError?: (src: string | null) => void;
 }
@@ -75,6 +76,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   onPdfLoadSuccess,
   onPdfLoadError,
   onPdfSourceError,
+  onPdfPageLoadSuccess,
   onPdfPageError,
   onImageLoadError,
 }) => {
@@ -210,6 +212,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
         if (newScale) setScale(newScale);
         autoFitDone.current = true;
     }
+    onPdfPageLoadSuccess?.(page);
   };
 
   return (
