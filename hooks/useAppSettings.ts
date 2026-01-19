@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { AppSettings, NumberingState } from '../types';
 
 const DEFAULT_SETTINGS: AppSettings = {
-  fontSize: 12,
+  fontSize: 28,
   useWhiteBackground: false,
   backgroundPadding: 4,
   nextNumber: 1,
