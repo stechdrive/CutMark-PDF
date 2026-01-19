@@ -71,6 +71,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const viewportRef = useRef<HTMLDivElement>(null); // Scrollable container
   const containerRef = useRef<HTMLDivElement>(null); // Content wrapper
   const autoFitDone = useRef<boolean>(false); // Track if we've fitted the current doc
+  const SNAP_X_PX = 12; // 基準線近傍のクリックを行スナップに変換する許容幅
+  const [isSnapCandidate, setIsSnapCandidate] = useState(false);
 
   // Image sizing state
   const [imgSize, setImgSize] = useState<{ key: string; width: number; height: number } | null>(null);
@@ -106,10 +108,48 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
     // Safety check for bounds
     if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
-      onContentClick(x, y);
+      let targetX = x;
+      let targetY = y;
+      if (template.rowPositions.length > 0) {
+        const dxPx = Math.abs(x - template.xPosition) * rect.width;
+        if (dxPx <= SNAP_X_PX) {
+          const nearestY = template.rowPositions.reduce((closest, candidate) => (
+            Math.abs(candidate - y) < Math.abs(closest - y) ? candidate : closest
+          ), template.rowPositions[0]);
+          targetX = template.xPosition;
+          targetY = nearestY;
+        }
+      }
+      onContentClick(targetX, targetY);
     }
   };
 
+  const handlePointerMove = (e: React.MouseEvent) => {
+    if (mode === 'template') {
+      setIsSnapCandidate(false);
+      return;
+    }
+    if (!containerRef.current || template.rowPositions.length === 0) {
+      setIsSnapCandidate(false);
+      return;
+    }
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+
+    if (x < 0 || x > 1 || y < 0 || y > 1) {
+      setIsSnapCandidate(false);
+      return;
+    }
+
+    const dxPx = Math.abs(x - template.xPosition) * rect.width;
+    setIsSnapCandidate(dxPx <= SNAP_X_PX);
+  };
+
+  const handlePointerLeave = () => {
+    setIsSnapCandidate(false);
+  };
   const calculateFitScale = (contentWidth: number, contentHeight: number) => {
     if (!viewportRef.current) return;
     
@@ -226,8 +266,10 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 >
                 <div
                     ref={containerRef}
-                    className="relative pdf-page-container cursor-crosshair"
+                    className={`relative pdf-page-container ${isSnapCandidate ? 'cursor-row-resize' : 'cursor-crosshair'}`}
                     onClick={handlePageClick}
+                    onMouseMove={handlePointerMove}
+                    onMouseLeave={handlePointerLeave}
                 >
                     <Page
                     pageNumber={currentPage}
@@ -260,7 +302,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
             {docType === 'images' && currentImageUrl && (
                 <div 
-                    className="relative pdf-page-container cursor-crosshair bg-white"
+                    className={`relative pdf-page-container bg-white ${isSnapCandidate ? 'cursor-row-resize' : 'cursor-crosshair'}`}
                     ref={containerRef}
                     style={{
                         width: activeImgSize ? activeImgSize.width : 'auto',
@@ -268,6 +310,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                         // Optional: Limit max display size if needed, but scaling handles it
                     }}
                     onClick={handlePageClick}
+                    onMouseMove={handlePointerMove}
+                    onMouseLeave={handlePointerLeave}
                 >
                     <img 
                         src={currentImageUrl}
