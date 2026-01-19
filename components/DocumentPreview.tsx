@@ -125,11 +125,17 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       if (template.rowPositions.length > 0) {
         const dxPx = Math.abs(x - template.xPosition) * rect.width;
         if (dxPx <= SNAP_X_PX) {
-          const nearestY = template.rowPositions.reduce((closest, candidate) => (
-            Math.abs(candidate - y) < Math.abs(closest - y) ? candidate : closest
-          ), template.rowPositions[0]);
+          const sortedRows = [...template.rowPositions].sort((a, b) => a - b);
+          let snapY = sortedRows[0];
+          for (const row of sortedRows) {
+            if (row <= y) {
+              snapY = row;
+            } else {
+              break;
+            }
+          }
           targetX = template.xPosition;
-          targetY = nearestY;
+          targetY = snapY;
         }
       }
       onContentClick(targetX, targetY);
