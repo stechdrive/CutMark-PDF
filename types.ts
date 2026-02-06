@@ -27,6 +27,7 @@ export interface AppSettings {
   autoIncrement: boolean;
   minDigits: number;
   textOutlineWidth: number; // Pixel width for white text outline
+  enableClickSnapToRows: boolean; // 基準線付近クリック時の行スナップ
 }
 
 export type NumberingState = Pick<AppSettings, 'nextNumber' | 'branchChar'>;

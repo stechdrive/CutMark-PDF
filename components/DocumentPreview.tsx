@@ -85,6 +85,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const autoFitDone = useRef<boolean>(false); // Track if we've fitted the current doc
   const SNAP_X_PX = 12; // 基準線近傍のクリックを行スナップに変換する許容幅
   const [isSnapCandidate, setIsSnapCandidate] = useState(false);
+  const showSnapCandidate = settings.enableClickSnapToRows && isSnapCandidate;
 
   // Image sizing state
   const [imgSize, setImgSize] = useState<{ key: string; width: number; height: number } | null>(null);
@@ -122,7 +123,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
       let targetX = x;
       let targetY = y;
-      if (template.rowPositions.length > 0) {
+      if (settings.enableClickSnapToRows && template.rowPositions.length > 0) {
         const dxPx = Math.abs(x - template.xPosition) * rect.width;
         if (dxPx <= SNAP_X_PX) {
           const sortedRows = [...template.rowPositions].sort((a, b) => a - b);
@@ -143,7 +144,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   };
 
   const handlePointerMove = (e: React.MouseEvent) => {
-    if (mode === 'template') {
+    if (mode === 'template' || !settings.enableClickSnapToRows) {
       setIsSnapCandidate(false);
       return;
     }
@@ -290,7 +291,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 >
                 <div
                     ref={containerRef}
-                    className={`relative pdf-page-container ${isSnapCandidate ? 'cursor-row-resize' : 'cursor-crosshair'}`}
+                    className={`relative pdf-page-container ${showSnapCandidate ? 'cursor-row-resize' : 'cursor-crosshair'}`}
                     onClick={handlePageClick}
                     onMouseMove={handlePointerMove}
                     onMouseLeave={handlePointerLeave}
@@ -327,7 +328,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
             {docType === 'images' && currentImageUrl && (
                 <div 
-                    className={`relative pdf-page-container bg-white ${isSnapCandidate ? 'cursor-row-resize' : 'cursor-crosshair'}`}
+                    className={`relative pdf-page-container bg-white ${showSnapCandidate ? 'cursor-row-resize' : 'cursor-crosshair'}`}
                     ref={containerRef}
                     style={{
                         width: activeImgSize ? activeImgSize.width : 'auto',

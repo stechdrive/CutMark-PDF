@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoIncrement: true,
   minDigits: 3,
   textOutlineWidth: 2,
+  enableClickSnapToRows: true,
 };
 
 export const useAppSettings = () => {
