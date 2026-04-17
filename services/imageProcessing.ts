@@ -27,9 +27,9 @@ export const getImageResolution = (buffer: ArrayBuffer, type: 'jpeg' | 'png'): {
             view.getUint8(offset + 7) === 0x46 &&
             view.getUint8(offset + 8) === 0x00
           ) {
-            const units = view.getUint8(offset + 13);
-            const xDensity = view.getUint16(offset + 14);
-            const yDensity = view.getUint16(offset + 16);
+            const units = view.getUint8(offset + 11);
+            const xDensity = view.getUint16(offset + 12);
+            const yDensity = view.getUint16(offset + 14);
 
             if (units === 1) { // dots per inch
               return { x: xDensity, y: yDensity };

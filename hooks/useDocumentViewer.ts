@@ -1,5 +1,5 @@
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, type DragEvent } from 'react';
 import { DocType } from '../types';
 import { getExifOrientation, renderImageWithOrientation } from '../services/imageProcessing';
 
@@ -125,7 +125,7 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
     if (onLoadComplete) onLoadComplete();
   }, [onLoadComplete]);
 
-  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragEnter = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current += 1;
@@ -134,7 +134,7 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
     }
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     dragCounter.current -= 1;
@@ -143,7 +143,7 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
     }
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
   }, []);
@@ -246,7 +246,7 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
     return { pdf: pdfItem, images: imageList };
   };
 
-  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = useCallback(async (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);

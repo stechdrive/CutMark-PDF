@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'path';
-import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
 
 const packageJson = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')
@@ -24,6 +24,22 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, '.'),
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./test/setup.ts'],
+    css: false,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: [
+        'components/**/*.tsx',
+        'hooks/**/*.ts',
+        'hooks/**/*.tsx',
+        'services/**/*.ts',
+        'utils/**/*.ts',
+      ],
     },
   },
 });

@@ -5,6 +5,11 @@ import { Upload, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react
 import { TemplateOverlay } from './TemplateOverlay';
 import { CutMarker } from './CutMarker';
 import { AppSettings, Cut, Template, DocType } from '../types';
+import {
+  calculateFitScale,
+  getPlacementFromClick,
+  isClickSnapCandidate,
+} from '../utils/documentPreviewMath';
 
 interface DocumentPreviewProps {
   docType: DocType | null;
@@ -83,7 +88,6 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const viewportRef = useRef<HTMLDivElement>(null); // Scrollable container
   const containerRef = useRef<HTMLDivElement>(null); // Content wrapper
   const autoFitDone = useRef<boolean>(false); // Track if we've fitted the current doc
-  const SNAP_X_PX = 12; // 基準線近傍のクリックを行スナップに変換する許容幅
   const [isSnapCandidate, setIsSnapCandidate] = useState(false);
   const showSnapCandidate = settings.enableClickSnapToRows && isSnapCandidate;
 
@@ -121,25 +125,14 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
     // Safety check for bounds
     if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
-      let targetX = x;
-      let targetY = y;
-      if (settings.enableClickSnapToRows && template.rowPositions.length > 0) {
-        const dxPx = Math.abs(x - template.xPosition) * rect.width;
-        if (dxPx <= SNAP_X_PX) {
-          const sortedRows = [...template.rowPositions].sort((a, b) => a - b);
-          let snapY = sortedRows[0];
-          for (const row of sortedRows) {
-            if (row <= y) {
-              snapY = row;
-            } else {
-              break;
-            }
-          }
-          targetX = template.xPosition;
-          targetY = snapY;
-        }
-      }
-      onContentClick(targetX, targetY);
+      const placement = getPlacementFromClick({
+        x,
+        y,
+        contentWidthPx: rect.width,
+        template,
+        enableClickSnapToRows: settings.enableClickSnapToRows,
+      });
+      onContentClick(placement.x, placement.y);
     }
   };
 
@@ -162,35 +155,17 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       return;
     }
 
-    const dxPx = Math.abs(x - template.xPosition) * rect.width;
-    setIsSnapCandidate(dxPx <= SNAP_X_PX);
+    setIsSnapCandidate(isClickSnapCandidate({
+      x,
+      contentWidthPx: rect.width,
+      template,
+      enableClickSnapToRows: settings.enableClickSnapToRows,
+    }));
   };
 
   const handlePointerLeave = () => {
     setIsSnapCandidate(false);
   };
-  const calculateFitScale = (contentWidth: number, contentHeight: number) => {
-    if (!viewportRef.current) return;
-    
-    const { clientWidth, clientHeight } = viewportRef.current;
-    const padding = 40; // Pixels
-    const availWidth = Math.max(100, clientWidth - padding);
-    const availHeight = Math.max(100, clientHeight - padding);
-
-    const scaleX = availWidth / contentWidth;
-    const scaleY = availHeight / contentHeight;
-    
-    // Fit entire content
-    let newScale = Math.min(scaleX, scaleY);
-    
-    // Don't zoom in too much automatically (cap at 1.5x)
-    // But allow zooming out as much as needed
-    newScale = Math.min(newScale, 1.5);
-    
-    // Round to nice number
-    return Math.floor(newScale * 100) / 100;
-  };
-
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
     if (currentImageUrl) {
@@ -198,7 +173,12 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     }
 
     if (!autoFitDone.current && viewportRef.current) {
-        const newScale = calculateFitScale(naturalWidth, naturalHeight);
+        const newScale = calculateFitScale({
+          contentWidth: naturalWidth,
+          contentHeight: naturalHeight,
+          viewportWidth: viewportRef.current.clientWidth,
+          viewportHeight: viewportRef.current.clientHeight,
+        });
         if (newScale) setScale(newScale);
         autoFitDone.current = true;
     }
@@ -215,7 +195,12 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
         const ratio = page.originalWidth / page.originalHeight;
         const baseHeight = baseWidth / ratio;
 
-        const newScale = calculateFitScale(baseWidth, baseHeight);
+        const newScale = calculateFitScale({
+          contentWidth: baseWidth,
+          contentHeight: baseHeight,
+          viewportWidth: viewportRef.current.clientWidth,
+          viewportHeight: viewportRef.current.clientHeight,
+        });
         if (newScale) setScale(newScale);
         autoFitDone.current = true;
     }

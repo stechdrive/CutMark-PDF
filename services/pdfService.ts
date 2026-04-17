@@ -264,9 +264,9 @@ export const saveImagesAsPdf = async (
             payload.getUint8(3) === 0x46 &&
             payload.getUint8(4) === 0x00;
           if (isJfif) {
-            const units = payload.getUint8(9);
-            const xDensity = payload.getUint16(10);
-            const yDensity = payload.getUint16(12);
+            const units = payload.getUint8(7);
+            const xDensity = payload.getUint16(8);
+            const yDensity = payload.getUint16(10);
             if (units === 1) dpi = { x: xDensity, y: yDensity };
             if (units === 2) dpi = { x: xDensity * 2.54, y: yDensity * 2.54 };
           }
