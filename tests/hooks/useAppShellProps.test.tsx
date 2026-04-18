@@ -116,7 +116,6 @@ describe('useAppShellProps', () => {
         },
         sidebar: {
           mode: 'edit',
-          setMode: vi.fn(),
           pdfFile: null,
           selectedCutId: 'cut-1',
           projectOrganizerProps: createProjectOrganizerProps(),
@@ -228,7 +227,6 @@ describe('useAppShellProps', () => {
         },
         sidebar: {
           mode: 'template',
-          setMode: vi.fn(),
           pdfFile: null,
           selectedCutId: null,
           projectOrganizerProps: null,
