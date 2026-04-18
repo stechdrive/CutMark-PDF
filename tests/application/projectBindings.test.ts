@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyBoundAssetHintsToProject,
   countAssignedProjectAssetBindings,
   createSuggestedProjectAssetBindings,
   hasCompleteProjectAssetBindings,
@@ -115,5 +116,25 @@ describe('application/projectBindings', () => {
       'page-2': 0,
       'page-3': 1,
     });
+  });
+
+  it('writes currently bound asset hints back onto logical pages for saving', () => {
+    const savedProject = applyBoundAssetHintsToProject(
+      project,
+      {
+        'page-1': 2,
+        'page-2': 0,
+        'page-3': null,
+      },
+      [
+        { sourceKind: 'image', sourceLabel: 'A.png', pageNumber: 1 },
+        { sourceKind: 'image', sourceLabel: 'B.png', pageNumber: 2 },
+        { sourceKind: 'image', sourceLabel: 'C.png', pageNumber: 3 },
+      ]
+    );
+
+    expect(savedProject.logicalPages[0].expectedAssetHint?.sourceLabel).toBe('C.png');
+    expect(savedProject.logicalPages[1].expectedAssetHint?.sourceLabel).toBe('A.png');
+    expect(savedProject.logicalPages[2].expectedAssetHint?.sourceLabel).toBe('003.png');
   });
 });

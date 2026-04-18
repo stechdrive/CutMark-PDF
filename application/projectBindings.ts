@@ -151,3 +151,33 @@ export const hasCompleteProjectAssetBindings = (
   bindings: ProjectAssetBindings
 ) =>
   project.logicalPages.every((page) => bindings[page.id] != null);
+
+export const applyBoundAssetHintsToProject = (
+  project: ProjectDocument,
+  bindings: ProjectAssetBindings,
+  currentAssets: Array<AssetHint | null | undefined>
+) => ({
+  ...project,
+  meta: { ...project.meta },
+  numbering: { ...project.numbering },
+  style: { ...project.style },
+  template: {
+    ...project.template,
+    rowPositions: [...project.template.rowPositions],
+  },
+  logicalPages: project.logicalPages.map((page) => {
+    const assetIndex = bindings[page.id];
+    const boundAsset =
+      assetIndex != null && assetIndex >= 0 ? currentAssets[assetIndex] ?? null : null;
+
+    return {
+      ...page,
+      cuts: page.cuts.map((cut) => ({ ...cut })),
+      expectedAssetHint: boundAsset
+        ? { ...boundAsset }
+        : page.expectedAssetHint
+          ? { ...page.expectedAssetHint }
+          : null,
+    };
+  }),
+});

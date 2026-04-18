@@ -15,9 +15,16 @@ import {
   downloadProjectDocument,
   loadProjectDocumentFromFile,
 } from './repositories/projectRepository';
-import { createLogicalPage, ProjectDocument } from './domain/project';
+import {
+  createLogicalPage,
+  ProjectDocument,
+  toNumberingPolicy,
+  toStyleSettings,
+  toTemplateSnapshot,
+} from './domain/project';
 import {
   countAssignedProjectAssetBindings,
+  applyBoundAssetHintsToProject,
   createSuggestedProjectAssetBindings,
   hasCompleteProjectAssetBindings,
   ProjectAssetBindings,
@@ -37,6 +44,11 @@ import {
   redoHistory,
   undoHistory,
 } from './application/history';
+import {
+  advanceNumberingState,
+  buildNumberLabel,
+  renumberLogicalPagesFromCut,
+} from './domain/numbering';
 
 // Hooks
 import { useDocumentViewer } from './hooks/useDocumentViewer';
@@ -77,6 +89,15 @@ type ProjectDraft = {
   project: ProjectDocument;
   bindings: ProjectAssetBindings;
 };
+
+const toCutLike = (pageIndex: number, cut: ProjectDocument['logicalPages'][number]['cuts'][number]): Cut => ({
+  id: cut.id,
+  pageIndex,
+  x: cut.x,
+  y: cut.y,
+  label: cut.label,
+  isBranch: cut.isBranch,
+});
 
 const toFileInfo = (file: File | null) => {
   if (!file) return null;
@@ -167,12 +188,14 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [projectDraftHistory, setProjectDraftHistory] = useState<HistoryState<ProjectDraft> | null>(null);
   const [selectedLogicalPageId, setSelectedLogicalPageId] = useState<string | null>(null);
+  const [selectedProjectCutId, setSelectedProjectCutId] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
   const [debugCopyStatus, setDebugCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const debugTextRef = useRef<HTMLTextAreaElement>(null);
   const pdfFontSizeAppliedRef = useRef(false);
   const pdfAutoFontSizeRef = useRef<number | null>(null);
+  const projectCutDragBaseRef = useRef<ProjectDraft | null>(null);
 
   const logDebug = useCallback((level: DebugLog['level'], message: string, data?: DebugLogData) => {
     if (!debugEnabled) return;
@@ -297,6 +320,7 @@ export default function App() {
   useEffect(() => {
     if (!loadedProject) {
       setSelectedLogicalPageId(null);
+      setSelectedProjectCutId(null);
       return;
     }
 
@@ -317,6 +341,10 @@ export default function App() {
       setCurrentPage(assetIndex + 1);
     }
   }, [currentPage, projectBindings, selectedLogicalPageId, setCurrentPage]);
+
+  useEffect(() => {
+    projectCutDragBaseRef.current = null;
+  }, [selectedLogicalPageId, loadedProject]);
 
   const updateProjectDraft = useCallback((
     updater: (draft: ProjectDraft) => ProjectDraft,
@@ -378,6 +406,32 @@ export default function App() {
   const selectedLogicalPageAssetIndex =
     selectedLogicalPageId != null ? projectBindings[selectedLogicalPageId] ?? null : null;
 
+  useEffect(() => {
+    if (!selectedLogicalPage) {
+      setSelectedProjectCutId(null);
+      return;
+    }
+
+    const hasSelectedCut =
+      !!selectedProjectCutId &&
+      selectedLogicalPage.cuts.some((cut) => cut.id === selectedProjectCutId);
+
+    if (!hasSelectedCut) {
+      setSelectedProjectCutId(null);
+    }
+  }, [selectedLogicalPage, selectedProjectCutId]);
+
+  const effectiveSettings = settings;
+  const effectiveTemplate = template;
+  const effectiveSelectedCutId = loadedProject ? selectedProjectCutId : selectedCutId;
+  const previewCuts = useMemo(
+    () =>
+      loadedProject && selectedLogicalPage
+        ? selectedLogicalPage.cuts.map((cut) => toCutLike(currentPage - 1, cut))
+        : cuts.filter((cut) => cut.pageIndex === currentPage - 1),
+    [currentPage, cuts, loadedProject, selectedLogicalPage]
+  );
+
   const projectStatusMessage = useMemo(() => {
     if (!loadedProject) return null;
     if (!selectedLogicalPage) {
@@ -394,10 +448,71 @@ export default function App() {
     selectedLogicalPageNumber,
   ]);
 
+  const materializeProjectDraft = useCallback((
+    project: ProjectDocument,
+    bindings: ProjectAssetBindings
+  ) => {
+    const projectWithBoundHints = applyBoundAssetHintsToProject(
+      project,
+      bindings,
+      currentAssetHints
+    );
+
+    return {
+      ...projectWithBoundHints,
+      meta: {
+        ...projectWithBoundHints.meta,
+        savedAt: new Date().toISOString(),
+      },
+      numbering: toNumberingPolicy(settings),
+      style: toStyleSettings(settings),
+      template: toTemplateSnapshot(template),
+    };
+  }, [currentAssetHints, settings, template]);
+
   // --- Logic Orchestration ---
   
   // Create a new cut at a specific position
   const createCutAt = (x: number, y: number) => {
+    if (loadedProject && selectedLogicalPageId) {
+      const newCutId = crypto.randomUUID();
+      const currentNumbering = {
+        nextNumber: settings.nextNumber,
+        branchChar: settings.branchChar,
+      };
+      const nextNumbering = advanceNumberingState(
+        currentNumbering,
+        settings.autoIncrement
+      );
+
+      pushProjectDraft((draft) => ({
+        ...draft,
+        project: {
+          ...draft.project,
+          logicalPages: draft.project.logicalPages.map((page) =>
+            page.id === selectedLogicalPageId
+              ? {
+                  ...page,
+                  cuts: [
+                    ...page.cuts,
+                    {
+                      id: newCutId,
+                      x,
+                      y,
+                      label: buildNumberLabel(currentNumbering, settings.minDigits),
+                      isBranch: !!settings.branchChar,
+                    },
+                  ],
+                }
+              : page
+          ),
+        },
+      }));
+      setSelectedProjectCutId(newCutId);
+      setNumberingState(nextNumbering);
+      return;
+    }
+
     const newCut: Cut = {
       id: crypto.randomUUID(),
       pageIndex: currentPage - 1,
@@ -413,13 +528,33 @@ export default function App() {
 
   // Row Snap (Keyboard 1-9 or Button)
   const handleRowSnap = (rowIndex: number) => {
-    if (rowIndex >= template.rowPositions.length) return;
-    const y = template.rowPositions[rowIndex];
-    const x = template.xPosition;
+    if (rowIndex >= effectiveTemplate.rowPositions.length) return;
+    const y = effectiveTemplate.rowPositions[rowIndex];
+    const x = effectiveTemplate.xPosition;
     createCutAt(x, y);
   };
 
   const handleRenumberFromSelected = useCallback((cutId: string) => {
+    if (loadedProject) {
+      const result = renumberLogicalPagesFromCut(loadedProject.logicalPages, cutId, {
+        nextNumber: settings.nextNumber,
+        branchChar: settings.branchChar,
+        minDigits: settings.minDigits,
+        autoIncrement: settings.autoIncrement,
+      });
+      if (!result.found) return;
+
+      pushProjectDraft((draft) => ({
+        ...draft,
+        project: {
+          ...draft.project,
+          logicalPages: result.logicalPages,
+        },
+      }));
+      setNumberingState(result.nextNumbering);
+      return;
+    }
+
     renumberFromCut(
       cutId,
       {
@@ -429,7 +564,16 @@ export default function App() {
       settings.minDigits,
       settings.autoIncrement
     );
-  }, [renumberFromCut, settings.autoIncrement, settings.branchChar, settings.minDigits, settings.nextNumber]);
+  }, [
+    loadedProject,
+    pushProjectDraft,
+    renumberFromCut,
+    setNumberingState,
+    settings.autoIncrement,
+    settings.branchChar,
+    settings.minDigits,
+    settings.nextNumber,
+  ]);
 
   const applyPdfDefaultFontSize = useCallback((page: { originalWidth: number }) => {
     if (docType !== 'pdf') return;
@@ -523,9 +667,11 @@ export default function App() {
     sourceFile: ReturnType<typeof toFileInfo> | null = null,
     bindings?: ProjectAssetBindings
   ) => {
+    const projectForApply =
+      bindings ? materializeProjectDraft(project, bindings) : project;
     const legacy = bindings
-      ? createLegacyStateFromBoundProjectDocument(project, bindings)
-      : createLegacyStateFromProjectDocument(project);
+      ? createLegacyStateFromBoundProjectDocument(projectForApply, bindings)
+      : createLegacyStateFromProjectDocument(projectForApply);
     setSettings(legacy.settings);
     upsertTemplate(legacy.template);
     replaceCutsState(legacy.cuts, legacy.numberingState);
@@ -541,7 +687,7 @@ export default function App() {
         : legacy.logicalPageCount,
       sourceFile,
     }));
-  }, [logDebug, replaceCutsState, setCurrentPage, setSettings, upsertTemplate]);
+  }, [logDebug, materializeProjectDraft, replaceCutsState, setCurrentPage, setSettings, upsertTemplate]);
 
   const handleProjectBindingChange = useCallback((logicalPageId: string, nextAssetIndex: number | null) => {
     pushProjectDraft((draft) => ({
@@ -561,6 +707,89 @@ export default function App() {
   const handleSelectLogicalPage = useCallback((logicalPageId: string) => {
     setSelectedLogicalPageId(logicalPageId);
   }, []);
+
+  const handleSelectPreviewCut = useCallback((cutId: string | null) => {
+    if (loadedProject) {
+      setSelectedProjectCutId(cutId);
+      return;
+    }
+    setSelectedCutId(cutId);
+  }, [loadedProject, setSelectedCutId]);
+
+  const handleDeletePreviewCut = useCallback((cutId: string) => {
+    if (loadedProject && selectedLogicalPageId) {
+      pushProjectDraft((draft) => ({
+        ...draft,
+        project: {
+          ...draft.project,
+          logicalPages: draft.project.logicalPages.map((page) =>
+            page.id === selectedLogicalPageId
+              ? {
+                  ...page,
+                  cuts: page.cuts.filter((cut) => cut.id !== cutId),
+                }
+              : page
+          ),
+        },
+      }));
+      if (selectedProjectCutId === cutId) {
+        setSelectedProjectCutId(null);
+      }
+      return;
+    }
+
+    deleteCut(cutId);
+  }, [deleteCut, loadedProject, pushProjectDraft, selectedLogicalPageId, selectedProjectCutId]);
+
+  const handlePreviewCutPositionChange = useCallback((cutId: string, x: number, y: number) => {
+    if (loadedProject) {
+      setProjectDraftHistory((prev) => {
+        if (!prev) return prev;
+        if (projectCutDragBaseRef.current == null) {
+          projectCutDragBaseRef.current = prev.present;
+        }
+        return {
+          ...prev,
+          present: {
+            ...prev.present,
+            project: {
+              ...prev.present.project,
+              logicalPages: prev.present.project.logicalPages.map((page) => ({
+                ...page,
+                cuts: page.cuts.map((cut) =>
+                  cut.id === cutId ? { ...cut, x, y } : cut
+                ),
+              })),
+            },
+          },
+        };
+      });
+      return;
+    }
+
+    updateCutPosition(cutId, x, y);
+  }, [loadedProject, updateCutPosition]);
+
+  const handlePreviewCutDragEnd = useCallback(() => {
+    if (loadedProject) {
+      setProjectDraftHistory((prev) => {
+        const dragBase = projectCutDragBaseRef.current;
+        projectCutDragBaseRef.current = null;
+        if (!prev || !dragBase) return prev;
+        return pushHistoryState(
+          {
+            past: prev.past,
+            present: dragBase,
+            future: prev.future,
+          },
+          prev.present
+        );
+      });
+      return;
+    }
+
+    handleCutDragEnd();
+  }, [handleCutDragEnd, loadedProject]);
 
   const handleInsertLogicalPageAfter = useCallback((logicalPageId: string) => {
     const nextPage = createLogicalPage();
@@ -599,6 +828,21 @@ export default function App() {
       return;
     }
 
+    if (loadedProject) {
+      const project = materializeProjectDraft(loadedProject, projectBindings);
+      updateProjectDraft((draft) => ({
+        ...draft,
+        project,
+      }));
+      downloadProjectDocument(project);
+      logDebug('info', 'プロジェクト保存', () => ({
+        projectName: project.meta.name,
+        logicalPages: project.logicalPages.length,
+        cutCount: project.logicalPages.reduce((count, page) => count + page.cuts.length, 0),
+      }));
+      return;
+    }
+
     const pageCount = Math.max(numPages, 1);
     const assetHints = createAssetHintsFromCurrentDocument({
       docType,
@@ -629,7 +873,22 @@ export default function App() {
       logicalPages: project.logicalPages.length,
       cutCount: cuts.length,
     }));
-  }, [currentAssetHints, cuts, docType, imageFiles, logDebug, numPages, pdfFile, setProjectDraft, settings, template]);
+  }, [
+    currentAssetHints,
+    cuts,
+    docType,
+    imageFiles,
+    loadedProject,
+    logDebug,
+    materializeProjectDraft,
+    numPages,
+    pdfFile,
+    projectBindings,
+    setProjectDraft,
+    settings,
+    template,
+    updateProjectDraft,
+  ]);
 
   const onProjectLoaded = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -640,8 +899,11 @@ export default function App() {
       const project = await loadProjectDocumentFromFile(file);
       const fileInfo = toFileInfo(file);
       const suggestedBindings = createSuggestedProjectAssetBindings(project, currentAssetHints);
+      const legacySnapshot = createLegacyStateFromProjectDocument(project);
 
       setProjectDraft(project, suggestedBindings);
+      setSettings(legacySnapshot.settings);
+      upsertTemplate(legacySnapshot.template);
       logDebug('info', 'プロジェクト読込完了', () => ({
         projectName: project.meta.name,
         logicalPages: project.logicalPages.length,
@@ -656,7 +918,7 @@ export default function App() {
       if (project.logicalPages.length !== numPages) {
         alert(
           `このプロジェクトは ${project.logicalPages.length} ページですが、現在の素材は ${numPages} ページです。\n` +
-          'いまは比較結果のみ表示します。ページ調整UIは次の段階で追加します。'
+          '論理ページの割当と増減は右パネルで調整できます。'
         );
         logDebug('warn', 'プロジェクト読込保留', () => ({
           reason: 'page-count-mismatch',
@@ -677,7 +939,7 @@ export default function App() {
     } finally {
       e.target.value = '';
     }
-  }, [applyLoadedProjectToCurrentDocument, currentAssetHints, docType, logDebug, numPages, setProjectDraft]);
+  }, [applyLoadedProjectToCurrentDocument, currentAssetHints, docType, logDebug, numPages, setProjectDraft, setSettings, upsertTemplate]);
 
   // Export PDF
   const handleExportPdf = async () => {
@@ -752,11 +1014,6 @@ export default function App() {
     onRowSnap: handleRowSnap
   });
 
-  // Filter cuts for current page
-  const currentCuts = useMemo(() => 
-    cuts.filter(c => c.pageIndex === currentPage - 1), 
-  [cuts, currentPage]);
-
   const debugReport = useMemo(() => {
     if (!debugEnabled) {
       return 'Debug disabled';
@@ -798,8 +1055,8 @@ export default function App() {
       `isExporting: ${isExporting}`,
       `currentPage: ${currentPage} / ${numPages}`,
       `scale: ${scale}`,
-      `cuts: total=${cuts.length}, currentPage=${currentCuts.length}`,
-      `selectedCutId: ${selectedCutId ?? 'none'}`,
+      `cuts: total=${loadedProject ? loadedProject.logicalPages.reduce((count, page) => count + page.cuts.length, 0) : cuts.length}, currentPage=${previewCuts.length}`,
+      `selectedCutId: ${effectiveSelectedCutId ?? 'none'}`,
       '',
       '[PDF File]',
       safeJsonStringify(toFileInfo(pdfFile)),
@@ -837,9 +1094,10 @@ export default function App() {
     numPages,
     scale,
     cuts.length,
-    currentCuts.length,
-    selectedCutId,
+    effectiveSelectedCutId,
+    loadedProject,
     pdfFile,
+    previewCuts.length,
     imageFiles,
     settings,
     template,
@@ -921,17 +1179,17 @@ export default function App() {
           dragHandlers={dragHandlers}
           onFileDropped={onFileDropped}
           
-          cuts={currentCuts}
-          selectedCutId={selectedCutId}
-          setSelectedCutId={setSelectedCutId}
-          deleteCut={deleteCut}
-          updateCutPosition={updateCutPosition}
-          handleCutDragEnd={handleCutDragEnd}
+          cuts={previewCuts}
+          selectedCutId={effectiveSelectedCutId}
+          setSelectedCutId={handleSelectPreviewCut}
+          deleteCut={handleDeletePreviewCut}
+          updateCutPosition={handlePreviewCutPositionChange}
+          handleCutDragEnd={handlePreviewCutDragEnd}
           
           mode={mode}
-          template={template}
+          template={effectiveTemplate}
           setTemplate={setTemplate}
-          settings={settings}
+          settings={effectiveSettings}
           onContentClick={createCutAt}
           onPdfLoadSuccess={(pages) => logDebug('info', 'PDF読み込み成功', () => ({ numPages: pages }))}
           onPdfLoadError={(error) => logDebug('error', 'PDF読み込み失敗', () => ({ error: normalizeError(error) }))}
@@ -945,7 +1203,7 @@ export default function App() {
           mode={mode}
           setMode={setMode}
           pdfFile={pdfFile || (imageFiles.length > 0 ? imageFiles[0] : null)}
-          selectedCutId={selectedCutId}
+          selectedCutId={effectiveSelectedCutId}
           projectPanel={
             loadedProject && projectComparison ? (
               <SidebarProjectPanel
@@ -974,16 +1232,16 @@ export default function App() {
             ) : undefined
           }
           templates={templates}
-          template={template}
+          template={effectiveTemplate}
           setTemplate={setTemplate}
           changeTemplate={changeTemplate}
           saveTemplateByName={saveTemplateByName}
           deleteTemplate={deleteTemplate}
           distributeRows={distributeRows}
           onRowSnap={handleRowSnap}
-          settings={settings}
+          settings={effectiveSettings}
           setSettings={setSettings}
-          setNumberingState={setNumberingStateWithHistory}
+          setNumberingState={loadedProject ? setNumberingState : setNumberingStateWithHistory}
           onRenumberFromSelected={handleRenumberFromSelected}
         />
         
