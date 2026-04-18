@@ -1,5 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createProjectDocument } from '../../domain/project';
 import { useAppController } from '../../hooks/useAppController';
 import { createAppSettings, createTemplate } from '../../test/factories';
 
@@ -12,29 +13,11 @@ vi.mock('react-pdf', () => ({
   },
 }));
 
-const appSettingsMocks = vi.hoisted(() => ({
-  useAppSettings: vi.fn(),
-}));
-const resetControllerMocks = vi.hoisted(() => ({
-  useDocumentResetController: vi.fn(),
-}));
-const documentViewerMocks = vi.hoisted(() => ({
-  useDocumentViewer: vi.fn(),
-}));
-const templateMocks = vi.hoisted(() => ({
-  useTemplates: vi.fn(),
-}));
 const debugLoggerMocks = vi.hoisted(() => ({
   useDebugLogger: vi.fn(),
 }));
-const metadataMocks = vi.hoisted(() => ({
-  useCurrentDocumentMetadata: vi.fn(),
-}));
-const editorWorkspaceMocks = vi.hoisted(() => ({
-  useEditorWorkspace: vi.fn(),
-}));
-const canvasBehaviorMocks = vi.hoisted(() => ({
-  useEditorCanvasBehavior: vi.fn(),
+const workspaceControllerMocks = vi.hoisted(() => ({
+  useAppWorkspaceController: vi.fn(),
 }));
 const debugPanelMocks = vi.hoisted(() => ({
   useDebugPanel: vi.fn(),
@@ -49,14 +32,10 @@ const shellPropsMocks = vi.hoisted(() => ({
   useAppShellProps: vi.fn(),
 }));
 
-vi.mock('../../hooks/useAppSettings', () => ({ useAppSettings: appSettingsMocks.useAppSettings }));
-vi.mock('../../hooks/useDocumentResetController', () => ({ useDocumentResetController: resetControllerMocks.useDocumentResetController }));
-vi.mock('../../hooks/useDocumentViewer', () => ({ useDocumentViewer: documentViewerMocks.useDocumentViewer }));
-vi.mock('../../hooks/useTemplates', () => ({ useTemplates: templateMocks.useTemplates }));
 vi.mock('../../hooks/useDebugLogger', () => ({ useDebugLogger: debugLoggerMocks.useDebugLogger }));
-vi.mock('../../hooks/useCurrentDocumentMetadata', () => ({ useCurrentDocumentMetadata: metadataMocks.useCurrentDocumentMetadata }));
-vi.mock('../../hooks/useEditorWorkspace', () => ({ useEditorWorkspace: editorWorkspaceMocks.useEditorWorkspace }));
-vi.mock('../../hooks/useEditorCanvasBehavior', () => ({ useEditorCanvasBehavior: canvasBehaviorMocks.useEditorCanvasBehavior }));
+vi.mock('../../hooks/useAppWorkspaceController', () => ({
+  useAppWorkspaceController: workspaceControllerMocks.useAppWorkspaceController,
+}));
 vi.mock('../../hooks/useDebugPanel', () => ({ useDebugPanel: debugPanelMocks.useDebugPanel }));
 vi.mock('../../hooks/useWorkspaceFileActions', () => ({ useWorkspaceFileActions: fileActionsMocks.useWorkspaceFileActions }));
 vi.mock('../../hooks/useKeyboardShortcuts', () => ({ useKeyboardShortcuts: keyboardMocks.useKeyboardShortcuts }));
@@ -64,14 +43,8 @@ vi.mock('../../hooks/useAppShellProps', () => ({ useAppShellProps: shellPropsMoc
 
 describe('useAppController', () => {
   beforeEach(() => {
-    appSettingsMocks.useAppSettings.mockReset();
-    resetControllerMocks.useDocumentResetController.mockReset();
-    documentViewerMocks.useDocumentViewer.mockReset();
-    templateMocks.useTemplates.mockReset();
     debugLoggerMocks.useDebugLogger.mockReset();
-    metadataMocks.useCurrentDocumentMetadata.mockReset();
-    editorWorkspaceMocks.useEditorWorkspace.mockReset();
-    canvasBehaviorMocks.useEditorCanvasBehavior.mockReset();
+    workspaceControllerMocks.useAppWorkspaceController.mockReset();
     debugPanelMocks.useDebugPanel.mockReset();
     fileActionsMocks.useWorkspaceFileActions.mockReset();
     keyboardMocks.useKeyboardShortcuts.mockReset();
@@ -80,10 +53,20 @@ describe('useAppController', () => {
 
   it('composes the app shell from the orchestration hooks', () => {
     const settings = createAppSettings();
-    const setSettings = vi.fn();
-    const handleDocumentReset = vi.fn();
-    const setResetHandler = vi.fn();
-    const documentViewer = {
+    const template = createTemplate();
+    const activeProject = createProjectDocument({
+      settings,
+      template,
+      logicalPages: [
+        {
+          id: 'page-1',
+          cuts: [{ id: 'cut-1', x: 0.1, y: 0.2, label: '001', isBranch: false }],
+        },
+      ],
+    });
+    const workspaceController = {
+      mode: 'edit' as const,
+      setMode: vi.fn(),
       docType: 'images' as const,
       pdfFile: null,
       imageFiles: [new File(['img'], '001.png', { type: 'image/png' })],
@@ -103,31 +86,7 @@ describe('useAppController', () => {
         onDragLeave: vi.fn(),
         onDrop: vi.fn(),
       },
-    };
-    const template = createTemplate();
-    const templateApi = {
       templates: [template],
-      template,
-      setTemplate: vi.fn(),
-      changeTemplate: vi.fn(),
-      saveTemplateByName: vi.fn(),
-      saveTemplateDraftByName: vi.fn(() => template),
-      deleteTemplate: vi.fn(),
-      deleteTemplateById: vi.fn(() => template),
-      distributeRows: vi.fn(),
-      upsertTemplate: vi.fn(),
-    };
-    const debugLogger = {
-      debugEnabled: true,
-      debugLogs: [],
-      logDebug: vi.fn(),
-    };
-    const metadata = {
-      currentAssetHints: [{ sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 }],
-      currentProjectName: 'shots',
-    };
-    const editorWorkspace = {
-      resetCurrentProject: vi.fn(),
       isLoadedProjectActive: true,
       selectedLogicalPageId: 'page-1',
       effectiveSettings: settings,
@@ -142,9 +101,7 @@ describe('useAppController', () => {
       handleDistributeRows: vi.fn(),
       handleProjectDraftInteractionStart: vi.fn(),
       handleProjectDraftInteractionEnd: vi.fn(),
-      activeProject: {
-        logicalPages: [{ cuts: [{ id: 'cut-1' }] }, { cuts: [] }],
-      },
+      activeProject,
       previewCuts: [{ id: 'cut-1' }],
       effectiveExportCuts: [],
       effectiveExportSettings: settings,
@@ -170,10 +127,13 @@ describe('useAppController', () => {
         setNumberingState: vi.fn(),
         renumberFromSelected: vi.fn(),
       },
-    };
-    const canvasBehavior = {
       handleRowSnap: vi.fn(),
       applyPdfDefaultFontSize: vi.fn(),
+    };
+    const debugLogger = {
+      debugEnabled: true,
+      debugLogs: [],
+      logDebug: vi.fn(),
     };
     const debugPanel = {
       debugOpen: false,
@@ -199,44 +159,16 @@ describe('useAppController', () => {
       exportOverlayProps: { id: 'overlay' },
     };
 
-    appSettingsMocks.useAppSettings.mockReturnValue({ settings, setSettings });
-    resetControllerMocks.useDocumentResetController.mockReturnValue({ handleDocumentReset, setResetHandler });
-    documentViewerMocks.useDocumentViewer.mockReturnValue(documentViewer);
-    templateMocks.useTemplates.mockReturnValue(templateApi);
     debugLoggerMocks.useDebugLogger.mockReturnValue(debugLogger);
-    metadataMocks.useCurrentDocumentMetadata.mockReturnValue(metadata);
-    editorWorkspaceMocks.useEditorWorkspace.mockReturnValue(editorWorkspace);
-    canvasBehaviorMocks.useEditorCanvasBehavior.mockReturnValue(canvasBehavior);
+    workspaceControllerMocks.useAppWorkspaceController.mockReturnValue(workspaceController);
     debugPanelMocks.useDebugPanel.mockReturnValue(debugPanel);
     fileActionsMocks.useWorkspaceFileActions.mockReturnValue(fileActions);
     shellPropsMocks.useAppShellProps.mockReturnValue(shellProps);
 
     const { result } = renderHook(() => useAppController());
 
-    expect(documentViewerMocks.useDocumentViewer).toHaveBeenCalledWith(handleDocumentReset);
-    expect(metadataMocks.useCurrentDocumentMetadata).toHaveBeenCalledWith({
-      docType: 'images',
-      pdfFile: null,
-      imageFiles: documentViewer.imageFiles,
-      numPages: 2,
-    });
-    expect(editorWorkspaceMocks.useEditorWorkspace).toHaveBeenCalledWith(
-      expect.objectContaining({
-        docType: 'images',
-        currentPage: 1,
-        currentAssetHints: metadata.currentAssetHints,
-        currentProjectName: 'shots',
-      })
-    );
-    expect(setResetHandler).toHaveBeenCalledWith(editorWorkspace.resetCurrentProject);
-    expect(canvasBehaviorMocks.useEditorCanvasBehavior).toHaveBeenCalledWith({
-      docType: 'images',
-      pdfFile: null,
-      settings,
-      setSettings,
-      template,
-      isLoadedProjectActive: true,
-      createCutAt: editorWorkspace.activeCutEditor.createCutAt,
+    expect(workspaceControllerMocks.useAppWorkspaceController).toHaveBeenCalledWith({
+      logDebug: debugLogger.logDebug,
     });
     expect(debugPanelMocks.useDebugPanel).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -250,16 +182,16 @@ describe('useAppController', () => {
     expect(fileActionsMocks.useWorkspaceFileActions).toHaveBeenCalledWith(
       expect.objectContaining({
         docType: 'images',
-        imageFiles: documentViewer.imageFiles,
+        imageFiles: workspaceController.imageFiles,
         isLoadedProjectActive: true,
         setIsExporting: expect.any(Function),
       })
     );
     expect(keyboardMocks.useKeyboardShortcuts).toHaveBeenCalledWith(
       expect.objectContaining({
-        onUndo: editorWorkspace.activeCutEditor.undo,
-        onRedo: editorWorkspace.activeCutEditor.redo,
-        onRowSnap: canvasBehavior.handleRowSnap,
+        onUndo: workspaceController.activeCutEditor.undo,
+        onRedo: workspaceController.activeCutEditor.redo,
+        onRowSnap: workspaceController.handleRowSnap,
       })
     );
     expect(shellPropsMocks.useAppShellProps).toHaveBeenCalledWith(
@@ -267,15 +199,15 @@ describe('useAppController', () => {
         header: expect.objectContaining({
           docType: 'images',
           onPdfFileChange: fileActions.onPdfLoaded,
-          onProjectFileChange: editorWorkspace.loadedProjectManager.onProjectLoaded,
+          onProjectFileChange: workspaceController.loadedProjectManager.onProjectLoaded,
         }),
         preview: expect.objectContaining({
           currentImageUrl: 'blob:image',
-          onPdfPageLoadSuccess: canvasBehavior.applyPdfDefaultFontSize,
+          onPdfPageLoadSuccess: workspaceController.applyPdfDefaultFontSize,
         }),
         sidebar: expect.objectContaining({
-          templates: templateApi.templates,
-          onRowSnap: canvasBehavior.handleRowSnap,
+          templates: workspaceController.templates,
+          onRowSnap: workspaceController.handleRowSnap,
         }),
       })
     );

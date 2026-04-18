@@ -1,57 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { pdfjs } from 'react-pdf';
-import { NumberingState } from '../types';
-import { ProjectDocument } from '../domain/project';
-import { useCurrentDocumentMetadata } from './useCurrentDocumentMetadata';
-import { useDocumentViewer } from './useDocumentViewer';
-import { useTemplates } from './useTemplates';
-import { useAppSettings } from './useAppSettings';
 import { useDebugLogger } from './useDebugLogger';
-import { useDocumentResetController } from './useDocumentResetController';
-import { useEditorCanvasBehavior } from './useEditorCanvasBehavior';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useDebugPanel } from './useDebugPanel';
-import { useEditorWorkspace } from './useEditorWorkspace';
 import { useAppShellProps } from './useAppShellProps';
+import { useAppWorkspaceController } from './useAppWorkspaceController';
 import { useWorkspaceFileActions } from './useWorkspaceFileActions';
 
-const countProjectCuts = (project: ProjectDocument) =>
-  project.logicalPages.reduce((count, page) => count + page.cuts.length, 0);
-
 export const useAppController = () => {
-  const {
-    settings, setSettings
-  } = useAppSettings();
-
-  const setNumberingState = useCallback((next: NumberingState) => {
-    setSettings((prev) => ({
-      ...prev,
-      nextNumber: next.nextNumber,
-      branchChar: next.branchChar,
-    }));
-  }, [setSettings]);
-
-  const numberingState = useMemo(() => ({
-    nextNumber: settings.nextNumber,
-    branchChar: settings.branchChar,
-  }), [settings.nextNumber, settings.branchChar]);
-
-  const {
-    handleDocumentReset,
-    setResetHandler,
-  } = useDocumentResetController();
-  const {
-    docType, pdfFile, imageFiles, currentImageUrl,
-    numPages, currentPage, scale, isDragging,
-    loadPdf, loadImages,
-    setNumPages, setCurrentPage, setScale, dragHandlers,
-  } = useDocumentViewer(handleDocumentReset);
-  const {
-    templates, template, setTemplate, changeTemplate,
-    saveTemplateByName, saveTemplateDraftByName, deleteTemplate, deleteTemplateById, distributeRows, upsertTemplate,
-  } = useTemplates();
-
-  const [mode, setMode] = useState<'edit' | 'template'>('edit');
   const [isExporting, setIsExporting] = useState(false);
   const {
     debugEnabled,
@@ -59,17 +15,23 @@ export const useAppController = () => {
     logDebug,
   } = useDebugLogger();
   const {
-    currentAssetHints,
-    currentProjectName,
-  } = useCurrentDocumentMetadata({
+    mode,
+    setMode,
     docType,
     pdfFile,
     imageFiles,
+    currentImageUrl,
     numPages,
-  });
-
-  const {
-    resetCurrentProject,
+    currentPage,
+    scale,
+    isDragging,
+    loadPdf,
+    loadImages,
+    setNumPages,
+    setCurrentPage,
+    setScale,
+    dragHandlers,
+    templates,
     isLoadedProjectActive,
     selectedLogicalPageId,
     effectiveSettings,
@@ -91,36 +53,9 @@ export const useAppController = () => {
     canApplyLoadedProject,
     loadedProjectManager,
     activeCutEditor,
-  } = useEditorWorkspace({
-    docType,
-    currentPage,
-    setCurrentPage,
-    numPages,
-    currentAssetHints,
-    currentProjectName,
-    settings,
-    setSettings,
-    numberingState,
-    setNumberingState,
-    templateApi: {
-      templates,
-      template,
-      setTemplate,
-      changeTemplate,
-      saveTemplateByName,
-      saveTemplateDraftByName,
-      deleteTemplate,
-      deleteTemplateById,
-      distributeRows,
-      upsertTemplate,
-    },
-    setMode,
-    logDebug,
-  });
-
-  useEffect(() => {
-    setResetHandler(resetCurrentProject);
-  }, [resetCurrentProject, setResetHandler]);
+    handleRowSnap,
+    applyPdfDefaultFontSize,
+  } = useAppWorkspaceController({ logDebug });
 
   const effectiveSelectedCutId = activeCutEditor.selectedCutId;
   const canUndoHistory = activeCutEditor.canUndo;
@@ -129,19 +64,6 @@ export const useAppController = () => {
   const activeHistoryLength = activeCutEditor.historyLength;
   const handleUndoAction = activeCutEditor.undo;
   const handleRedoAction = activeCutEditor.redo;
-
-  const {
-    handleRowSnap,
-    applyPdfDefaultFontSize,
-  } = useEditorCanvasBehavior({
-    docType,
-    pdfFile,
-    settings,
-    setSettings,
-    template: effectiveTemplate,
-    isLoadedProjectActive,
-    createCutAt: activeCutEditor.createCutAt,
-  });
 
   const {
     debugOpen,
@@ -161,7 +83,9 @@ export const useAppController = () => {
     currentPage,
     numPages,
     scale,
-    activeProjectCutCount: activeProject ? countProjectCuts(activeProject) : 0,
+    activeProjectCutCount: activeProject
+      ? activeProject.logicalPages.reduce((count, page) => count + page.cuts.length, 0)
+      : 0,
     previewCutCount: previewCuts.length,
     selectedCutId: effectiveSelectedCutId,
     pdfFile,
