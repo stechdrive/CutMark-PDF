@@ -94,9 +94,9 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={() => projectInputRef.current?.click()}
-            disabled={!docType || isExporting}
+            disabled={isExporting}
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            title={docType ? '保存済みプロジェクトを読み込む' : '先にPDFまたは画像を読み込んでください'}
+            title="保存済みプロジェクトを読み込む"
           >
             <Upload size={16} /> 読込
           </button>

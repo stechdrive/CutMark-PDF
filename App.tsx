@@ -14,6 +14,8 @@ import {
   downloadProjectDocument,
   loadProjectDocumentFromFile,
 } from './repositories/projectRepository';
+import { ProjectDocument } from './domain/project';
+import { summarizeProjectAssetComparison } from './application/projectComparison';
 
 // Hooks
 import { useDocumentViewer } from './hooks/useDocumentViewer';
@@ -25,6 +27,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 // Components
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
+import { SidebarProjectPanel } from './components/SidebarProjectPanel';
 import { DocumentPreview } from './components/DocumentPreview';
 
 // Worker setup: GH-Pages でもローカルのワーカーを利用する
@@ -136,6 +139,7 @@ export default function App() {
   // --- UI State ---
   const [mode, setMode] = useState<'edit' | 'template'>('edit');
   const [isExporting, setIsExporting] = useState(false);
+  const [loadedProject, setLoadedProject] = useState<ProjectDocument | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
   const [debugCopyStatus, setDebugCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
@@ -213,6 +217,28 @@ export default function App() {
       setDebugOpen(false);
     }
   }, [debugEnabled]);
+
+  const currentAssetHints = useMemo(() => {
+    if (!docType) return [];
+
+    const pageCount = docType === 'images' ? imageFiles.length : numPages;
+    if (pageCount < 1) return [];
+
+    return createAssetHintsFromCurrentDocument({
+      docType,
+      pdfFile,
+      imageFiles,
+      pageCount,
+    });
+  }, [docType, imageFiles, numPages, pdfFile]);
+
+  const projectComparison = useMemo(() => {
+    if (!loadedProject) return null;
+    return summarizeProjectAssetComparison(loadedProject, currentAssetHints);
+  }, [currentAssetHints, loadedProject]);
+
+  const canApplyLoadedProject =
+    !!docType && !!projectComparison?.canApplyByPageCount;
 
   // --- Logic Orchestration ---
   
@@ -338,6 +364,33 @@ export default function App() {
     // onLoadComplete callback in hook handles resetCuts
   };
 
+  const applyLoadedProjectToCurrentDocument = useCallback((
+    project: ProjectDocument,
+    sourceFile: ReturnType<typeof toFileInfo> | null = null
+  ) => {
+    const legacy = createLegacyStateFromProjectDocument(project);
+    setSettings(legacy.settings);
+    upsertTemplate(legacy.template);
+    replaceCutsState(legacy.cuts, legacy.numberingState);
+    setCurrentPage(1);
+    setMode('edit');
+
+    logDebug('info', 'プロジェクト適用完了', () => ({
+      projectName: legacy.projectName,
+      logicalPages: legacy.logicalPageCount,
+      cutCount: legacy.cuts.length,
+      sourceFile,
+    }));
+  }, [logDebug, replaceCutsState, setCurrentPage, setSettings, upsertTemplate]);
+
+  const handleApplyLoadedProject = useCallback(() => {
+    if (!loadedProject || !canApplyLoadedProject) {
+      return;
+    }
+
+    applyLoadedProjectToCurrentDocument(loadedProject);
+  }, [applyLoadedProjectToCurrentDocument, canApplyLoadedProject, loadedProject]);
+
   const handleSaveProject = useCallback(() => {
     if (!docType) {
       alert('先にPDFまたは画像を読み込んでください');
@@ -364,6 +417,7 @@ export default function App() {
           : imageFiles[0]?.webkitRelativePath.split('/')[0] || imageFiles[0]?.name,
     });
 
+    setLoadedProject(project);
     downloadProjectDocument(project);
     logDebug('info', 'プロジェクト保存', () => ({
       projectName: project.meta.name,
@@ -378,44 +432,36 @@ export default function App() {
     try {
       if (!file) return;
 
+      const project = await loadProjectDocumentFromFile(file);
+      const fileInfo = toFileInfo(file);
+
+      setLoadedProject(project);
+      logDebug('info', 'プロジェクト読込完了', () => ({
+        projectName: project.meta.name,
+        logicalPages: project.logicalPages.length,
+        file: fileInfo,
+      }));
+
       if (!docType || numPages < 1) {
-        alert('現段階では、先にPDFまたは画像を読み込んだ状態でプロジェクトを開いてください。');
-        logDebug('warn', 'プロジェクト読込不可', () => ({
-          reason: 'no-active-document',
-          file: toFileInfo(file),
-        }));
+        alert('プロジェクトを読み込みました。次にPDFまたは画像を読み込むと比較できます。');
         return;
       }
-
-      const project = await loadProjectDocumentFromFile(file);
 
       if (project.logicalPages.length !== numPages) {
         alert(
           `このプロジェクトは ${project.logicalPages.length} ページですが、現在の素材は ${numPages} ページです。\n` +
-          'この段階ではページ数が一致する場合のみ復元できます。'
+          'いまは比較結果のみ表示します。ページ調整UIは次の段階で追加します。'
         );
-        logDebug('warn', 'プロジェクト読込中断', () => ({
+        logDebug('warn', 'プロジェクト読込保留', () => ({
           reason: 'page-count-mismatch',
           projectPages: project.logicalPages.length,
           currentPages: numPages,
-          file: toFileInfo(file),
+          file: fileInfo,
         }));
         return;
       }
 
-      const legacy = createLegacyStateFromProjectDocument(project);
-      setSettings(legacy.settings);
-      upsertTemplate(legacy.template);
-      replaceCutsState(legacy.cuts, legacy.numberingState);
-      setCurrentPage(1);
-      setMode('edit');
-
-      logDebug('info', 'プロジェクト読込完了', () => ({
-        projectName: legacy.projectName,
-        logicalPages: legacy.logicalPageCount,
-        cutCount: legacy.cuts.length,
-        file: toFileInfo(file),
-      }));
+      applyLoadedProjectToCurrentDocument(project, fileInfo);
     } catch (error) {
       alert('プロジェクト読込中にエラーが発生しました');
       logDebug('error', 'プロジェクト読込失敗', () => ({
@@ -425,7 +471,7 @@ export default function App() {
     } finally {
       e.target.value = '';
     }
-  }, [docType, logDebug, numPages, replaceCutsState, setCurrentPage, setSettings, upsertTemplate]);
+  }, [applyLoadedProjectToCurrentDocument, docType, logDebug, numPages]);
 
   // Export PDF
   const handleExportPdf = async () => {
@@ -694,6 +740,17 @@ export default function App() {
           setMode={setMode}
           pdfFile={pdfFile || (imageFiles.length > 0 ? imageFiles[0] : null)}
           selectedCutId={selectedCutId}
+          projectPanel={
+            loadedProject && projectComparison ? (
+              <SidebarProjectPanel
+                projectName={loadedProject.meta.name}
+                savedAt={loadedProject.meta.savedAt}
+                comparison={projectComparison}
+                canApplyProject={canApplyLoadedProject}
+                onApplyProject={handleApplyLoadedProject}
+              />
+            ) : undefined
+          }
           templates={templates}
           template={template}
           setTemplate={setTemplate}
