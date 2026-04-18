@@ -103,4 +103,31 @@ describe('SidebarNumberingSettings', () => {
       branchChar: null,
     });
   });
+
+  it('toggles cut-number snap placement through the settings setter', async () => {
+    const user = userEvent.setup();
+    const setSettings = vi.fn();
+
+    render(
+      <SidebarNumberingSettings
+        settings={createAppSettings({ enableClickSnapToRows: false })}
+        setSettings={setSettings}
+        setNumberingState={vi.fn()}
+        selectedCutId={null}
+        onRenumberFromSelected={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByText('カット番号をスナップ配置'));
+
+    expect(setSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enableClickSnapToRows: true,
+      })
+    );
+    expect(screen.getByText('カット番号をスナップ配置')).toHaveAttribute(
+      'title',
+      'コンテ用紙設定で指定したカット番号列の近くをクリックすると、その行に合わせて自動配置します。'
+    );
+  });
 });

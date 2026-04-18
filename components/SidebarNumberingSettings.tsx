@@ -21,11 +21,11 @@ export const SidebarNumberingSettings: React.FC<SidebarNumberingSettingsProps> =
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+      <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-900">
         <Settings size={16} /> 番号設定
       </h3>
 
-      <div className="space-y-3 bg-gray-50 p-3 rounded-lg border border-gray-100">
+      <div className="space-y-2.5 rounded-lg border border-gray-100 bg-gray-50 p-2.5">
         <div className="flex justify-between items-center">
           <label className="text-sm text-gray-600">次の番号</label>
           <div className="flex items-center gap-2">
@@ -110,7 +110,41 @@ export const SidebarNumberingSettings: React.FC<SidebarNumberingSettingsProps> =
           入力時に自動進行する
         </label>
 
-        <div className="pt-2">
+        <label
+          className="flex items-center justify-between gap-3 cursor-pointer"
+          title="コンテ用紙設定で指定したカット番号列の近くをクリックすると、その行に合わせて自動配置します。"
+        >
+          <span
+            className="text-sm text-gray-700"
+            title="コンテ用紙設定で指定したカット番号列の近くをクリックすると、その行に合わせて自動配置します。"
+          >
+            カット番号をスナップ配置
+          </span>
+          <div
+            className={`w-10 h-5 rounded-full p-0.5 transition-colors ${
+              settings.enableClickSnapToRows ? 'bg-green-500' : 'bg-gray-300'
+            }`}
+          >
+            <div
+              className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${
+                settings.enableClickSnapToRows ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+            <input
+              type="checkbox"
+              className="hidden"
+              checked={settings.enableClickSnapToRows}
+              onChange={(e) =>
+                setSettings({
+                  ...settings,
+                  enableClickSnapToRows: e.target.checked,
+                })
+              }
+            />
+          </div>
+        </label>
+
+        <div className="pt-1">
           <button
             type="button"
             disabled={!canRenumber}
@@ -123,13 +157,14 @@ export const SidebarNumberingSettings: React.FC<SidebarNumberingSettingsProps> =
                 ? 'bg-slate-700 text-white hover:bg-slate-600'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
-            title={canRenumber ? '選択したカットから再採番します' : 'カットを選択してください'}
+            title={
+              canRenumber
+                ? '選択したカットから「次の番号」を使って再採番します'
+                : 'カットを選択してください'
+            }
           >
             選択カット以降を再採番
           </button>
-          <p className="text-[11px] text-gray-500 mt-1">
-            開始番号は「次の番号」を使用します
-          </p>
         </div>
       </div>
     </div>

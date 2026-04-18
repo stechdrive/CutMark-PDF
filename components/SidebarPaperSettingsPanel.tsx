@@ -97,27 +97,27 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">コンテ用紙設定</h3>
-          <p className="mt-1 text-xs leading-5 text-gray-500">
-            用紙枠の保存、行数変更、縦位置調整を行います。
-          </p>
-        </div>
+        <h3
+          className="text-sm font-semibold text-gray-900"
+          title="プレビュー上の赤線と青線をドラッグして用紙枠を調整します。行数や縦位置を整えたら、必要に応じてテンプレートを保存してください。"
+        >
+          コンテ用紙設定
+        </h3>
         <button
           type="button"
           onClick={() => setMode('edit')}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-800"
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-800"
         >
           <ChevronLeft size={14} />
           戻る
         </button>
       </div>
 
-      <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+      <div className="space-y-2.5 rounded-lg border border-gray-200 bg-gray-50 p-2.5">
         <div className="relative" ref={dropdownRef}>
-          <div className="flex h-10 rounded-md border border-gray-300 bg-white transition-shadow focus-within:ring-2 focus-within:ring-blue-200">
+          <div className="flex h-9 rounded-md border border-gray-300 bg-white transition-shadow focus-within:ring-2 focus-within:ring-blue-200">
             <input
               type="text"
               value={inputValue}
@@ -205,7 +205,7 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
           )}
         </div>
 
-        <div className="border-t border-gray-200 pt-3">
+        <div className="border-t border-gray-200 pt-2.5">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-600">行数</span>
             <div className="flex items-center rounded border bg-white">
@@ -251,16 +251,12 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
             type="button"
             onClick={distributeRows}
             disabled={template.rowCount <= 2}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded border border-gray-200 bg-white py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-2.5 flex w-full items-center justify-center gap-2 rounded border border-gray-200 bg-white py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+            title="プレビュー上の赤線と青線をドラッグして用紙枠を調整します。"
           >
             <ArrowUpDown size={14} /> 縦位置を均等配置
           </button>
         </div>
-      </div>
-
-      <div className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-3 text-xs leading-6 text-orange-700">
-        プレビュー上の赤線と青線をドラッグして用紙枠を調整します。
-        行位置はプレビュー内の行入力欄をクリックして入力できます。キーボードの 1〜9 も使えます。
       </div>
     </div>
   );

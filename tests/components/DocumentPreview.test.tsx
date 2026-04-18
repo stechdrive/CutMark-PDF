@@ -138,6 +138,69 @@ describe('DocumentPreview', () => {
     ).toBeInTheDocument();
   });
 
+  it('highlights the snap column and target row while hovering near the snap area', () => {
+    const template = createTemplate({
+      xPosition: 0.1,
+      rowCount: 3,
+      rowPositions: [0.2, 0.5, 0.8],
+    });
+
+    const { container } = render(
+      <DocumentPreview
+        docType="images"
+        pdfFile={null}
+        currentImageUrl="blob:image"
+        numPages={2}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={vi.fn()}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={template}
+        setTemplate={vi.fn()}
+        settings={createAppSettings()}
+        onContentClick={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Current page') as HTMLImageElement;
+    Object.defineProperty(image, 'naturalWidth', { value: 1000, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 1000, configurable: true });
+    fireEvent.load(image);
+
+    const pageContainer = container.querySelector('.pdf-page-container') as HTMLElement;
+    vi.spyOn(pageContainer, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 1000,
+      width: 1000,
+      height: 1000,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.mouseMove(pageContainer, { clientX: 95, clientY: 540 });
+
+    expect(screen.getByText('自動スナップ')).toBeInTheDocument();
+    expect(screen.queryByText('行 2')).not.toBeInTheDocument();
+  });
+
   it('shows the updated import guidance in the empty welcome state', () => {
     render(
       <DocumentPreview
