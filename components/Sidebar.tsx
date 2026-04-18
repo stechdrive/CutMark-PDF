@@ -1,14 +1,13 @@
 
 import React from 'react';
 import { AppSettings, NumberingState, Template } from '../types';
-import { SidebarRowSnapper } from './SidebarRowSnapper';
 import { SidebarNumberingSettings } from './SidebarNumberingSettings';
 import { SidebarStyleSettings } from './SidebarStyleSettings';
-import { SidebarTemplatePanel } from './SidebarTemplatePanel';
+import { SidebarPaperSettingsPanel } from './SidebarPaperSettingsPanel';
+import { SidebarTemplateSelector } from './SidebarTemplateSelector';
 
 interface SidebarProps {
   mode: 'edit' | 'template';
-  setMode: (mode: 'edit' | 'template') => void;
   pdfFile: File | null;
   selectedCutId: string | null;
   // Template Props
@@ -32,8 +31,6 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({
   mode,
-  setMode,
-  pdfFile,
   selectedCutId,
   templates,
   template,
@@ -42,7 +39,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   saveTemplateByName,
   deleteTemplate,
   distributeRows,
-  onRowSnap,
   settings,
   setSettings,
   setLiveSettings,
@@ -53,51 +49,53 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col shadow-xl z-20">
+      <div className="flex-1 overflow-y-auto p-3">
+        {mode === 'template' ? (
+          <SidebarPaperSettingsPanel
+            templates={templates}
+            template={template}
+            setTemplate={setTemplate}
+            changeTemplate={changeTemplate}
+            saveTemplateByName={saveTemplateByName}
+            deleteTemplate={deleteTemplate}
+            distributeRows={distributeRows}
+          />
+        ) : (
+          <div className="space-y-4">
+            <SidebarTemplateSelector
+              templates={templates}
+              template={template}
+              changeTemplate={changeTemplate}
+            />
 
-      {/* Scrollable Settings Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* 1. Template Settings (Top priority) */}
-        <SidebarTemplatePanel
-          mode={mode}
-          setMode={setMode}
-          templates={templates}
-          template={template}
-          setTemplate={setTemplate}
-          changeTemplate={changeTemplate}
-          saveTemplateByName={saveTemplateByName}
-          deleteTemplate={deleteTemplate}
-          distributeRows={distributeRows}
-        />
+            <p
+              className="rounded-md border border-sky-200 bg-sky-50 px-2.5 py-2 text-[11px] leading-4 text-sky-800"
+              title="画面をクリックしてカット番号を配置します。用紙設定で指定したカット番号列の近くなら自動スナップし、必要なら 1〜9 キーでも入力できます。"
+            >
+              画面クリックで配置。カット番号列付近なら自動スナップ。
+            </p>
 
-        {/* 2. Numbering Settings */}
-        <SidebarNumberingSettings
-          settings={settings}
-          setSettings={setSettings}
-          setNumberingState={setNumberingState}
-          selectedCutId={selectedCutId}
-          onRenumberFromSelected={onRenumberFromSelected}
-        />
+            <SidebarNumberingSettings
+              settings={settings}
+              setSettings={setSettings}
+              setNumberingState={setNumberingState}
+              selectedCutId={selectedCutId}
+              onRenumberFromSelected={onRenumberFromSelected}
+            />
 
-        {/* 3. Style Settings */}
-        <SidebarStyleSettings
-          settings={settings}
-          setSettings={setSettings}
-          setLiveSettings={setLiveSettings}
-          onLiveChangeStart={onLiveSettingsStart}
-          onLiveChangeEnd={onLiveSettingsEnd}
-        />
+            <SidebarStyleSettings
+              settings={settings}
+              setSettings={setSettings}
+              setLiveSettings={setLiveSettings}
+              onLiveChangeStart={onLiveSettingsStart}
+              onLiveChangeEnd={onLiveSettingsEnd}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Fixed Bottom Action Area */}
-      <SidebarRowSnapper
-        template={template}
-        pdfFile={pdfFile}
-        mode={mode}
-        onRowSnap={onRowSnap}
-      />
-
       {/* Footer */}
-      <div className="p-4 border-t border-gray-200 text-center text-xs text-gray-400 bg-white">
+      <div className="border-t border-gray-200 bg-white px-3 py-2 text-center text-[10px] leading-4 text-gray-400">
         CutMark PDF v{__APP_VERSION__}<br />Copyright (c) 2025 stechdrive<br />
         ブラウザ内でのみ処理を行います<br />
         読み込みんだデータや保存したテンプレートが<br />

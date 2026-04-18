@@ -8,7 +8,7 @@ import { AppSettings, Cut, Template, DocType } from '../types';
 import {
   calculateFitScale,
   getPlacementFromClick,
-  isClickSnapCandidate,
+  getClickSnapTarget,
 } from '../utils/documentPreviewMath';
 
 const WHEEL_PAGE_THRESHOLD = 60;
@@ -108,9 +108,9 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     scrollLeft: number;
     scrollTop: number;
   } | null>(null);
-  const [isSnapCandidate, setIsSnapCandidate] = useState(false);
+  const [snapTarget, setSnapTarget] = useState<{ y: number; rowIndex: number } | null>(null);
   const [isMiddlePanning, setIsMiddlePanning] = useState(false);
-  const showSnapCandidate = settings.enableClickSnapToRows && isSnapCandidate;
+  const showSnapCandidate = settings.enableClickSnapToRows && snapTarget !== null;
 
   // Image sizing state
   const [imgSize, setImgSize] = useState<{ key: string; width: number; height: number } | null>(null);
@@ -245,11 +245,11 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
   const handlePointerMove = (e: React.MouseEvent) => {
     if (mode === 'template' || !settings.enableClickSnapToRows) {
-      setIsSnapCandidate(false);
+      setSnapTarget(null);
       return;
     }
     if (!containerRef.current || template.rowPositions.length === 0) {
-      setIsSnapCandidate(false);
+      setSnapTarget(null);
       return;
     }
 
@@ -258,20 +258,30 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     const y = (e.clientY - rect.top) / rect.height;
 
     if (x < 0 || x > 1 || y < 0 || y > 1) {
-      setIsSnapCandidate(false);
+      setSnapTarget(null);
       return;
     }
 
-    setIsSnapCandidate(isClickSnapCandidate({
+    const nextSnapTarget = getClickSnapTarget({
       x,
+      y,
       contentWidthPx: rect.width,
       template,
       enableClickSnapToRows: settings.enableClickSnapToRows,
-    }));
+    });
+
+    setSnapTarget(
+      nextSnapTarget
+        ? {
+            y: nextSnapTarget.y,
+            rowIndex: nextSnapTarget.rowIndex,
+          }
+        : null
+    );
   };
 
   const handlePointerLeave = () => {
-    setIsSnapCandidate(false);
+    setSnapTarget(null);
   };
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
@@ -400,7 +410,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 >
                 <div
                     ref={containerRef}
-                    className={`relative pdf-page-container ${showSnapCandidate ? 'cursor-row-resize' : 'cursor-crosshair'}`}
+                    className="relative pdf-page-container cursor-crosshair"
                     onClick={handlePageClick}
                     onMouseMove={handlePointerMove}
                     onMouseLeave={handlePointerLeave}
@@ -422,19 +432,39 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                           onInteractionEnd={onTemplateInteractionEnd}
                         />
                     ) : (
-                        cuts.map((cut) => (
-                        <CutMarker
-                            key={cut.id}
-                            cut={cut}
-                            settings={settings}
-                            isSelected={selectedCutId === cut.id}
-                            onSelect={setSelectedCutId}
-                            onDelete={deleteCut}
-                            onUpdatePosition={updateCutPosition}
-                            onDragEnd={handleCutDragEnd}
-                            containerRef={containerRef}
-                        />
-                        ))
+                        <>
+                          {showSnapCandidate && snapTarget && (
+                            <div className="pointer-events-none absolute inset-0 z-20" aria-hidden="true">
+                              <div
+                                className="absolute top-0 bottom-0 w-10 -translate-x-1/2 rounded-full border border-sky-400/50 bg-sky-300/15"
+                                style={{ left: `${template.xPosition * 100}%` }}
+                              />
+                              <div
+                                className="absolute left-0 right-0 h-0.5 bg-sky-500 shadow-[0_0_0_3px_rgba(14,165,233,0.15)]"
+                                style={{ top: `${snapTarget.y * 100}%` }}
+                              />
+                              <div
+                                className="absolute top-2 -translate-x-1/2 rounded-full bg-sky-600/95 px-2 py-0.5 text-[10px] font-medium text-white shadow"
+                                style={{ left: `${template.xPosition * 100}%` }}
+                              >
+                                自動スナップ
+                              </div>
+                            </div>
+                          )}
+                          {cuts.map((cut) => (
+                          <CutMarker
+                              key={cut.id}
+                              cut={cut}
+                              settings={settings}
+                              isSelected={selectedCutId === cut.id}
+                              onSelect={setSelectedCutId}
+                              onDelete={deleteCut}
+                              onUpdatePosition={updateCutPosition}
+                              onDragEnd={handleCutDragEnd}
+                              containerRef={containerRef}
+                          />
+                          ))}
+                        </>
                     )}
                 </div>
                 </Document>
@@ -442,7 +472,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
             {docType === 'images' && currentImageUrl && (
                 <div 
-                    className={`relative pdf-page-container bg-white ${showSnapCandidate ? 'cursor-row-resize' : 'cursor-crosshair'}`}
+                    className="relative pdf-page-container bg-white cursor-crosshair"
                     ref={containerRef}
                     style={{
                         width: activeImgSize ? activeImgSize.width : 'auto',
@@ -464,6 +494,24 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     {/* Overlays (Only show if image is loaded to have correct dimensions) */}
                     {activeImgSize && (
                         <>
+                            {showSnapCandidate && snapTarget && (
+                                <div className="pointer-events-none absolute inset-0 z-20" aria-hidden="true">
+                                    <div
+                                        className="absolute top-0 bottom-0 w-10 -translate-x-1/2 rounded-full border border-sky-400/50 bg-sky-300/15"
+                                        style={{ left: `${template.xPosition * 100}%` }}
+                                    />
+                                    <div
+                                        className="absolute left-0 right-0 h-0.5 bg-sky-500 shadow-[0_0_0_3px_rgba(14,165,233,0.15)]"
+                                        style={{ top: `${snapTarget.y * 100}%` }}
+                                    />
+                                    <div
+                                        className="absolute top-2 -translate-x-1/2 rounded-full bg-sky-600/95 px-2 py-0.5 text-[10px] font-medium text-white shadow"
+                                        style={{ left: `${template.xPosition * 100}%` }}
+                                    >
+                                        自動スナップ
+                                    </div>
+                                </div>
+                            )}
                             {mode === 'template' ? (
                                 <TemplateOverlay
                                   template={template}

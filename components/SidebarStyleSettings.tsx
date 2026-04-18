@@ -20,10 +20,10 @@ export const SidebarStyleSettings: React.FC<SidebarStyleSettingsProps> = ({
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-gray-900 mb-3">
+      <h3 className="mb-2 text-sm font-semibold text-gray-900">
         表示スタイル
       </h3>
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div>
           <div className="flex justify-between text-sm mb-1 text-gray-600">
             <span>文字サイズ</span>
@@ -79,36 +79,6 @@ export const SidebarStyleSettings: React.FC<SidebarStyleSettingsProps> = ({
 
         <div className="space-y-3">
           <label className="flex items-center justify-between cursor-pointer">
-            <span className="text-sm text-gray-600">基準線クリック行スナップ</span>
-            <div
-              className={`w-10 h-5 rounded-full p-0.5 transition-colors ${
-                settings.enableClickSnapToRows
-                  ? 'bg-green-500'
-                  : 'bg-gray-300'
-              }`}
-            >
-              <div
-                className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${
-                  settings.enableClickSnapToRows
-                    ? 'translate-x-5'
-                    : 'translate-x-0'
-                }`}
-              />
-              <input
-                type="checkbox"
-                className="hidden"
-                checked={settings.enableClickSnapToRows}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    enableClickSnapToRows: e.target.checked,
-                  })
-                }
-              />
-            </div>
-          </label>
-
-          <label className="flex items-center justify-between cursor-pointer">
             <span className="text-sm text-gray-600">白座布団 (背景)</span>
             <div
               className={`w-10 h-5 rounded-full p-0.5 transition-colors ${
@@ -139,7 +109,7 @@ export const SidebarStyleSettings: React.FC<SidebarStyleSettingsProps> = ({
           </label>
 
           {settings.useWhiteBackground && (
-            <div className="bg-gray-50 rounded-md p-2 border border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="animate-in slide-in-from-top-1 fade-in rounded-md border border-gray-100 bg-gray-50 p-2 duration-200">
               <div className="flex justify-between mb-1 text-xs text-gray-500">
                 <span>余白サイズ</span>
                 <span>{settings.backgroundPadding}px</span>

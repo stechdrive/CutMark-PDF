@@ -123,7 +123,7 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'text-slate-300 hover:text-white'
             }`}
           >
-            枠設定
+            コンテ用紙設定
           </button>
         </div>
 

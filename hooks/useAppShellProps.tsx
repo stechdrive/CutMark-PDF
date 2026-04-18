@@ -59,7 +59,6 @@ interface UseAppShellPropsOptions {
   };
   sidebar: {
     mode: ComponentProps<typeof Sidebar>['mode'];
-    setMode: ComponentProps<typeof Sidebar>['setMode'];
     pdfFile: File | null;
     selectedCutId: string | null;
     projectOrganizerProps: ComponentProps<typeof ProjectOrganizerPanel> | null;
@@ -163,7 +162,6 @@ export const useAppShellProps = ({
 
   const sidebarProps: ComponentProps<typeof Sidebar> = {
     mode: sidebar.mode,
-    setMode: sidebar.setMode,
     pdfFile: sidebar.pdfFile,
     selectedCutId: sidebar.selectedCutId,
     templates: sidebar.templates,
