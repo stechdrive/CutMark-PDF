@@ -36,7 +36,7 @@ describe('useProjectWorkspace', () => {
         effectiveSettings: settings,
         effectiveTemplate: template,
         fallbackSettings: settings,
-        projectEditor: {
+        loadedSession: {
           project: loadedProject,
           bindings: {
             'page-1': 0,
@@ -49,10 +49,13 @@ describe('useProjectWorkspace', () => {
           selectedLogicalPageNumber: 2,
           selectedAssetIndex: 1,
         },
-        legacyProjection: {
+        currentSession: {
           project: null,
           bindings: {},
-          previewLogicalPage: null,
+          selectedLogicalPage: null,
+          selectedLogicalPageId: null,
+          selectedLogicalPageNumber: null,
+          selectedAssetIndex: null,
         },
       });
 
@@ -100,7 +103,7 @@ describe('useProjectWorkspace', () => {
         effectiveSettings: settings,
         effectiveTemplate: template,
         fallbackSettings: settings,
-        projectEditor: {
+        loadedSession: {
           project: null,
           bindings: {},
           canApply: false,
@@ -110,10 +113,13 @@ describe('useProjectWorkspace', () => {
           selectedLogicalPageNumber: null,
           selectedAssetIndex: null,
         },
-        legacyProjection: {
+        currentSession: {
           project: legacyProject,
           bindings: { 'page-1': 0 },
-          previewLogicalPage: legacyProject.logicalPages[0],
+          selectedLogicalPage: legacyProject.logicalPages[0],
+          selectedLogicalPageId: 'page-1',
+          selectedLogicalPageNumber: 1,
+          selectedAssetIndex: 0,
         },
       });
     });

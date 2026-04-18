@@ -337,7 +337,7 @@ export default function App() {
     effectiveSettings,
     effectiveTemplate,
     fallbackSettings: settings,
-    projectEditor: {
+    loadedSession: {
       project: projectEditor.project,
       bindings: projectEditor.bindings,
       canApply: projectEditor.canApply,
@@ -347,11 +347,7 @@ export default function App() {
       selectedLogicalPageNumber: projectEditor.selectedLogicalPageNumber,
       selectedAssetIndex: projectEditor.selectedAssetIndex,
     },
-    legacyProjection: {
-      project: currentProjectSession.project,
-      bindings: currentProjectSession.bindings,
-      previewLogicalPage: currentProjectSession.previewLogicalPage,
-    },
+    currentSession: currentProjectSession.workspaceSession,
   });
   const {
     projectComparison,

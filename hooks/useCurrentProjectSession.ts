@@ -2,6 +2,7 @@ import { useLegacyCutEditor } from './useLegacyCutEditor';
 import { useLegacyProjectProjection } from './useLegacyProjectProjection';
 import { AssetHint } from '../domain/project';
 import { LogicalCutEditorApi } from './logicalCutEditorApi';
+import { ProjectWorkspaceSession } from './projectWorkspaceSession';
 import { AppSettings, DocType, NumberingState, Template } from '../types';
 
 interface UseCurrentProjectSessionOptions {
@@ -52,11 +53,22 @@ export const useCurrentProjectSession = ({
   });
 
   const selectedLogicalPageId = projectProjection.previewLogicalPage?.id ?? null;
+  const selectedLogicalPageNumber = projectProjection.project ? currentPage : null;
+  const selectedAssetIndex = selectedLogicalPageId ? currentPage - 1 : null;
   const canUndo = cutEditor.historyIndex > -1;
   const canRedo = cutEditor.historyIndex < cutEditor.historyLength - 1;
 
-  const projectCutEditorApi: LogicalCutEditorApi = {
+  const workspaceSession: ProjectWorkspaceSession = {
     project: projectProjection.project,
+    bindings: projectProjection.bindings,
+    selectedLogicalPage: projectProjection.previewLogicalPage,
+    selectedLogicalPageId,
+    selectedLogicalPageNumber,
+    selectedAssetIndex,
+  };
+
+  const projectCutEditorApi: LogicalCutEditorApi = {
+    project: workspaceSession.project,
     settings,
     selectedLogicalPageId,
     selectedCutId: cutEditor.selectedCutId,
@@ -97,9 +109,14 @@ export const useCurrentProjectSession = ({
 
   return {
     ...cutEditor,
-    project: projectProjection.project,
-    bindings: projectProjection.bindings,
-    previewLogicalPage: projectProjection.previewLogicalPage,
+    project: workspaceSession.project,
+    bindings: workspaceSession.bindings,
+    previewLogicalPage: workspaceSession.selectedLogicalPage,
+    selectedLogicalPage: workspaceSession.selectedLogicalPage,
+    selectedLogicalPageId: workspaceSession.selectedLogicalPageId,
+    selectedLogicalPageNumber: workspaceSession.selectedLogicalPageNumber,
+    selectedAssetIndex: workspaceSession.selectedAssetIndex,
+    workspaceSession,
     projectCutEditorApi,
   };
 };

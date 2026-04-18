@@ -10,12 +10,12 @@ import {
 import { summarizeProjectAssetComparison } from '../application/projectComparison';
 import {
   AssetHint,
-  LogicalPage,
   ProjectDocument,
   toNumberingPolicy,
   toStyleSettings,
   toTemplateSnapshot,
 } from '../domain/project';
+import { ProjectWorkspaceSession } from './projectWorkspaceSession';
 import { AppSettings, Cut, DocType, Template } from '../types';
 
 interface UseProjectWorkspaceOptions {
@@ -26,21 +26,11 @@ interface UseProjectWorkspaceOptions {
   effectiveSettings: AppSettings;
   effectiveTemplate: Template;
   fallbackSettings: AppSettings;
-  projectEditor: {
-    project: ProjectDocument | null;
-    bindings: ProjectAssetBindings;
+  loadedSession: ProjectWorkspaceSession & {
     canApply: boolean;
     assignedCount: number;
-    selectedLogicalPage: LogicalPage | null;
-    selectedLogicalPageId: string | null;
-    selectedLogicalPageNumber: number | null;
-    selectedAssetIndex: number | null;
   };
-  legacyProjection: {
-    project: ProjectDocument | null;
-    bindings: ProjectAssetBindings;
-    previewLogicalPage: LogicalPage | null;
-  };
+  currentSession: ProjectWorkspaceSession;
 }
 
 const toCutLike = (
@@ -63,11 +53,11 @@ export const useProjectWorkspace = ({
   effectiveSettings,
   effectiveTemplate,
   fallbackSettings,
-  projectEditor,
-  legacyProjection,
+  loadedSession,
+  currentSession,
 }: UseProjectWorkspaceOptions) => {
-  const loadedProject = projectEditor.project;
-  const projectBindings = projectEditor.bindings;
+  const loadedProject = loadedSession.project;
+  const projectBindings = loadedSession.bindings;
 
   const projectComparison = useMemo(() => {
     if (!loadedProject) return null;
@@ -75,36 +65,36 @@ export const useProjectWorkspace = ({
   }, [currentAssetHints, loadedProject]);
 
   useEffect(() => {
-    if (!projectEditor.selectedLogicalPageId) return;
-    const assetIndex = projectBindings[projectEditor.selectedLogicalPageId];
+    if (!loadedSession.selectedLogicalPageId) return;
+    const assetIndex = projectBindings[loadedSession.selectedLogicalPageId];
     if (assetIndex == null) return;
     if (assetIndex + 1 !== currentPage) {
       setCurrentPage(assetIndex + 1);
     }
   }, [
     currentPage,
+    loadedSession.selectedLogicalPageId,
     projectBindings,
-    projectEditor.selectedLogicalPageId,
     setCurrentPage,
   ]);
 
-  const assignedProjectBindingCount = projectEditor.assignedCount;
-  const canApplyLoadedProject = !!docType && projectEditor.canApply;
+  const assignedProjectBindingCount = loadedSession.assignedCount;
+  const canApplyLoadedProject = !!docType && loadedSession.canApply;
 
   const projectStatusMessage = useMemo(() => {
     if (!loadedProject) return null;
-    if (!projectEditor.selectedLogicalPage) {
+    if (!loadedSession.selectedLogicalPage) {
       return '論理ページを選ぶと、割当先の素材ページへプレビューを合わせます。';
     }
-    if (projectEditor.selectedAssetIndex == null) {
-      return `論理P${projectEditor.selectedLogicalPageNumber ?? '?'} は未割当です。割当を決めると対応する素材ページを表示します。`;
+    if (loadedSession.selectedAssetIndex == null) {
+      return `論理P${loadedSession.selectedLogicalPageNumber ?? '?'} は未割当です。割当を決めると対応する素材ページを表示します。`;
     }
-    return `論理P${projectEditor.selectedLogicalPageNumber ?? '?'} を現在P${projectEditor.selectedAssetIndex + 1} に割り当てています。`;
+    return `論理P${loadedSession.selectedLogicalPageNumber ?? '?'} を現在P${loadedSession.selectedAssetIndex + 1} に割り当てています。`;
   }, [
     loadedProject,
-    projectEditor.selectedAssetIndex,
-    projectEditor.selectedLogicalPage,
-    projectEditor.selectedLogicalPageNumber,
+    loadedSession.selectedAssetIndex,
+    loadedSession.selectedLogicalPage,
+    loadedSession.selectedLogicalPageNumber,
   ]);
 
   const resolveProjectDocumentForCurrentState = useCallback((
@@ -140,13 +130,13 @@ export const useProjectWorkspace = ({
     [loadedProject, projectBindings, resolveProjectDocumentForCurrentState]
   );
 
-  const activeProject = resolvedLoadedProject ?? legacyProjection.project;
+  const activeProject = resolvedLoadedProject ?? currentSession.project;
   const activeProjectBindings = loadedProject
     ? projectBindings
-    : legacyProjection.bindings;
+    : currentSession.bindings;
   const previewLogicalPage = loadedProject
-    ? projectEditor.selectedLogicalPage
-    : legacyProjection.previewLogicalPage;
+    ? loadedSession.selectedLogicalPage
+    : currentSession.selectedLogicalPage;
 
   const previewCuts = useMemo(
     () =>
