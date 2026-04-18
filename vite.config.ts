@@ -39,6 +39,7 @@ export default defineConfig({
         'domain/**/*.ts',
         'hooks/**/*.ts',
         'hooks/**/*.tsx',
+        'repositories/**/*.ts',
         'services/**/*.ts',
         'utils/**/*.ts',
       ],
