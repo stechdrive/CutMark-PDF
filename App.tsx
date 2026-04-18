@@ -3,8 +3,6 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { pdfjs } from 'react-pdf';
 
 import { NumberingState } from './types';
-import { saveMarkedPdf, saveImagesAsPdf } from './services/pdfService';
-import { exportImagesAsZip } from './services/imageExportService';
 import {
   createAssetHintsFromCurrentDocument,
 } from './adapters/legacyProjectAdapter';
@@ -18,6 +16,8 @@ import { useTemplates } from './hooks/useTemplates';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useEditorWorkspace } from './hooks/useEditorWorkspace';
+import { useWorkspaceFileActions } from './hooks/useWorkspaceFileActions';
+import { normalizeError, safeJsonStringify, toFileInfo } from './utils/debugData';
 
 // Components
 import { Header } from './components/Header';
@@ -49,48 +49,6 @@ const FONT_SIZE_MAX = 72;
 
 const countProjectCuts = (project: ProjectDocument) =>
   project.logicalPages.reduce((count, page) => count + page.cuts.length, 0);
-
-const toFileInfo = (file: File | null) => {
-  if (!file) return null;
-  return {
-    name: file.name,
-    size: file.size,
-    type: file.type,
-    lastModified: new Date(file.lastModified).toISOString(),
-  };
-};
-
-const normalizeError = (error: unknown) => {
-  if (error instanceof Error) {
-    return {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    };
-  }
-  return error;
-};
-
-const safeJsonStringify = (value: unknown) => {
-  const seen = new WeakSet();
-  return JSON.stringify(
-    value,
-    (key, val) => {
-      if (val instanceof Error) {
-        return normalizeError(val);
-      }
-      if (val instanceof File) {
-        return toFileInfo(val);
-      }
-      if (typeof val === 'object' && val !== null) {
-        if (seen.has(val)) return '[Circular]';
-        seen.add(val);
-      }
-      return val;
-    },
-    2
-  );
-};
 
 export default function App() {
   const debugEnabled = useMemo(() => {
@@ -135,7 +93,6 @@ export default function App() {
 
   // --- UI State ---
   const [mode, setMode] = useState<'edit' | 'template'>('edit');
-  const [isExporting, setIsExporting] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
   const [debugCopyStatus, setDebugCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
@@ -327,147 +284,26 @@ export default function App() {
     }
   }, [docType, isLoadedProjectActive, settings.fontSize, setSettings]);
 
-  // PDF Load
-  const onPdfLoaded = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        loadPdf(file);
-        logDebug('info', 'PDF読み込み開始', () => ({ file: toFileInfo(file) }));
-        // resetCuts called via callback
-    } else {
-        logDebug('warn', 'PDF読み込みキャンセル');
-    }
-  };
-
-  // Folder Load
-  const onFolderLoaded = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    // Filter valid image files in root (no recursive)
-    const validFiles: File[] = [];
-    const validExts = ['.jpg', '.jpeg', '.png'];
-    
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const lowerName = file.name.toLowerCase();
-        
-        // Basic check: is it an image?
-        const isImage = validExts.some(ext => lowerName.endsWith(ext));
-        
-        // Check depth (avoid subdirectories)
-        // webkitRelativePath example: "folder/file.jpg" (ok) vs "folder/sub/file.jpg" (skip)
-        const parts = file.webkitRelativePath.split('/');
-        // When picking a folder, webkitRelativePath is usually set. 
-        // If file input "multiple" is used for individual files, it might be empty.
-        // We only care if we really want to restrict subdirectory recursion for Folder pick.
-        const isRoot = parts.length <= 2; 
-
-        if (isImage && isRoot) {
-            validFiles.push(file);
-        }
-    }
-
-    if (validFiles.length > 0) {
-        logDebug('info', 'フォルダ読み込み開始', () => ({
-          totalFiles: files.length,
-          validFiles: validFiles.length,
-          sampleNames: validFiles.slice(0, IMAGE_FILE_LOG_LIMIT).map(file => file.name),
-          truncated: validFiles.length > IMAGE_FILE_LOG_LIMIT,
-        }));
-        loadImages(validFiles);
-        // resetCuts called via callback
-    } else {
-        alert("有効な画像(JPG/PNG)がフォルダ直下に見つかりませんでした。");
-        logDebug('warn', 'フォルダ読み込み失敗', () => ({
-          totalFiles: files.length,
-        }));
-    }
-  };
-  
-  // Reset logic when file dropped
-  const onFileDropped = (e: React.DragEvent<HTMLDivElement>) => {
-    logDebug('info', 'ファイルドロップ', () => ({
-      types: Array.from(e.dataTransfer?.types ?? []),
-      itemCount: e.dataTransfer?.items?.length ?? 0,
-    }));
-    dragHandlers.onDrop(e);
-    // onLoadComplete callback in hook handles resetCuts
-  };
-
-  // Export PDF
-  const handleExportPdf = async () => {
-    if (isLoadedProjectActive && !canApplyLoadedProject) {
-      alert('論理ページの割当を完了してから書き出してください');
-      return;
-    }
-
-    setIsExporting(true);
-    try {
-        let pdfBytes: Uint8Array;
-        let filename = 'marked.pdf';
-
-        if (docType === 'pdf' && pdfFile) {
-            filename = `marked_${pdfFile.name}`;
-            logDebug('info', 'PDF書き出し開始', () => ({ mode: 'pdf', filename }));
-            const arrayBuffer = await pdfFile.arrayBuffer();
-            pdfBytes = await saveMarkedPdf(arrayBuffer, effectiveExportCuts, effectiveExportSettings);
-        } else if (docType === 'images' && imageFiles.length > 0) {
-            filename = 'marked_images.pdf';
-            logDebug('info', 'PDF書き出し開始', () => ({ mode: 'images', filename }));
-            pdfBytes = await saveImagesAsPdf(imageFiles, effectiveExportCuts, effectiveExportSettings);
-        } else {
-            return;
-        }
-        
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        logDebug('info', 'PDF書き出し完了', () => ({ filename }));
-    } catch (e) {
-        console.error(e);
-        alert('PDF書き出し中にエラーが発生しました');
-        logDebug('error', 'PDF書き出し失敗', () => ({ error: normalizeError(e) }));
-    } finally {
-        setIsExporting(false);
-    }
-  };
-
-  // Export Images
-  const handleExportImages = async () => {
-    if (docType !== 'images' || imageFiles.length === 0) {
-        alert("画像の書き出しは連番画像モードでのみ利用可能です（PDFからの画像化は未対応）");
-        logDebug('warn', '画像書き出し不可', () => ({ docType, imageCount: imageFiles.length }));
-        return;
-    }
-
-    if (isLoadedProjectActive && !canApplyLoadedProject) {
-        alert('論理ページの割当を完了してから書き出してください');
-        return;
-    }
-    
-    setIsExporting(true);
-    try {
-        logDebug('info', '画像書き出し開始', () => ({ imageCount: imageFiles.length }));
-        await exportImagesAsZip(imageFiles, effectiveExportCuts, effectiveExportSettings, (curr, total) => {
-            // Optional: Update progress UI
-            console.log(`Processing ${curr}/${total}`);
-        });
-        logDebug('info', '画像書き出し完了');
-    } catch (e) {
-        console.error(e);
-        alert('画像書き出し中にエラーが発生しました');
-        logDebug('error', '画像書き出し失敗', () => ({ error: normalizeError(e) }));
-    } finally {
-        setIsExporting(false);
-    }
-  };
+  const {
+    isExporting,
+    onPdfLoaded,
+    onFolderLoaded,
+    onFileDropped,
+    handleExportPdf,
+    handleExportImages,
+  } = useWorkspaceFileActions({
+    docType,
+    pdfFile,
+    imageFiles,
+    effectiveExportCuts,
+    effectiveExportSettings,
+    isLoadedProjectActive,
+    canApplyLoadedProject,
+    loadPdf,
+    loadImages,
+    onDrop: dragHandlers.onDrop,
+    logDebug,
+  });
 
   // Keyboard Shortcuts
   useKeyboardShortcuts({
