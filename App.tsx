@@ -18,12 +18,11 @@ import { useCurrentProjectSession } from './hooks/useCurrentProjectSession';
 import { useTemplates } from './hooks/useTemplates';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { useProjectEditor } from './hooks/useProjectEditor';
 import { useActiveCutEditor } from './hooks/useActiveCutEditor';
 import { useProjectWorkspace } from './hooks/useProjectWorkspace';
 import { useWorkspacePresentation } from './hooks/useWorkspacePresentation';
 import { useProjectLifecycle } from './hooks/useProjectLifecycle';
-import { LogicalCutEditorApi } from './hooks/logicalCutEditorApi';
+import { useLoadedProjectSession } from './hooks/useLoadedProjectSession';
 
 // Components
 import { Header } from './components/Header';
@@ -249,36 +248,10 @@ export default function App() {
     resetLegacyCutEditorRef.current = currentProjectSession.resetCuts;
   }, [currentProjectSession.resetCuts]);
 
-  const projectEditor = useProjectEditor(currentAssetHints);
-  const loadedProject = projectEditor.project;
-  const projectBindings = projectEditor.bindings;
-  const canUndoProjectDraft = projectEditor.canUndo;
-  const canRedoProjectDraft = projectEditor.canRedo;
-  const projectDraftHistoryIndex = projectEditor.historyIndex;
-  const projectDraftHistoryLength = projectEditor.historyLength;
-  const selectedLogicalPageId = projectEditor.selectedLogicalPageId;
-  const {
-    loadProject: loadProjectIntoEditor,
-    replaceProject: replaceEditorProject,
-    selectLogicalPage: selectLogicalProjectPage,
-    selectCut: selectProjectCut,
-    assignAsset: assignProjectAsset,
-    resetBindings: resetProjectBindings,
-    insertPageAfter: insertProjectPageAfter,
-    removePage: removeProjectPage,
-    movePage: moveProjectPage,
-    addCutToSelectedPage,
-    updateCutPosition: updateProjectCutPosition,
-    commitCutDrag,
-    deleteCut: deleteProjectCut,
-    renumberFromCut: renumberProjectFromCut,
-    beginTransaction: beginProjectDraftTransaction,
-    commitTransaction: commitProjectDraftTransaction,
-    updateSettings: updateProjectSettings,
-    updateTemplate: updateProjectTemplate,
-    undo: undoProjectDraft,
-    redo: redoProjectDraft,
-  } = projectEditor;
+  const loadedProjectSession = useLoadedProjectSession(currentAssetHints, settings);
+  const loadedProject = loadedProjectSession.project;
+  const projectBindings = loadedProjectSession.bindings;
+  const selectedLogicalPageId = loadedProjectSession.workspaceSession.selectedLogicalPageId;
   useEffect(() => {
     if (loadedProject) return;
     if (docType !== 'images') return;
@@ -297,7 +270,6 @@ export default function App() {
     setEffectiveSettingsLive,
     setEffectiveTemplate,
     setEffectiveTemplateLive,
-    setEffectiveNumberingState,
     handleTemplateChange,
     handleSaveTemplate,
     handleDeleteTemplate,
@@ -320,12 +292,7 @@ export default function App() {
       deleteTemplateById,
       distributeRows,
     },
-    projectDraftApi: {
-      updateSettings: updateProjectSettings,
-      updateTemplate: updateProjectTemplate,
-      beginTransaction: beginProjectDraftTransaction,
-      commitTransaction: commitProjectDraftTransaction,
-    },
+    projectDraftApi: loadedProjectSession.projectDraftApi,
   });
   const workspace = useProjectWorkspace({
     docType,
@@ -335,16 +302,7 @@ export default function App() {
     effectiveSettings,
     effectiveTemplate,
     fallbackSettings: settings,
-    loadedSession: {
-      project: projectEditor.project,
-      bindings: projectEditor.bindings,
-      canApply: projectEditor.canApply,
-      assignedCount: projectEditor.assignedCount,
-      selectedLogicalPage: projectEditor.selectedLogicalPage,
-      selectedLogicalPageId: projectEditor.selectedLogicalPageId,
-      selectedLogicalPageNumber: projectEditor.selectedLogicalPageNumber,
-      selectedAssetIndex: projectEditor.selectedAssetIndex,
-    },
+    loadedSession: loadedProjectSession.workspaceSession,
     currentSession: currentProjectSession.workspaceSession,
   });
   const {
@@ -360,54 +318,10 @@ export default function App() {
     effectiveExportSettings,
   } = workspace;
   const currentProject = currentProjectSession.project;
-  const activeLogicalCutEditor = useMemo<LogicalCutEditorApi>(
-    () =>
-      loadedProject
-        ? {
-            project: loadedProject,
-            settings: effectiveSettings,
-            selectedLogicalPageId,
-            selectedCutId: projectEditor.selectedCutId,
-            canUndo: canUndoProjectDraft,
-            canRedo: canRedoProjectDraft,
-            historyIndex: projectDraftHistoryIndex,
-            historyLength: projectDraftHistoryLength,
-            addCutToSelectedPage,
-            selectCut: selectProjectCut,
-            updateCutPosition: updateProjectCutPosition,
-            commitCutDrag,
-            deleteCut: deleteProjectCut,
-            setNumberingState: setEffectiveNumberingState,
-            renumberFromCut: (cutId, numbering) => {
-              renumberProjectFromCut(cutId, numbering);
-            },
-            undo: undoProjectDraft,
-            redo: redoProjectDraft,
-          }
-        : currentProjectSession.projectCutEditorApi,
-    [
-      addCutToSelectedPage,
-      canRedoProjectDraft,
-      canUndoProjectDraft,
-      commitCutDrag,
-      currentProjectSession.projectCutEditorApi,
-      deleteProjectCut,
-      effectiveSettings,
-      loadedProject,
-      projectDraftHistoryIndex,
-      projectDraftHistoryLength,
-      projectEditor.selectedCutId,
-      renumberProjectFromCut,
-      selectProjectCut,
-      selectedLogicalPageId,
-      setEffectiveNumberingState,
-      undoProjectDraft,
-      redoProjectDraft,
-      updateProjectCutPosition,
-    ]
-  );
   const activeCutEditor = useActiveCutEditor({
-    editor: activeLogicalCutEditor,
+    editor: loadedProject
+      ? loadedProjectSession.projectCutEditorApi
+      : currentProjectSession.projectCutEditorApi,
   });
   const effectiveSelectedCutId = activeCutEditor.selectedCutId;
   const canUndoHistory = activeCutEditor.canUndo;
@@ -527,37 +441,37 @@ export default function App() {
     currentProjectBindings: activeProjectBindings,
     canApplyLoadedProject,
     resolveProjectDocumentForCurrentState,
-    loadProjectIntoEditor,
-    replaceEditorProject,
+    loadProjectIntoEditor: loadedProjectSession.loadProject,
+    replaceEditorProject: loadedProjectSession.replaceProject,
     upsertTemplate,
     setMode,
     logDebug,
   });
 
   const handleProjectBindingChange = useCallback((logicalPageId: string, nextAssetIndex: number | null) => {
-    assignProjectAsset(logicalPageId, nextAssetIndex);
-  }, [assignProjectAsset]);
+    loadedProjectSession.assignAsset(logicalPageId, nextAssetIndex);
+  }, [loadedProjectSession]);
 
   const handleResetProjectBindings = useCallback(() => {
     if (!loadedProject) return;
-    resetProjectBindings();
-  }, [loadedProject, resetProjectBindings]);
+    loadedProjectSession.resetBindings();
+  }, [loadedProject, loadedProjectSession]);
 
   const handleSelectLogicalPage = useCallback((logicalPageId: string) => {
-    selectLogicalProjectPage(logicalPageId);
-  }, [selectLogicalProjectPage]);
+    loadedProjectSession.selectLogicalPage(logicalPageId);
+  }, [loadedProjectSession]);
 
   const handleInsertLogicalPageAfter = useCallback((logicalPageId: string) => {
-    insertProjectPageAfter(logicalPageId);
-  }, [insertProjectPageAfter]);
+    loadedProjectSession.insertPageAfter(logicalPageId);
+  }, [loadedProjectSession]);
 
   const handleRemoveLogicalPage = useCallback((logicalPageId: string) => {
-    removeProjectPage(logicalPageId);
-  }, [removeProjectPage]);
+    loadedProjectSession.removePage(logicalPageId);
+  }, [loadedProjectSession]);
 
   const handleMoveLogicalPage = useCallback((logicalPageId: string, direction: -1 | 1) => {
-    moveProjectPage(logicalPageId, direction);
-  }, [moveProjectPage]);
+    loadedProjectSession.movePage(logicalPageId, direction);
+  }, [loadedProjectSession]);
 
   // Export PDF
   const handleExportPdf = async () => {
@@ -702,8 +616,8 @@ export default function App() {
       loadedProject
         ? safeJsonStringify({
             kind: 'project',
-            canUndo: canUndoProjectDraft,
-            canRedo: canRedoProjectDraft,
+            canUndo: loadedProjectSession.projectCutEditorApi.canUndo,
+            canRedo: loadedProjectSession.projectCutEditorApi.canRedo,
             historyIndex: activeHistoryIndex,
             historyLength: activeHistoryLength,
             selectedLogicalPageId,
@@ -740,8 +654,8 @@ export default function App() {
     effectiveTemplate,
     activeHistoryIndex,
     activeHistoryLength,
-    canRedoProjectDraft,
-    canUndoProjectDraft,
+    loadedProjectSession.projectCutEditorApi.canRedo,
+    loadedProjectSession.projectCutEditorApi.canUndo,
     selectedLogicalPageId,
   ]);
 
@@ -859,16 +773,16 @@ export default function App() {
                 currentAssets={currentAssetHints}
                 canApplyProject={canApplyLoadedProject}
                 canResetBindings={currentAssetHints.length > 0}
-                canUndoDraft={canUndoProjectDraft}
-                canRedoDraft={canRedoProjectDraft}
+                canUndoDraft={loadedProjectSession.projectCutEditorApi.canUndo}
+                canRedoDraft={loadedProjectSession.projectCutEditorApi.canRedo}
                 onSelectLogicalPage={handleSelectLogicalPage}
                 onBindingChange={handleProjectBindingChange}
                 onInsertLogicalPageAfter={handleInsertLogicalPageAfter}
                 onRemoveLogicalPage={handleRemoveLogicalPage}
                 onMoveLogicalPage={handleMoveLogicalPage}
                 onResetBindings={handleResetProjectBindings}
-                onUndoDraft={undoProjectDraft}
-                onRedoDraft={redoProjectDraft}
+                onUndoDraft={loadedProjectSession.undoDraft}
+                onRedoDraft={loadedProjectSession.redoDraft}
                 onApplyProject={handleApplyLoadedProject}
               />
             ) : undefined
