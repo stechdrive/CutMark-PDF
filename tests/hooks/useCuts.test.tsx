@@ -148,4 +148,38 @@ describe('useCuts', () => {
       branchChar: 'C',
     });
   });
+
+  it('replaces cuts state and clears history for project restoration', () => {
+    const { result } = renderHook(() =>
+      useCutsHarness({ nextNumber: 1, branchChar: null })
+    );
+
+    act(() => {
+      result.current.addCut(
+        createCut({ id: 'existing' }),
+        { nextNumber: 2, branchChar: null }
+      );
+    });
+
+    act(() => {
+      result.current.replaceCutsState(
+        [createCut({ id: 'loaded', pageIndex: 2, label: '020' })],
+        { nextNumber: 21, branchChar: null }
+      );
+    });
+
+    expect(result.current.cuts).toEqual([
+      expect.objectContaining({
+        id: 'loaded',
+        pageIndex: 2,
+        label: '020',
+      }),
+    ]);
+    expect(result.current.historyIndex).toBe(-1);
+    expect(result.current.historyLength).toBe(0);
+    expect(result.current.numberingState).toEqual({
+      nextNumber: 21,
+      branchChar: null,
+    });
+  });
 });

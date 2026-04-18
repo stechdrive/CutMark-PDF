@@ -34,6 +34,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       include: [
+        'adapters/**/*.ts',
         'application/**/*.ts',
         'components/**/*.tsx',
         'domain/**/*.ts',

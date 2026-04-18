@@ -105,6 +105,18 @@ export const useCuts = ({ numberingState, setNumberingState }: UseCutsOptions) =
     };
   }, []);
 
+  const replaceCutsState = useCallback((nextCuts: Cut[], nextNumbering: NumberingState) => {
+    setCuts(nextCuts);
+    setHistory([]);
+    setHistoryIndex(-1);
+    setSelectedCutId(null);
+    baseStateRef.current = {
+      cuts: [],
+      numbering: nextNumbering,
+    };
+    setNumberingState(nextNumbering);
+  }, [setNumberingState]);
+
   const addCut = useCallback((newCut: Cut, nextNumbering?: NumberingState) => {
     const newCuts = [...cutsRef.current, newCut];
     if (nextNumbering) {
@@ -166,6 +178,7 @@ export const useCuts = ({ numberingState, setNumberingState }: UseCutsOptions) =
     renumberFromCut,
     undo,
     redo,
-    resetCuts
+    resetCuts,
+    replaceCutsState
   };
 };
