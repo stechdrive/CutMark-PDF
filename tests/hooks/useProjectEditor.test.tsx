@@ -153,4 +153,45 @@ describe('useProjectEditor', () => {
       minDigits: 4,
     });
   });
+
+  it('updates project settings and template in-place for loaded projects', () => {
+    const { result } = renderHook(() =>
+      useProjectEditor([
+        { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+        { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+      ])
+    );
+
+    act(() => {
+      result.current.loadProject(project);
+    });
+
+    act(() => {
+      result.current.updateSettings((current) => ({
+        ...current,
+        nextNumber: 30,
+        fontSize: 36,
+        useWhiteBackground: true,
+      }));
+      result.current.updateTemplate((current) => ({
+        ...current,
+        xPosition: 0.25,
+        rowCount: 3,
+        rowPositions: [0.1, 0.5, 0.9],
+      }));
+    });
+
+    expect(result.current.project?.numbering).toMatchObject({
+      nextNumber: 30,
+    });
+    expect(result.current.project?.style).toMatchObject({
+      fontSize: 36,
+      useWhiteBackground: true,
+    });
+    expect(result.current.project?.template).toMatchObject({
+      xPosition: 0.25,
+      rowCount: 3,
+      rowPositions: [0.1, 0.5, 0.9],
+    });
+  });
 });

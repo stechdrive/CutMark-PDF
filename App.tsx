@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { pdfjs } from 'react-pdf';
 
-import { Cut, NumberingState } from './types';
+import { AppSettings, Cut, NumberingState, Template } from './types';
 import { saveMarkedPdf, saveImagesAsPdf } from './services/pdfService';
 import { exportImagesAsZip } from './services/imageExportService';
 import {
@@ -159,7 +159,7 @@ export default function App() {
 
   const {
     templates, template, setTemplate, changeTemplate,
-    saveTemplateByName, deleteTemplate, distributeRows, upsertTemplate
+    saveTemplateByName, saveTemplateDraftByName, deleteTemplate, deleteTemplateById, distributeRows, upsertTemplate
   } = useTemplates();
 
   // --- UI State ---
@@ -227,17 +227,6 @@ export default function App() {
   }, [pdfFile]);
 
   useEffect(() => {
-    if (docType !== 'images') return;
-    if (pdfAutoFontSizeRef.current !== null && settings.fontSize === pdfAutoFontSizeRef.current) {
-      setSettings(prev => ({
-        ...prev,
-        fontSize: DEFAULT_IMAGE_FONT_SIZE,
-      }));
-    }
-    pdfAutoFontSizeRef.current = null;
-  }, [docType, settings.fontSize, setSettings]);
-
-  useEffect(() => {
     if (!debugEnabled) {
       setDebugOpen(false);
     }
@@ -297,16 +286,131 @@ export default function App() {
     commitCutDrag,
     deleteCut: deleteProjectCut,
     renumberFromCut: renumberProjectFromCut,
+    updateSettings: updateProjectSettings,
+    updateTemplate: updateProjectTemplate,
     undo: undoProjectDraft,
     redo: redoProjectDraft,
   } = projectEditor;
+  useEffect(() => {
+    if (loadedProject) return;
+    if (docType !== 'images') return;
+    if (pdfAutoFontSizeRef.current !== null && settings.fontSize === pdfAutoFontSizeRef.current) {
+      setSettings(prev => ({
+        ...prev,
+        fontSize: DEFAULT_IMAGE_FONT_SIZE,
+      }));
+    }
+    pdfAutoFontSizeRef.current = null;
+  }, [docType, loadedProject, settings.fontSize, setSettings]);
   const canUndoHistory = loadedProject ? canUndoProjectDraft : historyIndex > -1;
   const canRedoHistory = loadedProject ? canRedoProjectDraft : historyIndex < historyLength - 1;
   const handleUndoAction = loadedProject ? undoProjectDraft : undo;
   const handleRedoAction = loadedProject ? redoProjectDraft : redo;
 
-  const effectiveSettings = settings;
-  const effectiveTemplate = template;
+  const effectiveSettings = useMemo(
+    () =>
+      loadedProject
+        ? createAppSettingsFromProjectDocument(loadedProject)
+        : settings,
+    [loadedProject, settings]
+  );
+  const effectiveTemplate = useMemo(
+    () =>
+      loadedProject
+        ? createTemplateFromProjectDocument(loadedProject)
+        : template,
+    [loadedProject, template]
+  );
+  const setEffectiveSettings = useCallback((next: React.SetStateAction<AppSettings>) => {
+    if (loadedProject) {
+      updateProjectSettings(next);
+      return;
+    }
+    setSettings(next);
+  }, [loadedProject, setSettings, updateProjectSettings]);
+  const setEffectiveTemplate = useCallback((next: React.SetStateAction<Template>) => {
+    if (loadedProject) {
+      updateProjectTemplate(next);
+      return;
+    }
+    setTemplate(next);
+  }, [loadedProject, setTemplate, updateProjectTemplate]);
+  const setEffectiveNumberingState = useCallback((next: NumberingState) => {
+    if (loadedProject) {
+      updateProjectSettings((current) => ({
+        ...current,
+        nextNumber: next.nextNumber,
+        branchChar: next.branchChar,
+      }));
+      return;
+    }
+    setNumberingStateWithHistory(next);
+  }, [loadedProject, setNumberingStateWithHistory, updateProjectSettings]);
+  const handleTemplateChange = useCallback((id: string) => {
+    if (!loadedProject) {
+      changeTemplate(id);
+      return;
+    }
+
+    const nextTemplate = templates.find((item) => item.id === id);
+    if (!nextTemplate) return;
+    updateProjectTemplate(nextTemplate);
+  }, [changeTemplate, loadedProject, templates, updateProjectTemplate]);
+  const handleSaveTemplate = useCallback((name: string) => {
+    if (!loadedProject) {
+      saveTemplateByName(name);
+      return;
+    }
+
+    const savedTemplate = saveTemplateDraftByName(effectiveTemplate, name);
+    if (savedTemplate) {
+      updateProjectTemplate(savedTemplate);
+    }
+  }, [
+    effectiveTemplate,
+    loadedProject,
+    saveTemplateByName,
+    saveTemplateDraftByName,
+    updateProjectTemplate,
+  ]);
+  const handleDeleteTemplate = useCallback(() => {
+    if (!loadedProject) {
+      deleteTemplate();
+      return;
+    }
+
+    const nextTemplate = deleteTemplateById(effectiveTemplate.id);
+    if (nextTemplate) {
+      updateProjectTemplate(nextTemplate);
+    }
+  }, [deleteTemplate, deleteTemplateById, effectiveTemplate.id, loadedProject, updateProjectTemplate]);
+  const handleDistributeRows = useCallback(() => {
+    if (!loadedProject) {
+      distributeRows();
+      return;
+    }
+
+    setEffectiveTemplate((current) => {
+      if (current.rowCount <= 2) return current;
+
+      const newPositions = [...current.rowPositions];
+      const first = newPositions[0];
+      const last = newPositions[current.rowCount - 1];
+      if (typeof first !== 'number' || typeof last !== 'number') {
+        return current;
+      }
+
+      const step = (last - first) / (current.rowCount - 1);
+      for (let i = 1; i < current.rowCount - 1; i++) {
+        newPositions[i] = first + (step * i);
+      }
+
+      return {
+        ...current,
+        rowPositions: newPositions,
+      };
+    });
+  }, [distributeRows, loadedProject, setEffectiveTemplate]);
   const effectiveSelectedCutId = loadedProject ? projectEditor.selectedCutId : selectedCutId;
   const previewCuts = useMemo(
     () =>
@@ -351,11 +455,11 @@ export default function App() {
           ? new Date().toISOString()
           : projectWithBoundHints.meta.savedAt,
       },
-      numbering: toNumberingPolicy(settings),
-      style: toStyleSettings(settings),
-      template: toTemplateSnapshot(template),
+      numbering: toNumberingPolicy(effectiveSettings),
+      style: toStyleSettings(effectiveSettings),
+      template: toTemplateSnapshot(effectiveTemplate),
     };
-  }, [currentAssetHints, settings, template]);
+  }, [currentAssetHints, effectiveSettings, effectiveTemplate]);
 
   const resolvedLoadedProject = useMemo(
     () =>
@@ -388,22 +492,22 @@ export default function App() {
     if (loadedProject && selectedLogicalPageId) {
       const newCutId = crypto.randomUUID();
       const currentNumbering = {
-        nextNumber: settings.nextNumber,
-        branchChar: settings.branchChar,
+        nextNumber: effectiveSettings.nextNumber,
+        branchChar: effectiveSettings.branchChar,
       };
       const nextNumbering = advanceNumberingState(
         currentNumbering,
-        settings.autoIncrement
+        effectiveSettings.autoIncrement
       );
 
       addCutToSelectedPage({
         id: newCutId,
         x,
         y,
-        label: buildNumberLabel(currentNumbering, settings.minDigits),
-        isBranch: !!settings.branchChar,
+        label: buildNumberLabel(currentNumbering, effectiveSettings.minDigits),
+        isBranch: !!effectiveSettings.branchChar,
       });
-      setNumberingState(nextNumbering);
+      setEffectiveNumberingState(nextNumbering);
       return;
     }
 
@@ -431,13 +535,13 @@ export default function App() {
   const handleRenumberFromSelected = useCallback((cutId: string) => {
     if (loadedProject) {
       const nextNumbering = renumberProjectFromCut(cutId, {
-        nextNumber: settings.nextNumber,
-        branchChar: settings.branchChar,
-        minDigits: settings.minDigits,
-        autoIncrement: settings.autoIncrement,
+        nextNumber: effectiveSettings.nextNumber,
+        branchChar: effectiveSettings.branchChar,
+        minDigits: effectiveSettings.minDigits,
+        autoIncrement: effectiveSettings.autoIncrement,
       });
       if (!nextNumbering) return;
-      setNumberingState(nextNumbering);
+      setEffectiveNumberingState(nextNumbering);
       return;
     }
 
@@ -451,10 +555,14 @@ export default function App() {
       settings.autoIncrement
     );
   }, [
+    effectiveSettings.autoIncrement,
+    effectiveSettings.branchChar,
+    effectiveSettings.minDigits,
+    effectiveSettings.nextNumber,
     loadedProject,
     renumberFromCut,
     renumberProjectFromCut,
-    setNumberingState,
+    setEffectiveNumberingState,
     settings.autoIncrement,
     settings.branchChar,
     settings.minDigits,
@@ -462,6 +570,7 @@ export default function App() {
   ]);
 
   const applyPdfDefaultFontSize = useCallback((page: { originalWidth: number }) => {
+    if (loadedProject) return;
     if (docType !== 'pdf') return;
     if (pdfFontSizeAppliedRef.current) return;
     if (settings.fontSize !== DEFAULT_IMAGE_FONT_SIZE) return;
@@ -478,7 +587,7 @@ export default function App() {
         fontSize: nextFontSize,
       }));
     }
-  }, [docType, settings.fontSize, setSettings]);
+  }, [docType, loadedProject, settings.fontSize, setSettings]);
 
   // PDF Load
   const onPdfLoaded = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -893,10 +1002,10 @@ export default function App() {
       safeJsonStringify(imageFileSummary),
       '',
       '[Settings]',
-      safeJsonStringify(settings),
+      safeJsonStringify(effectiveSettings),
       '',
       '[Template]',
-      safeJsonStringify(template),
+      safeJsonStringify(effectiveTemplate),
       '',
       '[History]',
       loadedProject
@@ -934,8 +1043,8 @@ export default function App() {
     pdfFile,
     previewCuts.length,
     imageFiles,
-    settings,
-    template,
+    effectiveSettings,
+    effectiveTemplate,
     historyIndex,
     historyLength,
     canRedoProjectDraft,
@@ -1026,7 +1135,7 @@ export default function App() {
           
           mode={mode}
           template={effectiveTemplate}
-          setTemplate={setTemplate}
+          setTemplate={setEffectiveTemplate}
           settings={effectiveSettings}
           onContentClick={createCutAt}
           onPdfLoadSuccess={(pages) => logDebug('info', 'PDF読み込み成功', () => ({ numPages: pages }))}
@@ -1071,15 +1180,15 @@ export default function App() {
           }
           templates={templates}
           template={effectiveTemplate}
-          setTemplate={setTemplate}
-          changeTemplate={changeTemplate}
-          saveTemplateByName={saveTemplateByName}
-          deleteTemplate={deleteTemplate}
-          distributeRows={distributeRows}
+          setTemplate={setEffectiveTemplate}
+          changeTemplate={handleTemplateChange}
+          saveTemplateByName={handleSaveTemplate}
+          deleteTemplate={handleDeleteTemplate}
+          distributeRows={handleDistributeRows}
           onRowSnap={handleRowSnap}
           settings={effectiveSettings}
-          setSettings={setSettings}
-          setNumberingState={loadedProject ? setNumberingState : setNumberingStateWithHistory}
+          setSettings={setEffectiveSettings}
+          setNumberingState={loadedProject ? setEffectiveNumberingState : setNumberingStateWithHistory}
           onRenumberFromSelected={handleRenumberFromSelected}
         />
         

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { editorReducer, EditorAction } from '../application/editorReducer';
 import {
   createHistoryState,
@@ -24,9 +24,18 @@ import {
   LogicalPageId,
   NumberingPolicy,
   ProjectDocument,
+  toNumberingPolicy,
+  toStyleSettings,
+  toTemplateSnapshot,
 } from '../domain/project';
+import { AppSettings, Template } from '../types';
 
 const ASSET_ID_PREFIX = 'asset-';
+
+const resolveStateAction = <T>(current: T, next: SetStateAction<T>) =>
+  typeof next === 'function'
+    ? (next as (value: T) => T)(current)
+    : next;
 
 const toAssetId = (assetIndex: number) => `${ASSET_ID_PREFIX}${assetIndex}`;
 
@@ -82,6 +91,26 @@ const createEditorStateFromProject = (
     bindings: toEditorBindings(project, bindings),
   });
 };
+
+const toAppSettings = (project: ProjectDocument): AppSettings => ({
+  fontSize: project.style.fontSize,
+  useWhiteBackground: project.style.useWhiteBackground,
+  backgroundPadding: project.style.backgroundPadding,
+  nextNumber: project.numbering.nextNumber,
+  branchChar: project.numbering.branchChar,
+  autoIncrement: project.numbering.autoIncrement,
+  minDigits: project.numbering.minDigits,
+  textOutlineWidth: project.style.textOutlineWidth,
+  enableClickSnapToRows: project.style.enableClickSnapToRows,
+});
+
+const toTemplate = (project: ProjectDocument): Template => ({
+  id: project.template.id,
+  name: project.template.name,
+  rowCount: project.template.rowCount,
+  xPosition: project.template.xPosition,
+  rowPositions: [...project.template.rowPositions],
+});
 
 export const useProjectEditor = (
   currentAssets: Array<AssetHint | null | undefined>
@@ -358,6 +387,33 @@ export const useProjectEditor = (
     return nextPresent.project.numbering;
   }, [editorState]);
 
+  const updateSettings = useCallback((next: SetStateAction<AppSettings>) => {
+    replacePresent((state) => {
+      const nextSettings = resolveStateAction(toAppSettings(state.project), next);
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          numbering: toNumberingPolicy(nextSettings),
+          style: toStyleSettings(nextSettings),
+        },
+      };
+    });
+  }, [replacePresent]);
+
+  const updateTemplate = useCallback((next: SetStateAction<Template>) => {
+    replacePresent((state) => {
+      const nextTemplate = resolveStateAction(toTemplate(state.project), next);
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          template: toTemplateSnapshot(nextTemplate),
+        },
+      };
+    });
+  }, [replacePresent]);
+
   const undo = useCallback(() => {
     setHistory((prev) => (prev ? undoHistory(prev) : prev));
     dragBaseRef.current = null;
@@ -397,6 +453,8 @@ export const useProjectEditor = (
     commitCutDrag,
     deleteCut,
     renumberFromCut,
+    updateSettings,
+    updateTemplate,
     undo,
     redo,
   };
