@@ -48,6 +48,8 @@ interface UseWorkspaceFileActionsOptions {
   loadPdf: (file: File) => void;
   loadImages: (files: File[]) => void;
   loadProjectFile: (file: File, importContext?: ProjectImportContext) => Promise<void>;
+  exportProjectFile: () => void;
+  includeProjectFileOnExport: boolean;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
   setIsExporting: (next: boolean) => void;
   logDebug: (level: 'info' | 'warn' | 'error', message: string, data?: DebugLogData) => void;
@@ -302,6 +304,8 @@ export const useWorkspaceFileActions = ({
   loadPdf,
   loadImages,
   loadProjectFile,
+  exportProjectFile,
+  includeProjectFileOnExport,
   onDrop,
   setIsExporting,
   logDebug,
@@ -433,6 +437,12 @@ export const useWorkspaceFileActions = ({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
+      if (includeProjectFileOnExport) {
+        exportProjectFile();
+        logDebug('info', 'プロジェクトファイル同梱書き出し', () => ({ alongside: filename }));
+      }
+
       logDebug('info', 'PDF書き出し完了', () => ({ filename }));
     } catch (error) {
       console.error(error);
@@ -446,7 +456,9 @@ export const useWorkspaceFileActions = ({
     docType,
     effectiveExportCuts,
     effectiveExportSettings,
+    exportProjectFile,
     imageFiles,
+    includeProjectFileOnExport,
     isLoadedProjectActive,
     logDebug,
     pdfFile,
@@ -471,6 +483,12 @@ export const useWorkspaceFileActions = ({
       await exportImagesAsZip(imageFiles, effectiveExportCuts, effectiveExportSettings, (current, total) => {
         console.log(`Processing ${current}/${total}`);
       });
+
+      if (includeProjectFileOnExport) {
+        exportProjectFile();
+        logDebug('info', 'プロジェクトファイル同梱書き出し', () => ({ alongside: 'zip' }));
+      }
+
       logDebug('info', '画像書き出し完了');
     } catch (error) {
       console.error(error);
@@ -484,7 +502,9 @@ export const useWorkspaceFileActions = ({
     docType,
     effectiveExportCuts,
     effectiveExportSettings,
+    exportProjectFile,
     imageFiles,
+    includeProjectFileOnExport,
     isLoadedProjectActive,
     logDebug,
     setIsExporting,

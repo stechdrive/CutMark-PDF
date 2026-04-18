@@ -213,4 +213,77 @@ describe('useProjectLifecycle', () => {
     expect(setMode).toHaveBeenCalledWith('edit');
     expect(alertSpy).not.toHaveBeenCalled();
   });
+
+  it('does not show a modal when a project is loaded before any asset document', async () => {
+    const project = createProject('Loaded', 2);
+    repositoryMocks.loadProjectDocumentFromFile.mockResolvedValue(project);
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const logDebug = vi.fn();
+
+    const { result } = renderHook(() =>
+      useProjectLifecycle({
+        docType: null,
+        numPages: 0,
+        currentAssetHints: [],
+        loadedProject: null,
+        projectBindings: {},
+        currentProject: null,
+        currentProjectBindings: {},
+        canApplyLoadedProject: false,
+        resolveProjectDocumentForCurrentState: vi.fn((value) => value),
+        loadProjectIntoEditor: vi.fn(),
+        replaceEditorProject: vi.fn(),
+        upsertTemplate: vi.fn(),
+        setMode: vi.fn(),
+        logDebug,
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadProjectFile(
+        new File(['{}'], 'loaded.cutmark.json', { type: 'application/json' })
+      );
+    });
+
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(logDebug).toHaveBeenCalledWith('info', 'プロジェクト読込待機', expect.any(Function));
+  });
+
+  it('does not show a modal when project and asset page counts differ', async () => {
+    const project = createProject('Loaded', 3);
+    repositoryMocks.loadProjectDocumentFromFile.mockResolvedValue(project);
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    const logDebug = vi.fn();
+
+    const { result } = renderHook(() =>
+      useProjectLifecycle({
+        docType: 'images',
+        numPages: 2,
+        currentAssetHints: [
+          { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+          { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+        ],
+        loadedProject: null,
+        projectBindings: {},
+        currentProject: null,
+        currentProjectBindings: {},
+        canApplyLoadedProject: false,
+        resolveProjectDocumentForCurrentState: vi.fn((value) => value),
+        loadProjectIntoEditor: vi.fn(),
+        replaceEditorProject: vi.fn(),
+        upsertTemplate: vi.fn(),
+        setMode: vi.fn(),
+        logDebug,
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadProjectFile(
+        new File(['{}'], 'loaded.cutmark.json', { type: 'application/json' })
+      );
+    });
+
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(logDebug).toHaveBeenCalledWith('warn', 'プロジェクト読込保留', expect.any(Function));
+  });
 });

@@ -60,10 +60,10 @@ describe('useAppShellProps', () => {
           onUndo: vi.fn(),
           onRedo: vi.fn(),
           onImportFileChange: vi.fn(),
-          canExportProject: true,
-          onExportProject: vi.fn(),
           onExportPdf: vi.fn(),
           onExportImages: vi.fn(),
+          includeProjectFileOnExport: true,
+          onToggleIncludeProjectFileOnExport: vi.fn(),
           onOpenDebug: vi.fn(),
           showDebug: true,
         },
@@ -151,10 +151,10 @@ describe('useAppShellProps', () => {
     expect(result.current.sidebarProps.setLiveSettings).toBe(setSettingsLive);
     expect(result.current.exportOverlayProps).toEqual({ isExporting: false });
 
-    expect(isValidElement(result.current.sidebarProps.projectPanel)).toBe(true);
-    if (isValidElement(result.current.sidebarProps.projectPanel)) {
-      expect(result.current.sidebarProps.projectPanel.type).toBe(SidebarProjectPanel);
-      expect(result.current.sidebarProps.projectPanel.props.projectName).toBe('Loaded project');
+    expect(isValidElement(result.current.leftProjectPanel)).toBe(true);
+    if (isValidElement(result.current.leftProjectPanel)) {
+      expect(result.current.leftProjectPanel.type).toBe(SidebarProjectPanel);
+      expect(result.current.leftProjectPanel.props.projectName).toBe('Loaded project');
     }
 
     result.current.documentPreviewProps.onPdfLoadSuccess?.(5);
@@ -178,10 +178,10 @@ describe('useAppShellProps', () => {
           onUndo: vi.fn(),
           onRedo: vi.fn(),
           onImportFileChange: vi.fn(),
-          canExportProject: false,
-          onExportProject: vi.fn(),
           onExportPdf: vi.fn(),
           onExportImages: vi.fn(),
+          includeProjectFileOnExport: false,
+          onToggleIncludeProjectFileOnExport: vi.fn(),
           onOpenDebug: vi.fn(),
           showDebug: false,
         },
@@ -257,6 +257,6 @@ describe('useAppShellProps', () => {
 
     expect(result.current.documentPreviewProps.setTemplate).toBe(setTemplate);
     expect(result.current.sidebarProps.setLiveSettings).toBeUndefined();
-    expect(result.current.sidebarProps.projectPanel).toBeUndefined();
+    expect(result.current.leftProjectPanel).toBeUndefined();
   });
 });

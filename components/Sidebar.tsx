@@ -11,7 +11,6 @@ interface SidebarProps {
   setMode: (mode: 'edit' | 'template') => void;
   pdfFile: File | null;
   selectedCutId: string | null;
-  projectPanel?: React.ReactNode;
   // Template Props
   templates: Template[];
   template: Template;
@@ -36,7 +35,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setMode,
   pdfFile,
   selectedCutId,
-  projectPanel,
   templates,
   template,
   setTemplate,
@@ -58,9 +56,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Scrollable Settings Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
-
-        {projectPanel}
-
         {/* 1. Template Settings (Top priority) */}
         <SidebarTemplatePanel
           mode={mode}

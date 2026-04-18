@@ -18,10 +18,10 @@ interface UseAppShellPropsOptions {
     onUndo: () => void;
     onRedo: () => void;
     onImportFileChange: ComponentProps<typeof Header>['onImportFileChange'];
-    canExportProject: boolean;
-    onExportProject: () => void;
     onExportPdf: () => void;
     onExportImages: () => void;
+    includeProjectFileOnExport: boolean;
+    onToggleIncludeProjectFileOnExport: (next: boolean) => void;
     onOpenDebug: () => void;
     showDebug: boolean;
   };
@@ -111,10 +111,10 @@ export const useAppShellProps = ({
   const headerProps: ComponentProps<typeof Header> = {
     docType: header.docType,
     onImportFileChange: header.onImportFileChange,
-    canExportProject: header.canExportProject,
-    onExportProject: header.onExportProject,
     onExportPdf: header.onExportPdf,
     onExportImages: header.onExportImages,
+    includeProjectFileOnExport: header.includeProjectFileOnExport,
+    onToggleIncludeProjectFileOnExport: header.onToggleIncludeProjectFileOnExport,
     isExporting: header.isExporting,
     mode: header.mode,
     setMode: header.setMode,
@@ -166,7 +166,6 @@ export const useAppShellProps = ({
     setMode: sidebar.setMode,
     pdfFile: sidebar.pdfFile,
     selectedCutId: sidebar.selectedCutId,
-    projectPanel,
     templates: sidebar.templates,
     template: sidebar.template,
     setTemplate: sidebar.setTemplate,
@@ -199,6 +198,7 @@ export const useAppShellProps = ({
 
   return {
     headerProps,
+    leftProjectPanel: projectPanel,
     documentPreviewProps,
     sidebarProps,
     debugModalProps,

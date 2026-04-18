@@ -178,6 +178,8 @@ describe('useAppPresentationController', () => {
       expect.objectContaining({
         docType: 'images',
         imageFiles: workspace.imageFiles,
+        exportProjectFile: workspace.loadedProjectManager.handleSaveProject,
+        includeProjectFileOnExport: true,
         isLoadedProjectActive: true,
         loadProjectFile: workspace.loadedProjectManager.loadProjectFile,
         setIsExporting: expect.any(Function),
@@ -195,8 +197,8 @@ describe('useAppPresentationController', () => {
         header: expect.objectContaining({
           docType: 'images',
           onImportFileChange: fileActions.onImportFilesSelected,
-          canExportProject: true,
-          onExportProject: workspace.loadedProjectManager.handleSaveProject,
+          includeProjectFileOnExport: true,
+          onToggleIncludeProjectFileOnExport: expect.any(Function),
         }),
         preview: expect.objectContaining({
           currentImageUrl: 'blob:image',

@@ -54,6 +54,8 @@ const createOptions = () => ({
   loadPdf: vi.fn(),
   loadImages: vi.fn(),
   loadProjectFile: vi.fn().mockResolvedValue(undefined),
+  exportProjectFile: vi.fn(),
+  includeProjectFileOnExport: false,
   onDrop: vi.fn(),
   setIsExporting: vi.fn(),
   logDebug: vi.fn(),
@@ -232,6 +234,29 @@ describe('useWorkspaceFileActions', () => {
     expect(createObjectUrlSpy).toHaveBeenCalledTimes(1);
     expect(revokeObjectUrlSpy).toHaveBeenCalledWith('blob:pdf');
     expect(clickSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('downloads the project file alongside PDF export when the option is enabled', async () => {
+    const pdfFile = new File(['pdf'], 'sample.pdf', { type: 'application/pdf' });
+    const options = {
+      ...createOptions(),
+      docType: 'pdf' as const,
+      pdfFile,
+      includeProjectFileOnExport: true,
+    };
+
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pdf');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    pdfServiceMocks.saveMarkedPdf.mockResolvedValue(new Uint8Array([1, 2, 3]));
+
+    const { result } = renderHook(() => useWorkspaceFileActions(options));
+
+    await act(async () => {
+      await result.current.handleExportPdf();
+    });
+
+    expect(options.exportProjectFile).toHaveBeenCalledTimes(1);
   });
 
   it('blocks image export until loaded project bindings are complete', async () => {

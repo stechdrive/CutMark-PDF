@@ -169,15 +169,15 @@ export const useProjectLifecycle = ({
       }));
 
       if (!activeDocType || activeNumPages < 1) {
-        alert('プロジェクトを読み込みました。次にPDFまたは画像を読み込むと比較できます。');
+        logDebug('info', 'プロジェクト読込待機', () => ({
+          reason: 'awaiting-assets',
+          projectPages: project.logicalPages.length,
+          file: fileInfo,
+        }));
         return;
       }
 
       if (project.logicalPages.length !== activeNumPages) {
-        alert(
-          `このプロジェクトは ${project.logicalPages.length} ページですが、現在の素材は ${activeNumPages} ページです。\n` +
-          '論理ページの割当と増減は右パネルで調整できます。'
-        );
         logDebug('warn', 'プロジェクト読込保留', () => ({
           reason: 'page-count-mismatch',
           projectPages: project.logicalPages.length,

@@ -69,6 +69,7 @@ export const useAppPresentationController = ({
   logDebug,
 }: UseAppPresentationControllerOptions) => {
   const [isExporting, setIsExporting] = useState(false);
+  const [includeProjectFileOnExport, setIncludeProjectFileOnExport] = useState(true);
 
   const effectiveSelectedCutId = workspace.activeCutEditor.selectedCutId;
   const canUndoHistory = workspace.activeCutEditor.canUndo;
@@ -145,6 +146,8 @@ export const useAppPresentationController = ({
     loadPdf: workspace.loadPdf,
     loadImages: workspace.loadImages,
     loadProjectFile: workspace.loadedProjectManager.loadProjectFile,
+    exportProjectFile: workspace.loadedProjectManager.handleSaveProject,
+    includeProjectFileOnExport,
     onDrop: workspace.dragHandlers.onDrop,
     setIsExporting,
     logDebug,
@@ -169,10 +172,10 @@ export const useAppPresentationController = ({
       onUndo: handleUndoAction,
       onRedo: handleRedoAction,
       onImportFileChange: onImportFilesSelected,
-      canExportProject: !!workspace.activeProject,
-      onExportProject: workspace.loadedProjectManager.handleSaveProject,
       onExportPdf: handleExportPdf,
       onExportImages: handleExportImages,
+      includeProjectFileOnExport,
+      onToggleIncludeProjectFileOnExport: setIncludeProjectFileOnExport,
       onOpenDebug: openDebug,
       showDebug: debugEnabled,
     },

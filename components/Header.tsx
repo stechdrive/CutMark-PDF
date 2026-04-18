@@ -6,10 +6,10 @@ import { DocType } from '../types';
 interface HeaderProps {
   docType: DocType | null;
   onImportFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  canExportProject: boolean;
-  onExportProject: () => void;
   onExportPdf: () => void;
   onExportImages: () => void;
+  includeProjectFileOnExport: boolean;
+  onToggleIncludeProjectFileOnExport: (next: boolean) => void;
   isExporting: boolean;
   mode: 'edit' | 'template';
   setMode: (mode: 'edit' | 'template') => void;
@@ -24,10 +24,10 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   docType,
   onImportFileChange,
-  canExportProject,
-  onExportProject,
   onExportPdf,
   onExportImages,
+  includeProjectFileOnExport,
+  onToggleIncludeProjectFileOnExport,
   isExporting,
   mode,
   setMode,
@@ -133,12 +133,12 @@ export const Header: React.FC<HeaderProps> = ({
               e.stopPropagation();
               setShowExportMenu((current) => !current);
             }}
-            disabled={(!docType && !canExportProject) || isExporting}
+            disabled={!docType || isExporting}
             className="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 rounded font-medium text-sm transition-colors shadow-sm"
             title={
-              docType || canExportProject
-                ? 'PDF、連番画像、プロジェクトファイルを書き出す'
-                : '先にPDF、画像、またはプロジェクトを読み込んでください'
+              docType
+                ? 'PDFまたは連番画像を書き出します。必要ならプロジェクトファイルも一緒に保存できます'
+                : '先にPDFまたは画像を読み込んでください'
             }
           >
             <Save size={16} /> 保存 <ChevronDown size={14} />
@@ -146,9 +146,26 @@ export const Header: React.FC<HeaderProps> = ({
 
           {showExportMenu && (
             <div
-              className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20 text-gray-800"
+              className="absolute right-0 mt-2 w-72 bg-white rounded-md shadow-lg py-1 z-20 text-gray-800"
               onClick={(e) => e.stopPropagation()}
             >
+              <label className="flex cursor-pointer items-start gap-3 px-4 py-3 text-sm hover:bg-gray-50">
+                <input
+                  type="checkbox"
+                  checked={includeProjectFileOnExport}
+                  onChange={(event) => onToggleIncludeProjectFileOnExport(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+                />
+                <span className="space-y-1">
+                  <span className="block font-medium text-slate-800">
+                    プロジェクトファイル保存
+                  </span>
+                  <span className="block text-xs leading-5 text-slate-500">
+                    カット番号振り直し用データも一緒に書き出し
+                  </span>
+                </span>
+              </label>
+              <div className="mx-2 border-t border-gray-100" />
               <button
                 onClick={() => { setShowExportMenu(false); onExportPdf(); }}
                 disabled={!docType}
@@ -172,13 +189,6 @@ export const Header: React.FC<HeaderProps> = ({
                   連番画像(ZIP)として書き出し
                 </button>
               )}
-              <button
-                onClick={() => { setShowExportMenu(false); onExportProject(); }}
-                disabled={!canExportProject}
-                className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
-                プロジェクトファイルとして保存
-              </button>
             </div>
           )}
         </div>

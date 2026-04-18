@@ -21,6 +21,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 export default function App() {
   const {
     headerProps,
+    leftProjectPanel,
     documentPreviewProps,
     sidebarProps,
     debugModalProps,
@@ -33,6 +34,13 @@ export default function App() {
 
       <div className="flex flex-1 overflow-hidden relative">
         <ExportOverlay {...exportOverlayProps} />
+        {leftProjectPanel && (
+          <aside className="w-96 shrink-0 border-r border-gray-200 bg-white shadow-xl z-20">
+            <div className="h-full overflow-y-auto p-4">
+              {leftProjectPanel}
+            </div>
+          </aside>
+        )}
         <DocumentPreview {...documentPreviewProps} />
         <Sidebar {...sidebarProps} />
       </div>
