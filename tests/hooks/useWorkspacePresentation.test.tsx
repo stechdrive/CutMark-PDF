@@ -69,7 +69,7 @@ describe('useWorkspacePresentation', () => {
     expect(templateApi.changeTemplate).not.toHaveBeenCalled();
   });
 
-  it('routes legacy updates to local settings and template APIs', () => {
+  it('routes current document updates to local settings and template APIs', () => {
     const settings = createAppSettings();
     const template = createTemplate();
     const setSettings = vi.fn();

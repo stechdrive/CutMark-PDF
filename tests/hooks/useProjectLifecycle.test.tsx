@@ -37,7 +37,7 @@ describe('useProjectLifecycle', () => {
   });
 
   it('saves the current project through the shared project contract', () => {
-    const currentProject = createProject('Legacy');
+    const currentProject = createProject('Current');
     const resolvedProject = {
       ...currentProject,
       meta: {

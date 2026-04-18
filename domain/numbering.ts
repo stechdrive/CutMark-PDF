@@ -44,19 +44,19 @@ export const isSameNumberingState = (
   left.nextNumber === right.nextNumber &&
   left.branchChar === right.branchChar;
 
-export const sortLegacyCutsForRenumber = (a: Cut, b: Cut) => {
+export const sortFlatCutsForRenumber = (a: Cut, b: Cut) => {
   if (a.pageIndex !== b.pageIndex) return a.pageIndex - b.pageIndex;
   return sortWithinPage(a, b);
 };
 
-export const renumberLegacyCuts = (
+export const renumberFlatCuts = (
   cuts: Cut[],
   startCutId: string,
   startNumbering: NumberingState,
   minDigits: number,
   autoIncrement: boolean
 ): { cuts: Cut[]; nextNumbering: NumberingState; found: boolean } => {
-  const sortedCuts = [...cuts].sort(sortLegacyCutsForRenumber);
+  const sortedCuts = [...cuts].sort(sortFlatCutsForRenumber);
   const startIndex = sortedCuts.findIndex((cut) => cut.id === startCutId);
 
   if (startIndex === -1) {

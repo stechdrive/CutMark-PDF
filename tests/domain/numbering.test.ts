@@ -8,7 +8,7 @@ import {
   advanceNumberingState,
   buildNumberLabel,
   isSameNumberingState,
-  renumberLegacyCuts,
+  renumberFlatCuts,
   renumberLogicalPagesFromCut,
   renumberLogicalPagesFromPage,
 } from '../../domain/numbering';
@@ -39,8 +39,8 @@ describe('domain/numbering', () => {
     )).toBe(true);
   });
 
-  it('renumbers legacy cuts in page and coordinate order', () => {
-    const result = renumberLegacyCuts(
+  it('renumbers flat cuts in page and coordinate order', () => {
+    const result = renumberFlatCuts(
       [
         createCut({ id: 'p1', pageIndex: 1, x: 0.1, y: 0.1, label: 'old-3' }),
         createCut({ id: 'p0b', pageIndex: 0, x: 0.9, y: 0.1, label: 'old-2' }),

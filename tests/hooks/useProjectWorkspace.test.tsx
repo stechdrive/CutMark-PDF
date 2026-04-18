@@ -80,8 +80,8 @@ describe('useProjectWorkspace', () => {
     ]);
   });
 
-  it('falls back to the legacy projection when no loaded project is active', () => {
-    const legacyProject = createProjectDocument({
+  it('falls back to the current project when no loaded project is active', () => {
+    const currentProject = createProjectDocument({
       settings,
       template,
       logicalPages: [
@@ -114,9 +114,9 @@ describe('useProjectWorkspace', () => {
           selectedAssetIndex: null,
         },
         currentSession: {
-          project: legacyProject,
+          project: currentProject,
           bindings: { 'page-1': 0 },
-          selectedLogicalPage: legacyProject.logicalPages[0],
+          selectedLogicalPage: currentProject.logicalPages[0],
           selectedLogicalPageId: 'page-1',
           selectedLogicalPageNumber: 1,
           selectedAssetIndex: 0,
@@ -124,7 +124,7 @@ describe('useProjectWorkspace', () => {
       });
     });
 
-    expect(result.current.activeProject?.meta.name).toBe(legacyProject.meta.name);
+    expect(result.current.activeProject?.meta.name).toBe(currentProject.meta.name);
     expect(result.current.previewCuts).toEqual([
       expect.objectContaining({
         id: 'cut-1',
