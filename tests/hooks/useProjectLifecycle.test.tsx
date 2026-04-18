@@ -214,6 +214,82 @@ describe('useProjectLifecycle', () => {
     expect(alertSpy).not.toHaveBeenCalled();
   });
 
+  it('auto-applies a deferred PDF import after the document page count becomes available', async () => {
+    const project = createProject('Loaded', 2);
+    repositoryMocks.loadProjectDocumentFromFile.mockResolvedValue(project);
+
+    const setMode = vi.fn();
+    const upsertTemplate = vi.fn();
+    const logDebug = vi.fn();
+
+    const { result, rerender } = renderHook(
+      ({
+        docType,
+        numPages,
+        currentAssetHints,
+        loadedProject,
+      }: {
+        docType: 'pdf' | 'images' | null;
+        numPages: number;
+        currentAssetHints: { sourceKind: 'pdf-page' | 'image'; sourceLabel: string; pageNumber?: number }[];
+        loadedProject: ReturnType<typeof createProject> | null;
+      }) =>
+        useProjectLifecycle({
+          docType,
+          numPages,
+          currentAssetHints,
+          loadedProject,
+          projectBindings: {},
+          currentProject: null,
+          currentProjectBindings: {},
+          canApplyLoadedProject: false,
+          resolveProjectDocumentForCurrentState: vi.fn((value) => value),
+          loadProjectIntoEditor: vi.fn(),
+          replaceEditorProject: vi.fn(),
+          upsertTemplate,
+          setMode,
+          logDebug,
+        }),
+      {
+        initialProps: {
+          docType: null,
+          numPages: 0,
+          currentAssetHints: [],
+          loadedProject: null,
+        },
+      }
+    );
+
+    await act(async () => {
+      await result.current.loadProjectFile(
+        new File(['{}'], 'loaded.cutmark', { type: 'application/json' }),
+        {
+          docType: 'pdf',
+          numPages: 0,
+          currentAssetHints: [],
+          autoApplyWhenReady: true,
+        }
+      );
+    });
+
+    rerender({
+      docType: 'pdf',
+      numPages: 2,
+      currentAssetHints: [
+        { sourceKind: 'pdf-page', sourceLabel: 'sample.pdf', pageNumber: 1 },
+        { sourceKind: 'pdf-page', sourceLabel: 'sample.pdf', pageNumber: 2 },
+      ],
+      loadedProject: project,
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(setMode).toHaveBeenCalledWith('edit');
+    expect(upsertTemplate).toHaveBeenCalled();
+  });
+
   it('does not show a modal when a project is loaded before any asset document', async () => {
     const project = createProject('Loaded', 2);
     repositoryMocks.loadProjectDocumentFromFile.mockResolvedValue(project);

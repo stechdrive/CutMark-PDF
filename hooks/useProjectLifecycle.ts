@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback } from 'react';
+import { ChangeEvent, useCallback, useEffect, useState } from 'react';
 import {
   createSuggestedProjectAssetBindings,
   ProjectAssetBindings,
@@ -40,6 +40,7 @@ export interface ProjectImportContext {
   docType: 'pdf' | 'images';
   numPages: number;
   currentAssetHints: Parameters<typeof createSuggestedProjectAssetBindings>[1];
+  autoApplyWhenReady?: boolean;
 }
 
 const countProjectCuts = (project: ProjectDocument) =>
@@ -82,6 +83,10 @@ export const useProjectLifecycle = ({
   setMode,
   logDebug,
 }: UseProjectLifecycleOptions) => {
+  const [pendingProjectImport, setPendingProjectImport] = useState<{
+    sourceFile: ReturnType<typeof toFileInfo> | null;
+  } | null>(null);
+
   const applyLoadedProjectToCurrentDocument = useCallback((
     project: ProjectDocument,
     sourceFile: ReturnType<typeof toFileInfo> | null = null,
@@ -102,6 +107,35 @@ export const useProjectLifecycle = ({
       sourceFile,
     }));
   }, [logDebug, resolveProjectDocumentForCurrentState, setMode, upsertTemplate]);
+
+  useEffect(() => {
+    if (!pendingProjectImport || !loadedProject || !docType || numPages < 1) {
+      return;
+    }
+
+    if (loadedProject.logicalPages.length !== numPages) {
+      logDebug('warn', 'プロジェクト読込保留', () => ({
+        reason: 'page-count-mismatch',
+        projectPages: loadedProject.logicalPages.length,
+        currentPages: numPages,
+        file: pendingProjectImport.sourceFile,
+      }));
+      setPendingProjectImport(null);
+      return;
+    }
+
+    const suggestedBindings = createSuggestedProjectAssetBindings(loadedProject, currentAssetHints);
+    applyLoadedProjectToCurrentDocument(loadedProject, pendingProjectImport.sourceFile, suggestedBindings);
+    setPendingProjectImport(null);
+  }, [
+    applyLoadedProjectToCurrentDocument,
+    currentAssetHints,
+    docType,
+    loadedProject,
+    logDebug,
+    numPages,
+    pendingProjectImport,
+  ]);
 
   const handleApplyLoadedProject = useCallback(() => {
     if (!loadedProject || !canApplyLoadedProject) {
@@ -153,12 +187,11 @@ export const useProjectLifecycle = ({
     importContext?: ProjectImportContext
   ) => {
     try {
+      setPendingProjectImport(null);
       const project = await loadProjectDocumentFromFile(file);
       const fileInfo = toFileInfo(file);
       const activeDocType = importContext?.docType ?? docType;
       const activeNumPages = importContext?.numPages ?? numPages;
-      const activeAssetHints = importContext?.currentAssetHints ?? currentAssetHints;
-      const suggestedBindings = createSuggestedProjectAssetBindings(project, activeAssetHints);
 
       loadProjectIntoEditor(project);
       upsertTemplate(createTemplateFromProjectDocument(project));
@@ -169,6 +202,9 @@ export const useProjectLifecycle = ({
       }));
 
       if (!activeDocType || activeNumPages < 1) {
+        if (importContext?.autoApplyWhenReady) {
+          setPendingProjectImport({ sourceFile: fileInfo });
+        }
         logDebug('info', 'プロジェクト読込待機', () => ({
           reason: 'awaiting-assets',
           projectPages: project.logicalPages.length,
@@ -187,6 +223,8 @@ export const useProjectLifecycle = ({
         return;
       }
 
+      const activeAssetHints = importContext?.currentAssetHints ?? currentAssetHints;
+      const suggestedBindings = createSuggestedProjectAssetBindings(project, activeAssetHints);
       applyLoadedProjectToCurrentDocument(project, fileInfo, suggestedBindings);
     } catch (error) {
       alert('プロジェクト読込中にエラーが発生しました');
@@ -202,6 +240,7 @@ export const useProjectLifecycle = ({
     loadProjectIntoEditor,
     logDebug,
     numPages,
+    setPendingProjectImport,
     upsertTemplate,
   ]);
 

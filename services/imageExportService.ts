@@ -1,15 +1,14 @@
 
 import JSZip from 'jszip';
+import { createCutsByPageIndex } from '../application/cutPageIndex';
 import { Cut, AppSettings } from '../types';
 import {
-  adjustDpiForOrientation,
   applyExifOrientation,
-  getExifOrientation,
-  getImageResolution,
   getOrientedDimensions,
   loadImageSource,
   setBlobDpi,
 } from './imageProcessing';
+import { getImageFileMetadata } from './imageMetadata';
 
 // Native browser download function
 const saveAs = (blob: Blob, filename: string) => {
@@ -47,17 +46,20 @@ export const exportImagesAsZip = async (
   }
 
   const total = imageFiles.length;
+  const cutsByPageIndex = createCutsByPageIndex(cuts);
 
   for (let i = 0; i < total; i++) {
     const file = imageFiles[i];
     if (onProgress) onProgress(i + 1, total);
     
-    // Check Original DPI
-    const originalBuffer = await file.arrayBuffer();
-    const fileType = file.type === 'image/png' ? 'png' : 'jpeg';
-    const originalDpi = getImageResolution(originalBuffer, fileType);
-    const orientation = getExifOrientation(originalBuffer, fileType);
-    const adjustedDpi = adjustDpiForOrientation(originalDpi, orientation);
+    const metadata = await getImageFileMetadata(file);
+    if (!metadata.fileType) {
+      continue;
+    }
+
+    const fileType = metadata.fileType;
+    const orientation = metadata.orientation;
+    const adjustedDpi = metadata.dpi;
 
     // Create source image (keep raw orientation; apply EXIF ourselves)
     const { source, width: sourceWidth, height: sourceHeight, cleanup } = await loadImageSource(file);
@@ -77,7 +79,7 @@ export const exportImagesAsZip = async (
     ctx.restore();
 
     // Draw Cuts
-    const pageCuts = cuts.filter(c => c.pageIndex === i);
+    const pageCuts = cutsByPageIndex.get(i) ?? [];
     
     // We use the raw pixel size of the image, so we use the raw fontSize setting.
     // In the viewer, the image is scaled (CSS transform), but the CutMarker element uses settings.fontSize (px).
@@ -142,7 +144,7 @@ export const exportImagesAsZip = async (
     cleanup?.();
 
     // Convert to Blob
-    const isPng = file.type === 'image/png';
+    const isPng = fileType === 'png';
     let blob = await new Promise<Blob | null>(resolve => {
         if (isPng) {
             canvas.toBlob(resolve, 'image/png');

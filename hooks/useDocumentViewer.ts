@@ -1,7 +1,8 @@
 
 import { useState, useRef, useCallback, useEffect, type DragEvent } from 'react';
 import { DocType } from '../types';
-import { getExifOrientation, renderImageWithOrientation } from '../services/imageProcessing';
+import { renderImageWithOrientation } from '../services/imageProcessing';
+import { getImageFileMetadata } from '../services/imageMetadata';
 
 export const useDocumentViewer = (onLoadComplete?: () => void) => {
   const [docType, setDocType] = useState<DocType | null>(null);
@@ -39,10 +40,14 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
           return;
         }
 
-        const buffer = await file.arrayBuffer();
-        const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
-        const fileType = isPng ? 'png' : 'jpeg';
-        const orientation = getExifOrientation(buffer, fileType);
+        const metadata = await getImageFileMetadata(file);
+        if (!metadata.fileType) {
+          setCurrentImageUrl(null);
+          return;
+        }
+
+        const fileType = metadata.fileType;
+        const orientation = metadata.orientation;
 
         let url: string;
         if (orientation && orientation !== 1) {

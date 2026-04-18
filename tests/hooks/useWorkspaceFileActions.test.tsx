@@ -17,10 +17,6 @@ const imageExportServiceMocks = vi.hoisted(() => ({
   exportImagesAsZip: vi.fn(),
 }));
 
-const pdfLibMocks = vi.hoisted(() => ({
-  load: vi.fn(),
-}));
-
 vi.mock('../../services/pdfService', () => ({
   saveMarkedPdf: pdfServiceMocks.saveMarkedPdf,
   saveImagesAsPdf: pdfServiceMocks.saveImagesAsPdf,
@@ -28,12 +24,6 @@ vi.mock('../../services/pdfService', () => ({
 
 vi.mock('../../services/imageExportService', () => ({
   exportImagesAsZip: imageExportServiceMocks.exportImagesAsZip,
-}));
-
-vi.mock('pdf-lib', () => ({
-  PDFDocument: {
-    load: pdfLibMocks.load,
-  },
 }));
 
 const createFileList = (files: File[]) =>
@@ -66,7 +56,6 @@ describe('useWorkspaceFileActions', () => {
     pdfServiceMocks.saveMarkedPdf.mockReset();
     pdfServiceMocks.saveImagesAsPdf.mockReset();
     imageExportServiceMocks.exportImagesAsZip.mockReset();
-    pdfLibMocks.load.mockReset();
     vi.restoreAllMocks();
   });
 
@@ -153,10 +142,6 @@ describe('useWorkspaceFileActions', () => {
       },
     } as unknown as ChangeEvent<HTMLInputElement>;
 
-    pdfLibMocks.load.mockResolvedValue({
-      getPageCount: () => 3,
-    });
-
     const { result } = renderHook(() => useWorkspaceFileActions(options));
 
     await act(async () => {
@@ -168,12 +153,9 @@ describe('useWorkspaceFileActions', () => {
       projectFile,
       expect.objectContaining({
         docType: 'pdf',
-        numPages: 3,
-        currentAssetHints: [
-          { sourceKind: 'pdf-page', sourceLabel: 'sample.pdf', pageNumber: 1 },
-          { sourceKind: 'pdf-page', sourceLabel: 'sample.pdf', pageNumber: 2 },
-          { sourceKind: 'pdf-page', sourceLabel: 'sample.pdf', pageNumber: 3 },
-        ],
+        numPages: 0,
+        currentAssetHints: [],
+        autoApplyWhenReady: true,
       })
     );
   });

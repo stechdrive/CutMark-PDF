@@ -1,4 +1,3 @@
-import { PDFDocument } from 'pdf-lib';
 import { createAssetHintsFromCurrentDocument } from './currentDocumentProjection';
 import type { ProjectImportContext } from '../hooks/useProjectLifecycle';
 
@@ -151,19 +150,11 @@ export const createProjectImportContextFromPlan = async (
   }
 
   if (plan.assetType === 'pdf' && plan.pdfFile) {
-    const pdfBytes = await plan.pdfFile.arrayBuffer();
-    const pdfDocument = await PDFDocument.load(pdfBytes);
-    const numPages = pdfDocument.getPageCount();
-
     return {
       docType: 'pdf',
-      numPages,
-      currentAssetHints: createAssetHintsFromCurrentDocument({
-        docType: 'pdf',
-        pdfFile: plan.pdfFile,
-        imageFiles: [],
-        pageCount: numPages,
-      }),
+      numPages: 0,
+      currentAssetHints: [],
+      autoApplyWhenReady: true,
     };
   }
 
