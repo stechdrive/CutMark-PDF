@@ -12,8 +12,6 @@ import {
   renumberLogicalPagesFromCut,
   renumberLogicalPagesFromPage,
 } from '../domain/numbering';
-import { NumberingState } from '../types';
-
 export type EditorAction =
   | { type: 'selectLogicalPage'; logicalPageId: LogicalPageId | null }
   | { type: 'selectCut'; logicalPageId: LogicalPageId | null; cutId: string | null }
@@ -36,8 +34,8 @@ export type EditorAction =
   | { type: 'setPreviewScale'; scale: number }
   | { type: 'setPreviewMode'; mode: EditorState['preview']['mode'] }
   | { type: 'updateNumberingPolicy'; numbering: Partial<NumberingPolicy> }
-  | { type: 'renumberFromCut'; cutId: string; startNumbering: NumberingState }
-  | { type: 'renumberFromLogicalPage'; logicalPageId: LogicalPageId; startNumbering: NumberingState };
+  | { type: 'renumberFromCut'; cutId: string; numbering: NumberingPolicy }
+  | { type: 'renumberFromLogicalPage'; logicalPageId: LogicalPageId; numbering: NumberingPolicy };
 
 const clampIndex = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
@@ -79,14 +77,20 @@ export const editorReducer = (
     case 'assignAssetToLogicalPage':
       return {
         ...state,
-        bindings: {
-          ...state.bindings,
-          [action.logicalPageId]: createPageBinding(
-            action.logicalPageId,
-            action.assetId,
-            action.status ?? (action.assetId ? 'matched' : 'unbound')
-          ),
-        },
+        bindings: Object.fromEntries(
+          Object.entries(state.bindings).map(([logicalPageId, binding]) => [
+            logicalPageId,
+            logicalPageId !== action.logicalPageId && action.assetId && binding.assetId === action.assetId
+              ? createPageBinding(logicalPageId)
+              : logicalPageId === action.logicalPageId
+                ? createPageBinding(
+                    action.logicalPageId,
+                    action.assetId,
+                    action.status ?? (action.assetId ? 'matched' : 'unbound')
+                  )
+                : binding,
+          ])
+        ),
       };
 
     case 'insertLogicalPageAfter': {
@@ -221,11 +225,11 @@ export const editorReducer = (
       };
 
     case 'renumberFromCut': {
-      const result = renumberLogicalPagesFromCut(state.project.logicalPages, action.cutId, {
-        ...state.project.numbering,
-        nextNumber: action.startNumbering.nextNumber,
-        branchChar: action.startNumbering.branchChar,
-      });
+      const result = renumberLogicalPagesFromCut(
+        state.project.logicalPages,
+        action.cutId,
+        action.numbering
+      );
 
       if (!result.found) return state;
 
@@ -235,7 +239,7 @@ export const editorReducer = (
           ...state.project,
           logicalPages: result.logicalPages,
           numbering: {
-            ...state.project.numbering,
+            ...action.numbering,
             nextNumber: result.nextNumbering.nextNumber,
             branchChar: result.nextNumbering.branchChar,
           },
@@ -247,11 +251,7 @@ export const editorReducer = (
       const result = renumberLogicalPagesFromPage(
         state.project.logicalPages,
         action.logicalPageId,
-        {
-          ...state.project.numbering,
-          nextNumber: action.startNumbering.nextNumber,
-          branchChar: action.startNumbering.branchChar,
-        }
+        action.numbering
       );
 
       if (!result.found) return state;
@@ -262,7 +262,7 @@ export const editorReducer = (
           ...state.project,
           logicalPages: result.logicalPages,
           numbering: {
-            ...state.project.numbering,
+            ...action.numbering,
             nextNumber: result.nextNumbering.nextNumber,
             branchChar: result.nextNumbering.branchChar,
           },

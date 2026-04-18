@@ -39,7 +39,16 @@ describe('application/editorReducer', () => {
       status: 'matched',
     });
 
-    const cleared = editorReducer(assigned, {
+    const reassigned = editorReducer(assigned, {
+      type: 'assignAssetToLogicalPage',
+      logicalPageId: 'page-2',
+      assetId: 'asset-1',
+    });
+
+    expect(reassigned.bindings['page-1'].assetId).toBeNull();
+    expect(reassigned.bindings['page-2'].assetId).toBe('asset-1');
+
+    const cleared = editorReducer(reassigned, {
       type: 'assignAssetToLogicalPage',
       logicalPageId: 'page-1',
       assetId: null,
@@ -118,7 +127,12 @@ describe('application/editorReducer', () => {
     const renumbered = editorReducer(createState(), {
       type: 'renumberFromCut',
       cutId: 'cut-1',
-      startNumbering: { nextNumber: 10, branchChar: null },
+      numbering: {
+        nextNumber: 10,
+        branchChar: null,
+        autoIncrement: true,
+        minDigits: 3,
+      },
     });
 
     expect(renumbered.project.logicalPages[0].cuts[0].label).toBe('010');
