@@ -1,10 +1,10 @@
 
 import React from 'react';
 import { AppSettings, NumberingState, Template } from '../types';
-import { SidebarRowSnapper } from './SidebarRowSnapper';
 import { SidebarNumberingSettings } from './SidebarNumberingSettings';
 import { SidebarStyleSettings } from './SidebarStyleSettings';
-import { SidebarTemplatePanel } from './SidebarTemplatePanel';
+import { SidebarPaperSettingsPanel } from './SidebarPaperSettingsPanel';
+import { SidebarTemplateSelector } from './SidebarTemplateSelector';
 
 interface SidebarProps {
   mode: 'edit' | 'template';
@@ -33,7 +33,6 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   mode,
   setMode,
-  pdfFile,
   selectedCutId,
   templates,
   template,
@@ -42,7 +41,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   saveTemplateByName,
   deleteTemplate,
   distributeRows,
-  onRowSnap,
   settings,
   setSettings,
   setLiveSettings,
@@ -53,48 +51,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   return (
     <div className="w-80 bg-white border-l border-gray-200 flex flex-col shadow-xl z-20">
+      <div className="flex-1 overflow-y-auto p-4">
+        {mode === 'template' ? (
+          <SidebarPaperSettingsPanel
+            templates={templates}
+            template={template}
+            setTemplate={setTemplate}
+            changeTemplate={changeTemplate}
+            saveTemplateByName={saveTemplateByName}
+            deleteTemplate={deleteTemplate}
+            distributeRows={distributeRows}
+            setMode={setMode}
+          />
+        ) : (
+          <div className="space-y-6">
+            <SidebarTemplateSelector
+              templates={templates}
+              template={template}
+              changeTemplate={changeTemplate}
+            />
 
-      {/* Scrollable Settings Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* 1. Template Settings (Top priority) */}
-        <SidebarTemplatePanel
-          mode={mode}
-          setMode={setMode}
-          templates={templates}
-          template={template}
-          setTemplate={setTemplate}
-          changeTemplate={changeTemplate}
-          saveTemplateByName={saveTemplateByName}
-          deleteTemplate={deleteTemplate}
-          distributeRows={distributeRows}
-        />
+            <SidebarNumberingSettings
+              settings={settings}
+              setSettings={setSettings}
+              setNumberingState={setNumberingState}
+              selectedCutId={selectedCutId}
+              onRenumberFromSelected={onRenumberFromSelected}
+            />
 
-        {/* 2. Numbering Settings */}
-        <SidebarNumberingSettings
-          settings={settings}
-          setSettings={setSettings}
-          setNumberingState={setNumberingState}
-          selectedCutId={selectedCutId}
-          onRenumberFromSelected={onRenumberFromSelected}
-        />
-
-        {/* 3. Style Settings */}
-        <SidebarStyleSettings
-          settings={settings}
-          setSettings={setSettings}
-          setLiveSettings={setLiveSettings}
-          onLiveChangeStart={onLiveSettingsStart}
-          onLiveChangeEnd={onLiveSettingsEnd}
-        />
+            <SidebarStyleSettings
+              settings={settings}
+              setSettings={setSettings}
+              setLiveSettings={setLiveSettings}
+              onLiveChangeStart={onLiveSettingsStart}
+              onLiveChangeEnd={onLiveSettingsEnd}
+            />
+          </div>
+        )}
       </div>
-
-      {/* Fixed Bottom Action Area */}
-      <SidebarRowSnapper
-        template={template}
-        pdfFile={pdfFile}
-        mode={mode}
-        onRowSnap={onRowSnap}
-      />
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 text-center text-xs text-gray-400 bg-white">
