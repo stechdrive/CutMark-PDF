@@ -34,6 +34,7 @@ export const useEditorWorkspaceControls = ({
     currentProject: sessions.currentProjectSession.project,
     currentProjectBindings: workspaceState.workspace.activeProjectBindings as ProjectAssetBindings,
     canApplyLoadedProject: workspaceState.workspace.canApplyLoadedProject,
+    onSelectContePage: workspaceState.workspace.focusContePage,
     resolveProjectDocumentForCurrentState: workspaceState.workspace.resolveProjectDocumentForCurrentState,
     upsertTemplate: templateApi.upsertTemplate,
     setMode,

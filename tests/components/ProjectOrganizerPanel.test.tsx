@@ -79,8 +79,10 @@ describe('ProjectOrganizerPanel', () => {
         canUndoDraft={false}
         canRedoDraft={false}
         onSelectLogicalPage={vi.fn()}
+        onSelectContePage={vi.fn()}
         onInsertBlankPageAtAsset={vi.fn()}
         onRemoveLogicalPageFromConte={vi.fn()}
+        onUnassignLogicalPage={vi.fn()}
         onMoveLogicalPageToAsset={vi.fn()}
         onResetBindings={vi.fn()}
         onUndoDraft={vi.fn()}
@@ -100,8 +102,10 @@ describe('ProjectOrganizerPanel', () => {
   it('routes insert, delete, reset, apply, and drag-drop actions', async () => {
     const user = userEvent.setup();
     const onSelectLogicalPage = vi.fn();
+    const onSelectContePage = vi.fn();
     const onInsertBlankPageAtAsset = vi.fn();
     const onRemoveLogicalPageFromConte = vi.fn();
+    const onUnassignLogicalPage = vi.fn();
     const onMoveLogicalPageToAsset = vi.fn();
     const onResetBindings = vi.fn();
     const onUndoDraft = vi.fn();
@@ -119,8 +123,10 @@ describe('ProjectOrganizerPanel', () => {
         canUndoDraft={true}
         canRedoDraft={true}
         onSelectLogicalPage={onSelectLogicalPage}
+        onSelectContePage={onSelectContePage}
         onInsertBlankPageAtAsset={onInsertBlankPageAtAsset}
         onRemoveLogicalPageFromConte={onRemoveLogicalPageFromConte}
+        onUnassignLogicalPage={onUnassignLogicalPage}
         onMoveLogicalPageToAsset={onMoveLogicalPageToAsset}
         onResetBindings={onResetBindings}
         onUndoDraft={onUndoDraft}
@@ -130,8 +136,12 @@ describe('ProjectOrganizerPanel', () => {
     );
 
     await user.click(screen.getByRole('button', { name: /カット番号P2/ }));
+    await user.click(screen.getByRole('button', { name: 'コンテP2 009_revised.png 保存時: 002.png' }));
+    await user.click(screen.getByRole('button', { name: 'コンテP3 003.png' }));
     await user.click(screen.getByRole('button', { name: 'コンテP2 に空欄を挿入' }));
-    await user.click(screen.getByRole('button', { name: 'カット番号ページを削除して詰める 2' }));
+    await user.click(screen.getByRole('button', { name: 'カット番号ページの削除方法を選ぶ 2' }));
+    await user.click(screen.getByRole('button', { name: '未割付にする' }));
+    await user.click(screen.getByRole('button', { name: '未配置のカット番号ページを削除 3' }));
     await user.click(screen.getByRole('button', { name: 'Undo' }));
     await user.click(screen.getByRole('button', { name: 'Redo' }));
     await user.click(screen.getByRole('button', { name: /保存情報から自動割付/i }));
@@ -161,12 +171,48 @@ describe('ProjectOrganizerPanel', () => {
     });
 
     expect(onSelectLogicalPage).toHaveBeenCalledWith('page-2');
+    expect(onSelectContePage).toHaveBeenCalledWith(1, 'page-2');
+    expect(onSelectContePage).toHaveBeenCalledWith(2, null);
     expect(onInsertBlankPageAtAsset).toHaveBeenCalledWith(1);
-    expect(onRemoveLogicalPageFromConte).toHaveBeenCalledWith('page-2');
+    expect(onUnassignLogicalPage).toHaveBeenCalledWith('page-2');
+    expect(onRemoveLogicalPageFromConte).toHaveBeenCalledWith('page-3');
     expect(onUndoDraft).toHaveBeenCalledTimes(1);
     expect(onRedoDraft).toHaveBeenCalledTimes(1);
     expect(onResetBindings).toHaveBeenCalledTimes(1);
     expect(onApplyProject).toHaveBeenCalledTimes(1);
     expect(onMoveLogicalPageToAsset).toHaveBeenCalledWith('page-1', 2);
+  });
+
+  it('lets the user pick ripple delete from the assigned card menu', async () => {
+    const user = userEvent.setup();
+    const onRemoveLogicalPageFromConte = vi.fn();
+
+    render(
+      <ProjectOrganizerPanel
+        projectName="catalog-revision"
+        savedAt="2026-04-18T01:23:45.000Z"
+        selectedLogicalPageId="page-2"
+        organizer={createOrganizer()}
+        canApplyProject={true}
+        canResetBindings={true}
+        canUndoDraft={true}
+        canRedoDraft={true}
+        onSelectLogicalPage={vi.fn()}
+        onSelectContePage={vi.fn()}
+        onInsertBlankPageAtAsset={vi.fn()}
+        onRemoveLogicalPageFromConte={onRemoveLogicalPageFromConte}
+        onUnassignLogicalPage={vi.fn()}
+        onMoveLogicalPageToAsset={vi.fn()}
+        onResetBindings={vi.fn()}
+        onUndoDraft={vi.fn()}
+        onRedoDraft={vi.fn()}
+        onApplyProject={vi.fn()}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'カット番号ページの削除方法を選ぶ 2' }));
+    await user.click(screen.getByRole('button', { name: '削除して後ろを詰める' }));
+
+    expect(onRemoveLogicalPageFromConte).toHaveBeenCalledWith('page-2');
   });
 });

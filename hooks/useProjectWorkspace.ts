@@ -115,6 +115,13 @@ export const useProjectWorkspace = ({
   const assignedProjectBindingCount = loadedSession.assignedCount;
   const canApplyLoadedProject = !!docType && loadedSession.canApply;
 
+  const focusContePage = useCallback((assetIndex: number, logicalPageId: string | null) => {
+    setCurrentPage(assetIndex + 1);
+    if (setLoadedLogicalPageSelection) {
+      setLoadedLogicalPageSelection(logicalPageId);
+    }
+  }, [setCurrentPage, setLoadedLogicalPageSelection]);
+
   const projectStatusMessage = useMemo(() => {
     if (!loadedProject) return null;
     if (!loadedSession.selectedLogicalPage) {
@@ -203,6 +210,7 @@ export const useProjectWorkspace = ({
     assignedProjectBindingCount,
     canApplyLoadedProject,
     projectStatusMessage,
+    focusContePage,
     resolveProjectDocumentForCurrentState,
     activeProject,
     activeProjectBindings,

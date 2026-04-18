@@ -50,19 +50,52 @@ const toAssetIndex = (assetId: string | null | undefined) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const bindingStatusFromHints = (
+  expectedAsset: AssetHint | null | undefined,
+  currentAsset: AssetHint | null | undefined
+) => {
+  if (!expectedAsset || !currentAsset) return 'matched' as const;
+  if (expectedAsset.sourceKind !== currentAsset.sourceKind) return 'needs_review' as const;
+  if (
+    expectedAsset.sourceLabel &&
+    currentAsset.sourceLabel &&
+    expectedAsset.sourceLabel !== currentAsset.sourceLabel
+  ) {
+    return 'needs_review' as const;
+  }
+  if (
+    expectedAsset.pageNumber != null &&
+    currentAsset.pageNumber != null &&
+    expectedAsset.pageNumber !== currentAsset.pageNumber
+  ) {
+    return 'needs_review' as const;
+  }
+  return 'matched' as const;
+};
+
 const toEditorBindings = (
   project: ProjectDocument,
-  bindings: ProjectAssetBindings
+  bindings: ProjectAssetBindings,
+  currentAssets: Array<AssetHint | null | undefined>,
+  previousBindings?: EditorState['bindings']
 ) =>
   Object.fromEntries(
     project.logicalPages.map((page) => {
       const assetIndex = bindings[page.id];
+      const previousBinding = previousBindings?.[page.id];
+      const previousAssetIndex = toAssetIndex(previousBinding?.assetId);
+      const status =
+        assetIndex == null
+          ? 'unbound'
+          : previousAssetIndex === assetIndex && previousBinding?.status
+            ? previousBinding.status
+            : bindingStatusFromHints(page.expectedAssetHint ?? null, currentAssets[assetIndex] ?? null);
       return [
         page.id,
         createPageBinding(
           page.id,
           assetIndex != null ? toAssetId(assetIndex) : null,
-          assetIndex != null ? 'matched' : 'unbound'
+          status
         ),
       ];
     })
@@ -75,6 +108,14 @@ const toProjectBindings = (state: EditorState): ProjectAssetBindings =>
       toAssetIndex(state.bindings[page.id]?.assetId),
     ])
   ) as ProjectAssetBindings;
+
+const toBindingStatuses = (state: EditorState) =>
+  Object.fromEntries(
+    state.project.logicalPages.map((page) => [
+      page.id,
+      state.bindings[page.id]?.status ?? 'unbound',
+    ])
+  ) as Record<LogicalPageId, EditorState['bindings'][LogicalPageId]['status']>;
 
 const areBindingsEqual = (
   left: ProjectAssetBindings,
@@ -93,7 +134,7 @@ const createEditorStateFromProject = (
 ) => {
   const bindings = createSuggestedProjectAssetBindings(project, currentAssets);
   return createEditorState(project, {
-    bindings: toEditorBindings(project, bindings),
+    bindings: toEditorBindings(project, bindings, currentAssets),
   });
 };
 
@@ -131,6 +172,10 @@ export const useProjectEditor = (
     () => (editorState ? toProjectBindings(editorState) : {}),
     [editorState]
   );
+  const bindingStatuses = useMemo(
+    () => (editorState ? toBindingStatuses(editorState) : {}),
+    [editorState]
+  );
   const selectedLogicalPage = editorState ? getSelectedLogicalPage(editorState) : null;
   const selectedCut = editorState ? getSelectedCut(editorState) : null;
   const selectedLogicalPageNumber = useMemo(() => {
@@ -156,11 +201,16 @@ export const useProjectEditor = (
         ...prev,
         present: {
           ...prev.present,
-          bindings: toEditorBindings(prev.present.project, nextBindings),
+          bindings: toEditorBindings(
+            prev.present.project,
+            nextBindings,
+            currentAssets,
+            prev.present.bindings
+          ),
         },
       };
     });
-  }, []);
+  }, [currentAssets]);
 
   useEffect(() => {
     const previousAssets = previousAssetsRef.current;
@@ -233,7 +283,8 @@ export const useProjectEditor = (
           createEditorState(projectDocument, {
             bindings: toEditorBindings(
               projectDocument,
-              nextBindings ?? createSuggestedProjectAssetBindings(projectDocument, currentAssets)
+              nextBindings ?? createSuggestedProjectAssetBindings(projectDocument, currentAssets),
+              currentAssets
             ),
           })
         );
@@ -247,7 +298,9 @@ export const useProjectEditor = (
           bindings: toEditorBindings(
             projectDocument,
             nextBindings ??
-              synchronizeProjectAssetBindings(projectDocument, currentAssets, bindings)
+              synchronizeProjectAssetBindings(projectDocument, currentAssets, bindings),
+            currentAssets,
+            prev.present.bindings
           ),
         },
       };
@@ -289,7 +342,7 @@ export const useProjectEditor = (
     const nextBindings = createSuggestedProjectAssetBindings(project, currentAssets);
     pushPresent((state) => ({
       ...state,
-      bindings: toEditorBindings(state.project, nextBindings),
+      bindings: toEditorBindings(state.project, nextBindings, currentAssets),
     }));
   }, [currentAssets, project, pushPresent]);
 
@@ -325,21 +378,21 @@ export const useProjectEditor = (
 
   const insertBlankPageAtAsset = useCallback((assetIndex: number) => {
     pushPresent((state) =>
-      insertBlankLogicalPageAtConte(state, currentAssets.length, assetIndex)
+      insertBlankLogicalPageAtConte(state, currentAssets, assetIndex)
     );
-  }, [currentAssets.length, pushPresent]);
+  }, [currentAssets, pushPresent]);
 
   const removePageFromConte = useCallback((logicalPageId: LogicalPageId) => {
     pushPresent((state) =>
-      removeLogicalPageFromConte(state, currentAssets.length, logicalPageId)
+      removeLogicalPageFromConte(state, currentAssets, logicalPageId)
     );
-  }, [currentAssets.length, pushPresent]);
+  }, [currentAssets, pushPresent]);
 
   const movePageToAsset = useCallback((logicalPageId: LogicalPageId, assetIndex: number) => {
     pushPresent((state) =>
-      moveLogicalPageToConte(state, currentAssets.length, logicalPageId, assetIndex)
+      moveLogicalPageToConte(state, currentAssets, logicalPageId, assetIndex)
     );
-  }, [currentAssets.length, pushPresent]);
+  }, [currentAssets, pushPresent]);
 
   const addCutToSelectedPage = useCallback((
     cut: Extract<EditorAction, { type: 'addCutToLogicalPage' }>['cut'],
@@ -501,6 +554,7 @@ export const useProjectEditor = (
     editorState,
     project,
     bindings,
+    bindingStatuses,
     selectedLogicalPage,
     selectedCut,
     selectedLogicalPageId: editorState?.selection.logicalPageId ?? null,

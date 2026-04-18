@@ -1,7 +1,7 @@
 import { SetStateAction, useMemo } from 'react';
 import { ProjectAssetBindings } from '../application/projectBindings';
 import { createAppSettingsFromProjectDocument } from '../application/projectPresentation';
-import { ProjectDocument } from '../domain/project';
+import { PageBindingStatus, ProjectDocument } from '../domain/project';
 import { LogicalCutEditorApi } from './logicalCutEditorApi';
 import { ProjectWorkspaceSession } from './projectWorkspaceSession';
 import { useProjectEditor } from './useProjectEditor';
@@ -28,6 +28,7 @@ interface LoadedProjectDraftApi {
 export interface UseLoadedProjectSessionResult {
   project: ProjectDocument | null;
   bindings: ProjectAssetBindings;
+  bindingStatuses: Record<string, PageBindingStatus>;
   workspaceSession: LoadedProjectWorkspaceSession;
   projectCutEditorApi: LogicalCutEditorApi;
   projectDraftApi: LoadedProjectDraftApi;
@@ -108,6 +109,7 @@ export const useLoadedProjectSession = (
   return {
     project: editor.project,
     bindings: editor.bindings,
+    bindingStatuses: editor.bindingStatuses,
     workspaceSession,
     projectCutEditorApi,
     projectDraftApi: {

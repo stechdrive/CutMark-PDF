@@ -50,6 +50,7 @@ describe('useEditorWorkspaceControls', () => {
       workspace: {
         activeProjectBindings: { 'page-1': 0 },
         canApplyLoadedProject: true,
+        focusContePage: vi.fn(),
         resolveProjectDocumentForCurrentState: vi.fn((project) => project),
       },
     };
@@ -110,6 +111,7 @@ describe('useEditorWorkspaceControls', () => {
         currentProject,
         currentProjectBindings: workspaceState.workspace.activeProjectBindings,
         canApplyLoadedProject: true,
+        onSelectContePage: workspaceState.workspace.focusContePage,
         resolveProjectDocumentForCurrentState: workspaceState.workspace.resolveProjectDocumentForCurrentState,
         upsertTemplate: templateApi.upsertTemplate,
       })

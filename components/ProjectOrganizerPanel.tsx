@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { GripVertical, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { ChevronDown, GripVertical, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { ProjectConteOrganizerSummary } from '../application/projectOrganizer';
 import { AssetHint } from '../domain/project';
 
@@ -13,8 +13,10 @@ export interface ProjectOrganizerPanelProps {
   canUndoDraft: boolean;
   canRedoDraft: boolean;
   onSelectLogicalPage: (logicalPageId: string) => void;
+  onSelectContePage: (assetIndex: number, logicalPageId: string | null) => void;
   onInsertBlankPageAtAsset: (assetIndex: number) => void;
   onRemoveLogicalPageFromConte: (logicalPageId: string) => void;
+  onUnassignLogicalPage: (logicalPageId: string) => void;
   onMoveLogicalPageToAsset: (logicalPageId: string, assetIndex: number) => void;
   onResetBindings: () => void;
   onUndoDraft: () => void;
@@ -34,13 +36,13 @@ const formatAssetLabel = (asset: AssetHint | null) => {
 
 const getStatusLabel = (status: ProjectConteOrganizerSummary['slots'][number]['status']) => {
   if (status === 'matched') return '一致';
-  if (status === 'needs_review') return '要確認';
+  if (status === 'needs_review') return '自動割付';
   return '未割付';
 };
 
 const getStatusClassName = (status: ProjectConteOrganizerSummary['slots'][number]['status']) => {
   if (status === 'matched') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-  if (status === 'needs_review') return 'bg-amber-100 text-amber-700 border-amber-200';
+  if (status === 'needs_review') return 'bg-sky-100 text-sky-700 border-sky-200';
   return 'bg-slate-100 text-slate-600 border-slate-200';
 };
 
@@ -55,7 +57,7 @@ const getPageChipClassName = (
     return 'border-emerald-200 bg-emerald-50 text-emerald-900';
   }
   if (status === 'needs_review') {
-    return 'border-amber-200 bg-amber-50 text-amber-900';
+    return 'border-sky-200 bg-sky-50 text-sky-900';
   }
   return 'border-dashed border-slate-300 bg-slate-50 text-slate-500';
 };
@@ -70,8 +72,10 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
   canUndoDraft,
   canRedoDraft,
   onSelectLogicalPage,
+  onSelectContePage,
   onInsertBlankPageAtAsset,
   onRemoveLogicalPageFromConte,
+  onUnassignLogicalPage,
   onMoveLogicalPageToAsset,
   onResetBindings,
   onUndoDraft,
@@ -80,6 +84,7 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
 }) => {
   const [draggedLogicalPageId, setDraggedLogicalPageId] = useState<string | null>(null);
   const [dragOverAssetIndex, setDragOverAssetIndex] = useState<number | null>(null);
+  const [deleteMenuLogicalPageId, setDeleteMenuLogicalPageId] = useState<string | null>(null);
   const pageRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
@@ -90,13 +95,24 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
     });
   }, [selectedLogicalPageId]);
 
+  useEffect(() => {
+    if (!deleteMenuLogicalPageId) return;
+
+    const handleWindowClick = () => setDeleteMenuLogicalPageId(null);
+    window.addEventListener('click', handleWindowClick);
+
+    return () => {
+      window.removeEventListener('click', handleWindowClick);
+    };
+  }, [deleteMenuLogicalPageId]);
+
   const statusLabel = useMemo(() => {
     if (organizer.contePageCount < 1) return 'コンテ未読込';
     if (organizer.unassignedConteCount > 0 || organizer.unplacedLogicalPageCount > 0) {
       return '調整中';
     }
     if (organizer.needsReviewCount > 0) {
-      return '要確認';
+      return '自動割付あり';
     }
     return '準備完了';
   }, [
@@ -236,6 +252,7 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
                       onClick={() => {
                         if (slot.logicalPageId) {
                           onSelectLogicalPage(slot.logicalPageId);
+                          onSelectContePage(slot.assetIndex, slot.logicalPageId);
                         }
                       }}
                       className="min-w-0 flex-1 text-left disabled:cursor-default"
@@ -258,7 +275,7 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="relative flex shrink-0 items-center gap-1">
                     <button
                       type="button"
                       onClick={() => onInsertBlankPageAtAsset(slot.assetIndex)}
@@ -270,22 +287,55 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (slot.logicalPageId) {
-                          onRemoveLogicalPageFromConte(slot.logicalPageId);
-                        }
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setDeleteMenuLogicalPageId((current) =>
+                          current === slot.logicalPageId ? null : slot.logicalPageId
+                        );
                       }}
                       disabled={!slot.logicalPageId || organizer.logicalPageCount <= 1}
-                      aria-label={`カット番号ページを削除して詰める ${slot.contePageNumber}`}
-                      className="rounded border border-sky-100 p-1.5 text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
-                      title="このカット番号ページを削除して後ろを詰める"
+                      aria-label={`カット番号ページの削除方法を選ぶ ${slot.contePageNumber}`}
+                      className="inline-flex items-center gap-1 rounded border border-sky-100 px-1.5 py-1.5 text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      title="このカット番号ページの削除方法を選ぶ"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
+                      <ChevronDown className="h-3 w-3" />
                     </button>
+                    {slot.logicalPageId && deleteMenuLogicalPageId === slot.logicalPageId && (
+                      <div
+                        className="absolute right-0 top-full z-20 mt-2 w-44 rounded-md border border-sky-100 bg-white py-1 text-xs text-slate-700 shadow-lg"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onRemoveLogicalPageFromConte(slot.logicalPageId);
+                            setDeleteMenuLogicalPageId(null);
+                          }}
+                          className="block w-full px-3 py-2 text-left hover:bg-slate-50"
+                        >
+                          削除して後ろを詰める
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onUnassignLogicalPage(slot.logicalPageId);
+                            setDeleteMenuLogicalPageId(null);
+                          }}
+                          className="block w-full px-3 py-2 text-left hover:bg-slate-50"
+                        >
+                          未割付にする
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
+                <button
+                  type="button"
+                  onClick={() => onSelectContePage(slot.assetIndex, slot.logicalPageId)}
+                  className="mt-2 block w-full rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-xs text-slate-600 hover:border-sky-200 hover:bg-sky-50/60"
+                >
                   <div className="font-semibold text-slate-700">コンテP{slot.contePageNumber}</div>
                   <div className="mt-1 break-all">{formatAssetLabel(slot.asset)}</div>
                   {slot.logicalPage && slot.expectedAsset && (
@@ -293,7 +343,7 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
                       保存時: {formatAssetLabel(slot.expectedAsset)}
                     </div>
                   )}
-                </div>
+                </button>
               </div>
             ))}
           </div>
@@ -338,6 +388,16 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
                     {`${page.cutCount} カット`}
                     {page.expectedAsset ? ` / 保存時: ${formatAssetLabel(page.expectedAsset)}` : ''}
                   </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRemoveLogicalPageFromConte(page.logicalPageId)}
+                  disabled={organizer.logicalPageCount <= 1}
+                  aria-label={`未配置のカット番号ページを削除 ${page.logicalPageNumber}`}
+                  className="shrink-0 rounded border border-sky-100 p-1.5 text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  title="この未配置のカット番号ページを削除"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             ))}

@@ -5,6 +5,7 @@ import {
   EditorState,
   LogicalPage,
   LogicalPageId,
+  PageBindingStatus,
 } from '../domain/project';
 import { ProjectAssetBindings } from './projectBindings';
 
@@ -45,6 +46,8 @@ export interface ProjectConteOrganizerSummary {
   slots: ConteOrganizerSlot[];
   unplacedPages: UnplacedLogicalPageCard[];
 }
+
+export type ProjectBindingStatuses = Record<LogicalPageId, PageBindingStatus>;
 
 interface OrganizerLayout {
   slots: Array<LogicalPageId | null>;
@@ -117,6 +120,20 @@ const createOrganizerLayout = (
   };
 };
 
+const getAutoBindingStatus = (
+  page: LogicalPage,
+  assetIndex: number | null,
+  currentAssets: Array<AssetHint | null | undefined>
+): PageBindingStatus => {
+  if (assetIndex == null || assetIndex < 0 || assetIndex >= currentAssets.length) {
+    return 'unbound';
+  }
+
+  return assetHintMatches(page.expectedAssetHint ?? null, currentAssets[assetIndex] ?? null)
+    ? 'matched'
+    : 'needs_review';
+};
+
 const removeLogicalPageFromLayout = (
   layout: OrganizerLayout,
   logicalPageId: LogicalPageId
@@ -186,9 +203,11 @@ const compactLayout = (layout: OrganizerLayout): OrganizerLayout => {
 const applyOrganizerLayoutToState = (
   state: EditorState,
   layout: OrganizerLayout,
+  currentAssets: Array<AssetHint | null | undefined>,
   options: {
     selectedLogicalPageId?: LogicalPageId | null;
     removeLogicalPageId?: LogicalPageId;
+    resolvedLogicalPageIds?: Set<LogicalPageId>;
   } = {}
 ): EditorState => {
   const pageLookup = new Map(
@@ -211,10 +230,22 @@ const applyOrganizerLayoutToState = (
   const bindings = Object.fromEntries(
     logicalPages.map((page) => [page.id, createPageBinding(page.id)])
   ) as EditorState['bindings'];
+  const resolvedLogicalPageIds = options.resolvedLogicalPageIds ?? new Set<LogicalPageId>();
 
   layout.slots.forEach((pageId, assetIndex) => {
     if (!pageId || !bindings[pageId]) return;
-    bindings[pageId] = createPageBinding(pageId, `asset-${assetIndex}`, 'matched');
+    const page = pageLookup.get(pageId);
+    if (!page) return;
+
+    const previousBinding = state.bindings[pageId];
+    const previousAssetIndex = toAssetIndex(previousBinding?.assetId);
+    const status = resolvedLogicalPageIds.has(pageId)
+      ? 'matched'
+      : previousAssetIndex === assetIndex && previousBinding?.status && previousBinding.status !== 'unbound'
+        ? previousBinding.status
+        : getAutoBindingStatus(page, assetIndex, currentAssets);
+
+    bindings[pageId] = createPageBinding(pageId, `asset-${assetIndex}`, status);
   });
 
   const nextSelectedLogicalPageId =
@@ -247,6 +278,7 @@ const applyOrganizerLayoutToState = (
 export const createProjectConteOrganizerSummary = (
   logicalPages: LogicalPage[],
   bindings: ProjectAssetBindings,
+  bindingStatuses: ProjectBindingStatuses,
   currentAssets: Array<AssetHint | null | undefined>,
   selectedLogicalPageId: LogicalPageId | null
 ): ProjectConteOrganizerSummary => {
@@ -266,9 +298,9 @@ export const createProjectConteOrganizerSummary = (
     const expectedAsset = logicalPage?.expectedAssetHint ?? null;
     const status: ConteOrganizerSlotStatus = !logicalPage
       ? 'unassigned'
-      : assetHintMatches(expectedAsset, asset ?? null)
-        ? 'matched'
-        : 'needs_review';
+      : bindingStatuses[logicalPage.id] === 'needs_review'
+        ? 'needs_review'
+        : 'matched';
 
     if (status === 'matched') matchedCount += 1;
     if (status === 'needs_review') needsReviewCount += 1;
@@ -315,7 +347,7 @@ export const createProjectConteOrganizerSummary = (
 
 export const insertBlankLogicalPageAtConte = (
   state: EditorState,
-  assetCount: number,
+  currentAssets: Array<AssetHint | null | undefined>,
   assetIndex: number,
   logicalPage: LogicalPage = createLogicalPage()
 ): EditorState => {
@@ -326,7 +358,7 @@ export const insertBlankLogicalPageAtConte = (
   const layout = createOrganizerLayout(
     state.project.logicalPages,
     getProjectBindingsFromState(state),
-    assetCount
+    currentAssets.length
   );
   const insertedLayout = insertLogicalPageIntoSlot(layout, logicalPage.id, assetIndex);
 
@@ -336,25 +368,27 @@ export const insertBlankLogicalPageAtConte = (
       project: projectWithInsertedPage,
     },
     insertedLayout,
+    currentAssets,
     {
       selectedLogicalPageId: logicalPage.id,
+      resolvedLogicalPageIds: new Set([logicalPage.id]),
     }
   );
 };
 
 export const removeLogicalPageFromConte = (
   state: EditorState,
-  assetCount: number,
+  currentAssets: Array<AssetHint | null | undefined>,
   logicalPageId: LogicalPageId
 ): EditorState => {
   const layout = createOrganizerLayout(
     state.project.logicalPages,
     getProjectBindingsFromState(state),
-    assetCount
+    currentAssets.length
   );
   const nextLayout = compactLayout(removeLogicalPageFromLayout(layout, logicalPageId));
 
-  return applyOrganizerLayoutToState(state, nextLayout, {
+  return applyOrganizerLayoutToState(state, nextLayout, currentAssets, {
     removeLogicalPageId: logicalPageId,
     selectedLogicalPageId:
       state.selection.logicalPageId === logicalPageId
@@ -365,18 +399,19 @@ export const removeLogicalPageFromConte = (
 
 export const moveLogicalPageToConte = (
   state: EditorState,
-  assetCount: number,
+  currentAssets: Array<AssetHint | null | undefined>,
   logicalPageId: LogicalPageId,
   targetAssetIndex: number
 ): EditorState => {
   const layout = createOrganizerLayout(
     state.project.logicalPages,
     getProjectBindingsFromState(state),
-    assetCount
+    currentAssets.length
   );
   const nextLayout = insertLogicalPageIntoSlot(layout, logicalPageId, targetAssetIndex);
 
-  return applyOrganizerLayoutToState(state, nextLayout, {
+  return applyOrganizerLayoutToState(state, nextLayout, currentAssets, {
     selectedLogicalPageId: logicalPageId,
+    resolvedLogicalPageIds: new Set([logicalPageId]),
   });
 };

@@ -36,6 +36,7 @@ const project = createProjectDocument({
 const createLoadedProjectSession = (): UseLoadedProjectSessionResult => ({
   project,
   bindings: { 'page-1': 0 },
+  bindingStatuses: { 'page-1': 'matched' },
   workspaceSession: {
     project,
     bindings: { 'page-1': 0 },
@@ -121,6 +122,7 @@ describe('useLoadedProjectManager', () => {
     });
     const currentAssetHints = [{ sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 }];
     const currentProjectBindings = { 'page-1': 0 };
+    const onSelectContePage = vi.fn();
     const resolveProjectDocumentForCurrentState = vi.fn((value) => value);
     const upsertTemplate = vi.fn();
     const setMode = vi.fn();
@@ -135,6 +137,7 @@ describe('useLoadedProjectManager', () => {
         currentProject,
         currentProjectBindings,
         canApplyLoadedProject: true,
+        onSelectContePage,
         resolveProjectDocumentForCurrentState,
         upsertTemplate,
         setMode,
@@ -162,6 +165,7 @@ describe('useLoadedProjectManager', () => {
       loadedProjectSession,
       currentAssets: currentAssetHints,
       canApplyProject: true,
+      onSelectContePage,
       onApplyProject: handleApplyLoadedProject,
     });
     expect(result.current).toEqual({

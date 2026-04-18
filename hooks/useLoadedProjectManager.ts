@@ -15,6 +15,7 @@ interface UseLoadedProjectManagerOptions {
   currentProject: ProjectDocument | null;
   currentProjectBindings: ProjectAssetBindings;
   canApplyLoadedProject: boolean;
+  onSelectContePage: (assetIndex: number, logicalPageId: string | null) => void;
   resolveProjectDocumentForCurrentState: (
     project: ProjectDocument,
     bindings: ProjectAssetBindings,
@@ -33,6 +34,7 @@ export const useLoadedProjectManager = ({
   currentProject,
   currentProjectBindings,
   canApplyLoadedProject,
+  onSelectContePage,
   resolveProjectDocumentForCurrentState,
   upsertTemplate,
   setMode,
@@ -64,6 +66,7 @@ export const useLoadedProjectManager = ({
     loadedProjectSession,
     currentAssets: currentAssetHints,
     canApplyProject: canApplyLoadedProject,
+    onSelectContePage,
     onApplyProject: handleApplyLoadedProject,
   });
 

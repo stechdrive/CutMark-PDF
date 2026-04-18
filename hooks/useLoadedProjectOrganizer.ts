@@ -8,6 +8,7 @@ interface UseLoadedProjectOrganizerOptions {
   loadedProjectSession: UseLoadedProjectSessionResult;
   currentAssets: Array<AssetHint | null | undefined>;
   canApplyProject: boolean;
+  onSelectContePage: (assetIndex: number, logicalPageId: string | null) => void;
   onApplyProject: () => void;
 }
 
@@ -15,6 +16,7 @@ export const useLoadedProjectOrganizer = ({
   loadedProjectSession,
   currentAssets,
   canApplyProject,
+  onSelectContePage,
   onApplyProject,
 }: UseLoadedProjectOrganizerOptions) => {
   const onSelectLogicalPage = useCallback((logicalPageId: string) => {
@@ -27,6 +29,10 @@ export const useLoadedProjectOrganizer = ({
 
   const onRemoveLogicalPageFromConte = useCallback((logicalPageId: string) => {
     loadedProjectSession.removePageFromConte(logicalPageId);
+  }, [loadedProjectSession]);
+
+  const onUnassignLogicalPage = useCallback((logicalPageId: string) => {
+    loadedProjectSession.assignAsset(logicalPageId, null);
   }, [loadedProjectSession]);
 
   const onMoveLogicalPageToAsset = useCallback((logicalPageId: string, assetIndex: number) => {
@@ -49,6 +55,7 @@ export const useLoadedProjectOrganizer = ({
       organizer: createProjectConteOrganizerSummary(
         loadedProjectSession.project.logicalPages,
         loadedProjectSession.bindings,
+        loadedProjectSession.bindingStatuses,
         currentAssets,
         loadedProjectSession.workspaceSession.selectedLogicalPageId
       ),
@@ -57,8 +64,10 @@ export const useLoadedProjectOrganizer = ({
       canUndoDraft: loadedProjectSession.projectCutEditorApi.canUndo,
       canRedoDraft: loadedProjectSession.projectCutEditorApi.canRedo,
       onSelectLogicalPage,
+      onSelectContePage,
       onInsertBlankPageAtAsset,
       onRemoveLogicalPageFromConte,
+      onUnassignLogicalPage,
       onMoveLogicalPageToAsset,
       onResetBindings,
       onUndoDraft: loadedProjectSession.undoDraft,
@@ -70,9 +79,11 @@ export const useLoadedProjectOrganizer = ({
     currentAssets,
     loadedProjectSession,
     onApplyProject,
+    onSelectContePage,
     onInsertBlankPageAtAsset,
     onMoveLogicalPageToAsset,
     onRemoveLogicalPageFromConte,
+    onUnassignLogicalPage,
     onResetBindings,
     onSelectLogicalPage,
   ]);

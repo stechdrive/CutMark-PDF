@@ -25,6 +25,7 @@ const project = createProjectDocument({
 const createLoadedProjectSession = (): UseLoadedProjectSessionResult => ({
   project,
   bindings: { 'page-1': 0, 'page-2': null },
+  bindingStatuses: { 'page-1': 'matched', 'page-2': 'unbound' },
   workspaceSession: {
     project,
     bindings: { 'page-1': 0, 'page-2': null },
@@ -80,6 +81,7 @@ describe('useLoadedProjectOrganizer', () => {
   it('returns organizer props and routes organizer actions to the loaded session', () => {
     const loadedProjectSession = createLoadedProjectSession();
     const onApplyProject = vi.fn();
+    const onSelectContePage = vi.fn();
 
     const { result } = renderHook(() =>
       useLoadedProjectOrganizer({
@@ -89,6 +91,7 @@ describe('useLoadedProjectOrganizer', () => {
           { sourceKind: 'image' as const, sourceLabel: '009_revised.png', pageNumber: 2 },
         ],
         canApplyProject: false,
+        onSelectContePage,
         onApplyProject,
       })
     );
@@ -99,8 +102,10 @@ describe('useLoadedProjectOrganizer', () => {
 
     act(() => {
       result.current.projectOrganizerProps?.onSelectLogicalPage('page-2');
+      result.current.projectOrganizerProps?.onSelectContePage(1, 'page-2');
       result.current.projectOrganizerProps?.onInsertBlankPageAtAsset(1);
       result.current.projectOrganizerProps?.onRemoveLogicalPageFromConte('page-1');
+      result.current.projectOrganizerProps?.onUnassignLogicalPage('page-2');
       result.current.projectOrganizerProps?.onMoveLogicalPageToAsset('page-2', 0);
       result.current.projectOrganizerProps?.onResetBindings();
       result.current.projectOrganizerProps?.onUndoDraft();
@@ -109,8 +114,10 @@ describe('useLoadedProjectOrganizer', () => {
     });
 
     expect(loadedProjectSession.selectLogicalPage).toHaveBeenCalledWith('page-2');
+    expect(onSelectContePage).toHaveBeenCalledWith(1, 'page-2');
     expect(loadedProjectSession.insertBlankPageAtAsset).toHaveBeenCalledWith(1);
     expect(loadedProjectSession.removePageFromConte).toHaveBeenCalledWith('page-1');
+    expect(loadedProjectSession.assignAsset).toHaveBeenCalledWith('page-2', null);
     expect(loadedProjectSession.movePageToAsset).toHaveBeenCalledWith('page-2', 0);
     expect(loadedProjectSession.resetBindings).toHaveBeenCalledTimes(1);
     expect(loadedProjectSession.undoDraft).toHaveBeenCalledTimes(1);
@@ -135,6 +142,7 @@ describe('useLoadedProjectOrganizer', () => {
         loadedProjectSession,
         currentAssets: [],
         canApplyProject: false,
+        onSelectContePage: vi.fn(),
         onApplyProject: vi.fn(),
       })
     );

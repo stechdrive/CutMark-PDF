@@ -63,6 +63,12 @@ describe('application/projectOrganizer', () => {
         'page-3': 2,
         'page-4': null,
       },
+      {
+        'page-1': 'matched',
+        'page-2': 'needs_review',
+        'page-3': 'matched',
+        'page-4': 'unbound',
+      },
       [
         { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
         { sourceKind: 'image', sourceLabel: '009_revised.png', pageNumber: 2 },
@@ -78,7 +84,11 @@ describe('application/projectOrganizer', () => {
   });
 
   it('inserts a blank logical page into the target conte slot and shifts later pages', () => {
-    const nextState = insertBlankLogicalPageAtConte(createState(), 3, 1);
+    const nextState = insertBlankLogicalPageAtConte(createState(), [
+      { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+      { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+      { sourceKind: 'image', sourceLabel: '003.png', pageNumber: 3 },
+    ], 1);
 
     expect(nextState.project.logicalPages.map((page) => page.id)).toEqual([
       'page-1',
@@ -96,7 +106,11 @@ describe('application/projectOrganizer', () => {
   });
 
   it('removes a logical page, collapses later slots, and pulls an unplaced page forward', () => {
-    const nextState = removeLogicalPageFromConte(createState(), 3, 'page-2');
+    const nextState = removeLogicalPageFromConte(createState(), [
+      { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+      { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+      { sourceKind: 'image', sourceLabel: '003.png', pageNumber: 3 },
+    ], 'page-2');
 
     expect(nextState.project.logicalPages.map((page) => page.id)).toEqual([
       'page-1',
@@ -109,7 +123,11 @@ describe('application/projectOrganizer', () => {
   });
 
   it('moves a logical page to a conte slot with insert semantics', () => {
-    const nextState = moveLogicalPageToConte(createState(), 3, 'page-3', 0);
+    const nextState = moveLogicalPageToConte(createState(), [
+      { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+      { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+      { sourceKind: 'image', sourceLabel: '003.png', pageNumber: 3 },
+    ], 'page-3', 0);
 
     expect(nextState.project.logicalPages.map((page) => page.id)).toEqual([
       'page-3',
@@ -122,5 +140,18 @@ describe('application/projectOrganizer', () => {
     expect(nextState.bindings['page-2'].assetId).toBe('asset-2');
     expect(nextState.bindings['page-4'].assetId).toBeNull();
     expect(nextState.selection.logicalPageId).toBe('page-3');
+  });
+
+  it('clears needs-review status after the user explicitly moves a logical page', () => {
+    const state = createState();
+    state.bindings['page-2'] = createPageBinding('page-2', 'asset-1', 'needs_review');
+
+    const nextState = moveLogicalPageToConte(state, [
+      { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+      { sourceKind: 'image', sourceLabel: '009_revised.png', pageNumber: 2 },
+      { sourceKind: 'image', sourceLabel: '003.png', pageNumber: 3 },
+    ], 'page-2', 1);
+
+    expect(nextState.bindings['page-2'].status).toBe('matched');
   });
 });

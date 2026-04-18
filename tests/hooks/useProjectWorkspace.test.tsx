@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createProjectDocument } from '../../domain/project';
 import { useProjectWorkspace } from '../../hooks/useProjectWorkspace';
 import { createAppSettings, createTemplate } from '../../test/factories';
@@ -289,5 +289,68 @@ describe('useProjectWorkspace', () => {
       expect(result.current.selectedLogicalPageId).toBe('page-2');
     });
     expect(result.current.currentPage).toBe(1);
+  });
+
+  it('exposes a conte-page focus action for organizer cards', () => {
+    const loadedProject = createProjectDocument({
+      settings,
+      template,
+      logicalPages: [
+        { id: 'page-1', cuts: [], expectedAssetHint: null },
+        { id: 'page-2', cuts: [], expectedAssetHint: null },
+      ],
+    });
+    const setLoadedLogicalPageSelection = vi.fn();
+
+    const { result } = renderHook(() => {
+      const [currentPage, setCurrentPage] = useState(1);
+      const workspace = useProjectWorkspace({
+        docType: 'images',
+        currentPage,
+        setCurrentPage,
+        setLoadedLogicalPageSelection,
+        currentAssetHints: [
+          { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+          { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+        ],
+        effectiveSettings: settings,
+        effectiveTemplate: template,
+        fallbackSettings: settings,
+        loadedSession: {
+          project: loadedProject,
+          bindings: {
+            'page-1': 0,
+            'page-2': 1,
+          },
+          canApply: true,
+          assignedCount: 2,
+          selectedLogicalPage: null,
+          selectedLogicalPageId: null,
+          selectedLogicalPageNumber: null,
+          selectedAssetIndex: null,
+        },
+        currentSession: {
+          project: null,
+          bindings: {},
+          selectedLogicalPage: null,
+          selectedLogicalPageId: null,
+          selectedLogicalPageNumber: null,
+          selectedAssetIndex: null,
+        },
+      });
+
+      return {
+        currentPage,
+        ...workspace,
+      };
+    });
+
+    act(() => {
+      result.current.focusContePage(1, 'page-2');
+    });
+
+    expect(result.current.currentPage).toBe(2);
+    expect(setLoadedLogicalPageSelection).toHaveBeenCalledWith('page-2');
+    expect(result.current.previewCuts).toEqual([]);
   });
 });
