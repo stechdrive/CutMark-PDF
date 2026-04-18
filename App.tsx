@@ -106,7 +106,7 @@ export default function App() {
 
   // --- Hooks ---
   const {
-    settings, setSettings, getNextLabel, getNextNumberingState
+    settings, setSettings
   } = useAppSettings();
 
   const setNumberingState = useCallback((next: NumberingState) => {
@@ -242,8 +242,6 @@ export default function App() {
     settings,
     numberingState,
     setNumberingState,
-    getNextLabel,
-    getNextNumberingState,
     template,
   });
 
@@ -310,7 +308,7 @@ export default function App() {
     loadedProject,
     settings,
     setSettings,
-    setLegacyNumberingStateWithHistory: currentProjectSession.setNumberingStateWithHistory,
+    setCurrentNumberingStateWithHistory: currentProjectSession.setNumberingStateWithHistory,
     templateApi: {
       templates,
       template,
@@ -361,7 +359,7 @@ export default function App() {
     effectiveExportCuts,
     effectiveExportSettings,
   } = workspace;
-  const legacyProject = currentProjectSession.project;
+  const currentProject = currentProjectSession.project;
   const activeLogicalCutEditor = useMemo<LogicalCutEditorApi>(
     () =>
       loadedProject
@@ -525,8 +523,8 @@ export default function App() {
     currentAssetHints,
     loadedProject,
     projectBindings,
-    legacyProject,
-    activeProjectBindings,
+    currentProject,
+    currentProjectBindings: activeProjectBindings,
     canApplyLoadedProject,
     resolveProjectDocumentForCurrentState,
     loadProjectIntoEditor,

@@ -35,7 +35,7 @@ interface UseWorkspacePresentationOptions {
   loadedProject: ProjectDocument | null;
   settings: AppSettings;
   setSettings: (next: SetStateAction<AppSettings>) => void;
-  setLegacyNumberingStateWithHistory: (next: NumberingState) => void;
+  setCurrentNumberingStateWithHistory: (next: NumberingState) => void;
   templateApi: WorkspaceTemplateApi;
   projectDraftApi: WorkspaceProjectDraftApi;
 }
@@ -44,7 +44,7 @@ export const useWorkspacePresentation = ({
   loadedProject,
   settings,
   setSettings,
-  setLegacyNumberingStateWithHistory,
+  setCurrentNumberingStateWithHistory,
   templateApi,
   projectDraftApi,
 }: UseWorkspacePresentationOptions) => {
@@ -105,8 +105,8 @@ export const useWorkspacePresentation = ({
       }), { pushHistory: true });
       return;
     }
-    setLegacyNumberingStateWithHistory(next);
-  }, [loadedProject, projectDraftApi, setLegacyNumberingStateWithHistory]);
+    setCurrentNumberingStateWithHistory(next);
+  }, [loadedProject, projectDraftApi, setCurrentNumberingStateWithHistory]);
 
   const handleTemplateChange = useCallback((id: string) => {
     if (!loadedProject) {

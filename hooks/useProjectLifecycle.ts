@@ -18,8 +18,8 @@ interface UseProjectLifecycleOptions {
   currentAssetHints: Parameters<typeof createSuggestedProjectAssetBindings>[1];
   loadedProject: ProjectDocument | null;
   projectBindings: ProjectAssetBindings;
-  legacyProject: ProjectDocument | null;
-  activeProjectBindings: ProjectAssetBindings;
+  currentProject: ProjectDocument | null;
+  currentProjectBindings: ProjectAssetBindings;
   canApplyLoadedProject: boolean;
   resolveProjectDocumentForCurrentState: (
     project: ProjectDocument,
@@ -66,8 +66,8 @@ export const useProjectLifecycle = ({
   currentAssetHints,
   loadedProject,
   projectBindings,
-  legacyProject,
-  activeProjectBindings,
+  currentProject,
+  currentProjectBindings,
   canApplyLoadedProject,
   resolveProjectDocumentForCurrentState,
   loadProjectIntoEditor,
@@ -106,8 +106,8 @@ export const useProjectLifecycle = ({
   }, [applyLoadedProjectToCurrentDocument, canApplyLoadedProject, loadedProject, projectBindings]);
 
   const handleSaveProject = useCallback(() => {
-    const projectSource = loadedProject ? loadedProject : legacyProject;
-    const bindingsForSave = loadedProject ? projectBindings : activeProjectBindings;
+    const projectSource = loadedProject ? loadedProject : currentProject;
+    const bindingsForSave = loadedProject ? projectBindings : currentProjectBindings;
 
     if (!docType || !projectSource) {
       alert('先にPDFまたは画像を読み込んでください');
@@ -132,9 +132,9 @@ export const useProjectLifecycle = ({
       cutCount: countProjectCuts(project),
     }));
   }, [
-    activeProjectBindings,
+    currentProject,
+    currentProjectBindings,
     docType,
-    legacyProject,
     loadedProject,
     loadProjectIntoEditor,
     logDebug,

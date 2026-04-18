@@ -36,12 +36,12 @@ describe('useProjectLifecycle', () => {
     vi.restoreAllMocks();
   });
 
-  it('saves the current legacy project through the shared project contract', () => {
-    const legacyProject = createProject('Legacy');
+  it('saves the current project through the shared project contract', () => {
+    const currentProject = createProject('Legacy');
     const resolvedProject = {
-      ...legacyProject,
+      ...currentProject,
       meta: {
-        ...legacyProject.meta,
+        ...currentProject.meta,
         savedAt: '2026-04-18T00:00:00.000Z',
       },
     };
@@ -57,8 +57,8 @@ describe('useProjectLifecycle', () => {
         currentAssetHints: [{ sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 }],
         loadedProject: null,
         projectBindings: {},
-        legacyProject,
-        activeProjectBindings: { 'page-1': 0 },
+        currentProject,
+        currentProjectBindings: { 'page-1': 0 },
         canApplyLoadedProject: false,
         resolveProjectDocumentForCurrentState: vi.fn(() => resolvedProject),
         loadProjectIntoEditor,
@@ -106,8 +106,8 @@ describe('useProjectLifecycle', () => {
         currentAssetHints: [{ sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 }],
         loadedProject: null,
         projectBindings: {},
-        legacyProject: null,
-        activeProjectBindings: {},
+        currentProject: null,
+        currentProjectBindings: {},
         canApplyLoadedProject: false,
         resolveProjectDocumentForCurrentState: vi.fn((value) => value),
         loadProjectIntoEditor,

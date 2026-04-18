@@ -36,7 +36,7 @@ describe('useWorkspacePresentation', () => {
         loadedProject,
         settings,
         setSettings: vi.fn(),
-        setLegacyNumberingStateWithHistory: vi.fn(),
+        setCurrentNumberingStateWithHistory: vi.fn(),
         templateApi,
         projectDraftApi,
       })
@@ -73,7 +73,7 @@ describe('useWorkspacePresentation', () => {
     const settings = createAppSettings();
     const template = createTemplate();
     const setSettings = vi.fn();
-    const setLegacyNumberingStateWithHistory = vi.fn();
+    const setCurrentNumberingStateWithHistory = vi.fn();
     const templateApi = {
       templates: [template],
       template,
@@ -91,7 +91,7 @@ describe('useWorkspacePresentation', () => {
         loadedProject: null,
         settings,
         setSettings,
-        setLegacyNumberingStateWithHistory,
+        setCurrentNumberingStateWithHistory,
         templateApi,
         projectDraftApi: {
           updateSettings: vi.fn(),
@@ -120,7 +120,7 @@ describe('useWorkspacePresentation', () => {
 
     expect(setSettings).toHaveBeenCalledTimes(1);
     expect(templateApi.setTemplate).toHaveBeenCalledTimes(1);
-    expect(setLegacyNumberingStateWithHistory).toHaveBeenCalledWith({
+    expect(setCurrentNumberingStateWithHistory).toHaveBeenCalledWith({
       nextNumber: 8,
       branchChar: null,
     });

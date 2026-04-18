@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { NumberingState } from '../../types';
 import { useCurrentProjectSession } from '../../hooks/useCurrentProjectSession';
+import { createCut } from '../../test/factories';
 import { createAppSettings, createTemplate } from '../../test/factories';
 
 const useCurrentProjectSessionHarness = (
@@ -25,8 +26,6 @@ const useCurrentProjectSessionHarness = (
     }),
     numberingState,
     setNumberingState,
-    getNextLabel: () => '005',
-    getNextNumberingState: () => ({ nextNumber: 6, branchChar: null }),
     template: createTemplate(),
   });
 };
@@ -64,6 +63,57 @@ describe('useCurrentProjectSession', () => {
     expect(result.current.project?.logicalPages[1].cuts[0]).toMatchObject({
       id: 'cut-2',
       label: '005',
+    });
+  });
+
+  it('keeps current document cuts and numbering in project-backed undo history', () => {
+    const { result } = renderHook(() =>
+      useCurrentProjectSessionHarness(1, { nextNumber: 1, branchChar: null })
+    );
+
+    act(() => {
+      result.current.addCut(
+        createCut({ id: 'cut-a', pageIndex: 0, label: '001' }),
+        { nextNumber: 2, branchChar: null }
+      );
+    });
+
+    expect(result.current.cuts).toEqual([
+      expect.objectContaining({
+        id: 'cut-a',
+        pageIndex: 0,
+        label: '001',
+      }),
+    ]);
+    expect(result.current.project?.numbering).toMatchObject({
+      nextNumber: 2,
+      branchChar: null,
+    });
+
+    act(() => {
+      result.current.undo();
+    });
+
+    expect(result.current.cuts).toHaveLength(0);
+    expect(result.current.project?.numbering).toMatchObject({
+      nextNumber: 1,
+      branchChar: null,
+    });
+
+    act(() => {
+      result.current.redo();
+    });
+
+    expect(result.current.cuts).toEqual([
+      expect.objectContaining({
+        id: 'cut-a',
+        pageIndex: 0,
+        label: '001',
+      }),
+    ]);
+    expect(result.current.project?.numbering).toMatchObject({
+      nextNumber: 2,
+      branchChar: null,
     });
   });
 });
