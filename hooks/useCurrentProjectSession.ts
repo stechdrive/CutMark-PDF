@@ -1,15 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  createCutsFromProjectDocument,
-  createProjectDocumentFromCuts,
-} from '../application/projectProjection';
+import { createCutsFromProjectDocument } from '../application/projectProjection';
 import { HistoryState, createHistoryState, pushHistoryState, redoHistory, undoHistory } from '../application/history';
 import { createSequentialProjectAssetBindings } from '../application/projectBindings';
+import {
+  createCurrentProjectDocument,
+  CurrentProjectSessionPresent,
+  materializeCurrentProjectPresent,
+  syncCurrentProjectHistoryWithInputs,
+  updateCurrentProjectLogicalPages,
+  withSelectedCut,
+} from '../application/currentProjectSessionState';
 import {
   isSameNumberingState,
   renumberLogicalPagesFromCut,
 } from '../domain/numbering';
-import { AssetHint, LogicalPage, NumberingPolicy, ProjectDocument } from '../domain/project';
+import { AssetHint, NumberingPolicy } from '../domain/project';
 import { LogicalCutEditorApi } from './logicalCutEditorApi';
 import { ProjectWorkspaceSession } from './projectWorkspaceSession';
 import { AppSettings, Cut, DocType, NumberingState, Template } from '../types';
@@ -27,122 +32,6 @@ interface UseCurrentProjectSessionOptions {
   setNumberingState: (next: NumberingState) => void;
   template: Template;
 }
-
-interface CurrentProjectSessionPresent {
-  project: ProjectDocument | null;
-  selectedCutId: string | null;
-}
-
-interface CreateProjectOptions {
-  docType: DocType | null;
-  numPages: number;
-  currentAssetHints: Array<AssetHint | null | undefined>;
-  currentProjectName?: string;
-  settings: AppSettings;
-  template: Template;
-  cuts?: Cut[];
-  savedAt?: string;
-}
-
-const syncHistoryWithInputs = (
-  history: HistoryState<CurrentProjectSessionPresent>,
-  options: Omit<CreateProjectOptions, 'cuts' | 'savedAt'>,
-  numberingFallback: NumberingState
-): HistoryState<CurrentProjectSessionPresent> => ({
-  past: history.past.map((entry) =>
-    withSelectedCut(
-      syncProjectWithInputs(entry.project, options, numberingFallback),
-      entry.selectedCutId
-    )
-  ),
-  present: withSelectedCut(
-    syncProjectWithInputs(history.present.project, options, numberingFallback),
-    history.present.selectedCutId
-  ),
-  future: history.future.map((entry) =>
-    withSelectedCut(
-      syncProjectWithInputs(entry.project, options, numberingFallback),
-      entry.selectedCutId
-    )
-  ),
-});
-
-const createCurrentProjectDocument = ({
-  docType,
-  numPages,
-  currentAssetHints,
-  currentProjectName,
-  settings,
-  template,
-  cuts = [],
-  savedAt,
-}: CreateProjectOptions): ProjectDocument | null => {
-  if (!docType) return null;
-
-  return createProjectDocumentFromCuts({
-    cuts,
-    settings,
-    template,
-    pageCount: Math.max(numPages, 1),
-    assetHints: currentAssetHints,
-    projectName: currentProjectName,
-    savedAt,
-  });
-};
-
-const projectHasCut = (
-  project: ProjectDocument | null,
-  cutId: string | null
-) => {
-  if (!project || !cutId) return false;
-  return project.logicalPages.some((page) =>
-    page.cuts.some((cut) => cut.id === cutId)
-  );
-};
-
-const withSelectedCut = (
-  project: ProjectDocument | null,
-  selectedCutId: string | null
-): CurrentProjectSessionPresent => ({
-  project,
-  selectedCutId: projectHasCut(project, selectedCutId) ? selectedCutId : null,
-});
-
-const syncProjectWithInputs = (
-  project: ProjectDocument | null,
-  options: Omit<CreateProjectOptions, 'cuts' | 'savedAt'>,
-  numberingFallback: NumberingState
-) => {
-  if (!project) {
-    return createCurrentProjectDocument({
-      ...options,
-      settings: {
-        ...options.settings,
-        nextNumber: numberingFallback.nextNumber,
-        branchChar: numberingFallback.branchChar,
-      },
-    });
-  }
-
-  return createCurrentProjectDocument({
-    ...options,
-    settings: {
-      ...options.settings,
-      nextNumber: project.numbering.nextNumber,
-      branchChar: project.numbering.branchChar,
-    },
-    cuts: createCutsFromProjectDocument(project),
-    savedAt: project.meta.savedAt,
-  });
-};
-
-const updateProjectLogicalPages = (
-  project: ProjectDocument,
-  updater: (logicalPages: LogicalPage[]) => LogicalPage[]
-): ProjectDocument => ({
-  ...project,
-  logicalPages: updater(project.logicalPages),
-});
 
 export const useCurrentProjectSession = ({
   docType,
@@ -181,11 +70,7 @@ export const useCurrentProjectSession = ({
   const materializePresent = useCallback((
     present: CurrentProjectSessionPresent
   ): CurrentProjectSessionPresent => {
-    if (present.project) {
-      return present;
-    }
-
-    const project = createCurrentProjectDocument({
+    return materializeCurrentProjectPresent(present, {
       docType,
       numPages,
       currentAssetHints,
@@ -193,8 +78,6 @@ export const useCurrentProjectSession = ({
       settings,
       template,
     });
-
-    return project ? withSelectedCut(project, present.selectedCutId) : present;
   }, [
     currentAssetHints,
     currentProjectName,
@@ -210,7 +93,7 @@ export const useCurrentProjectSession = ({
 
   const history = useMemo(
     () =>
-      syncHistoryWithInputs(
+      syncCurrentProjectHistoryWithInputs(
         rawHistory,
         {
           docType,
@@ -300,7 +183,7 @@ export const useCurrentProjectSession = ({
 
       if (!baseProject) return current;
 
-      const nextProject = updateProjectLogicalPages(baseProject, (logicalPages) =>
+      const nextProject = updateCurrentProjectLogicalPages(baseProject, (logicalPages) =>
         logicalPages.map((page, index) =>
           index === newCut.pageIndex
             ? {
@@ -355,7 +238,7 @@ export const useCurrentProjectSession = ({
     replacePresent((present) => {
       if (!present.project) return present;
       return withSelectedCut(
-        updateProjectLogicalPages(present.project, (logicalPages) =>
+        updateCurrentProjectLogicalPages(present.project, (logicalPages) =>
           logicalPages.map((page) => ({
             ...page,
             cuts: page.cuts.map((cut) =>
@@ -393,7 +276,7 @@ export const useCurrentProjectSession = ({
     pushPresent((current) => {
       if (!current.project) return current;
       return withSelectedCut(
-        updateProjectLogicalPages(current.project, (logicalPages) =>
+        updateCurrentProjectLogicalPages(current.project, (logicalPages) =>
           logicalPages.map((page) => ({
             ...page,
             cuts: page.cuts.filter((cut) => cut.id !== id),
