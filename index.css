@@ -21,3 +21,12 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+.annotationLayer {
+  pointer-events: none;
+}
+
+.annotationLayer section,
+.annotationLayer a {
+  pointer-events: none;
+}

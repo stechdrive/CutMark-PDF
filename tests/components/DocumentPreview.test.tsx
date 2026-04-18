@@ -6,6 +6,7 @@ import { createAppSettings, createTemplate } from '../../test/factories';
 
 const reactPdfMocks = vi.hoisted(() => ({
   document: vi.fn(),
+  page: vi.fn(),
 }));
 
 vi.mock('react-pdf', () => ({
@@ -13,7 +14,10 @@ vi.mock('react-pdf', () => ({
     reactPdfMocks.document(props);
     return <div>{children}</div>;
   },
-  Page: () => <div>PDF Page</div>,
+  Page: (props: Record<string, unknown>) => {
+    reactPdfMocks.page(props);
+    return <div>PDF Page</div>;
+  },
 }));
 
 describe('DocumentPreview', () => {
@@ -57,6 +61,12 @@ describe('DocumentPreview', () => {
           cMapPacked: true,
           standardFontDataUrl: '/standard_fonts/',
         }),
+      })
+    );
+    expect(reactPdfMocks.page).toHaveBeenCalledWith(
+      expect.objectContaining({
+        renderTextLayer: false,
+        renderAnnotationLayer: true,
       })
     );
   });

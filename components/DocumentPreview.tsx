@@ -206,7 +206,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     pageNumber={currentPage}
                     width={595} // Base width, scale handled by parent
                     renderTextLayer={false}
-                    renderAnnotationLayer={false}
+                    renderAnnotationLayer={true}
                     onLoadSuccess={handlePdfPageLoad}
                     onLoadError={(error) => onPdfPageError?.(error)}
                     />
