@@ -110,8 +110,6 @@ describe('useLoadedProjectOrganizer', () => {
       result.current.projectOrganizerProps?.onUnassignLogicalPage('page-2');
       result.current.projectOrganizerProps?.onMoveLogicalPageToAsset('page-2', 0);
       result.current.projectOrganizerProps?.onResetBindings();
-      result.current.projectOrganizerProps?.onUndoDraft();
-      result.current.projectOrganizerProps?.onRedoDraft();
       result.current.projectOrganizerProps?.onApplyProject();
     });
 
@@ -122,8 +120,6 @@ describe('useLoadedProjectOrganizer', () => {
     expect(loadedProjectSession.assignAsset).toHaveBeenCalledWith('page-2', null);
     expect(loadedProjectSession.movePageToAsset).toHaveBeenCalledWith('page-2', 0);
     expect(loadedProjectSession.resetBindings).toHaveBeenCalledTimes(1);
-    expect(loadedProjectSession.undoDraft).toHaveBeenCalledTimes(1);
-    expect(loadedProjectSession.redoDraft).toHaveBeenCalledTimes(1);
     expect(onApplyProject).toHaveBeenCalledTimes(1);
   });
 

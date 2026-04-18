@@ -36,8 +36,6 @@ const createProjectOrganizerProps = () => ({
   },
   canApplyProject: true,
   canResetBindings: true,
-  canUndoDraft: false,
-  canRedoDraft: false,
   onSelectLogicalPage: vi.fn(),
   onSelectContePage: vi.fn(),
   onInsertBlankPageAtAsset: vi.fn(),
@@ -45,8 +43,6 @@ const createProjectOrganizerProps = () => ({
   onUnassignLogicalPage: vi.fn(),
   onMoveLogicalPageToAsset: vi.fn(),
   onResetBindings: vi.fn(),
-  onUndoDraft: vi.fn(),
-  onRedoDraft: vi.fn(),
   onApplyProject: vi.fn(),
 });
 

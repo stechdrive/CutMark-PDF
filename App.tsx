@@ -36,7 +36,7 @@ export default function App() {
         <ExportOverlay {...exportOverlayProps} />
         {leftProjectPanel && (
           <aside className="w-96 shrink-0 border-r border-gray-200 bg-white shadow-xl z-20">
-            <div className="h-full overflow-y-auto p-4">
+            <div className="h-full p-4">
               {leftProjectPanel}
             </div>
           </aside>

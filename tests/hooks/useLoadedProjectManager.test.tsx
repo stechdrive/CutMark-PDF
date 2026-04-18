@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useLoadedProjectManager } from '../../hooks/useLoadedProjectManager';
 import { UseLoadedProjectSessionResult } from '../../hooks/useLoadedProjectSession';
@@ -168,7 +168,7 @@ describe('useLoadedProjectManager', () => {
       currentContePage: 1,
       canApplyProject: true,
       onSelectContePage,
-      onApplyProject: handleApplyLoadedProject,
+      onApplyProject: expect.any(Function),
     });
     expect(result.current).toEqual({
       projectOrganizerProps,
@@ -176,5 +176,68 @@ describe('useLoadedProjectManager', () => {
       loadProjectFile,
       onProjectLoaded,
     });
+  });
+
+  it('disables apply again after the current organizer state has been applied', () => {
+    const loadedProjectSession = createLoadedProjectSession();
+    const handleApplyLoadedProject = vi.fn();
+
+    lifecycleMocks.useProjectLifecycle.mockReturnValue({
+      handleApplyLoadedProject,
+      handleSaveProject: vi.fn(),
+      loadProjectFile: vi.fn(),
+      onProjectLoaded: vi.fn(),
+    });
+    organizerMocks.useLoadedProjectOrganizer.mockReturnValue({
+      projectOrganizerProps: {
+        projectName: 'Episode 01',
+      },
+    });
+
+    renderHook(() =>
+      useLoadedProjectManager({
+        loadedProjectSession,
+        docType: 'images',
+        numPages: 1,
+        currentPage: 1,
+        currentAssetHints: [
+          { sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 },
+        ],
+        currentProject: null,
+        currentProjectBindings: {},
+        canApplyLoadedProject: true,
+        onSelectContePage: vi.fn(),
+        resolveProjectDocumentForCurrentState: vi.fn((value) => value),
+        upsertTemplate: vi.fn(),
+        setMode: vi.fn(),
+        logDebug: vi.fn(),
+      })
+    );
+
+    expect(organizerMocks.useLoadedProjectOrganizer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        canApplyProject: true,
+        onApplyProject: expect.any(Function),
+      })
+    );
+
+    const firstApply = organizerMocks.useLoadedProjectOrganizer.mock.calls.at(-1)?.[0]
+      ?.onApplyProject as (() => void) | undefined;
+
+    if (!firstApply) {
+      throw new Error('Expected onApplyProject callback');
+    }
+
+    act(() => {
+      firstApply();
+    });
+
+    expect(handleApplyLoadedProject).toHaveBeenCalledTimes(1);
+    expect(organizerMocks.useLoadedProjectOrganizer).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        canApplyProject: false,
+        onApplyProject: expect.any(Function),
+      })
+    );
   });
 });

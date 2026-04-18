@@ -1,3 +1,4 @@
+import { useCallback, useMemo, useState } from 'react';
 import { ProjectAssetBindings } from '../application/projectBindings';
 import { AssetHint, ProjectDocument, TemplateSnapshot } from '../domain/project';
 import { DocType } from '../types';
@@ -42,6 +43,30 @@ export const useLoadedProjectManager = ({
   setMode,
   logDebug,
 }: UseLoadedProjectManagerOptions) => {
+  const [lastAppliedSignature, setLastAppliedSignature] = useState<string | null>(null);
+
+  const resolvedLoadedProject = useMemo(
+    () =>
+      loadedProjectSession.project
+        ? resolveProjectDocumentForCurrentState(
+            loadedProjectSession.project,
+            loadedProjectSession.bindings
+          )
+        : null,
+    [loadedProjectSession.bindings, loadedProjectSession.project, resolveProjectDocumentForCurrentState]
+  );
+
+  const currentApplySignature = useMemo(
+    () =>
+      resolvedLoadedProject
+        ? JSON.stringify({
+            project: resolvedLoadedProject,
+            bindings: loadedProjectSession.bindings,
+          })
+        : null,
+    [loadedProjectSession.bindings, resolvedLoadedProject]
+  );
+
   const {
     handleApplyLoadedProject,
     handleSaveProject,
@@ -64,13 +89,27 @@ export const useLoadedProjectManager = ({
     logDebug,
   });
 
+  const canApplyProject =
+    canApplyLoadedProject &&
+    currentApplySignature != null &&
+    currentApplySignature !== lastAppliedSignature;
+
+  const handleApplyProject = useCallback(() => {
+    if (!canApplyProject || !currentApplySignature) {
+      return;
+    }
+
+    handleApplyLoadedProject();
+    setLastAppliedSignature(currentApplySignature);
+  }, [canApplyProject, currentApplySignature, handleApplyLoadedProject]);
+
   const { projectOrganizerProps } = useLoadedProjectOrganizer({
     loadedProjectSession,
     currentAssets: currentAssetHints,
     currentContePage: currentPage,
-    canApplyProject: canApplyLoadedProject,
+    canApplyProject,
     onSelectContePage,
-    onApplyProject: handleApplyLoadedProject,
+    onApplyProject: handleApplyProject,
   });
 
   return {

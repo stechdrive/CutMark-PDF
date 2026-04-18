@@ -113,7 +113,7 @@ export const useProjectWorkspace = ({
   ]);
 
   const assignedProjectBindingCount = loadedSession.assignedCount;
-  const canApplyLoadedProject = !!docType && loadedSession.canApply;
+  const canApplyLoadedProject = !!docType && !!loadedProject;
 
   const focusContePage = useCallback((assetIndex: number, logicalPageId: string | null) => {
     setCurrentPage(assetIndex + 1);
@@ -125,12 +125,12 @@ export const useProjectWorkspace = ({
   const projectStatusMessage = useMemo(() => {
     if (!loadedProject) return null;
     if (!loadedSession.selectedLogicalPage) {
-      return 'カット番号ページを選ぶと、割付先のコンテへプレビューを合わせます。';
+      return 'カット番号ページを選ぶと、割付先の Page にプレビューを合わせます。';
     }
     if (loadedSession.selectedAssetIndex == null) {
-      return `カット番号P${loadedSession.selectedLogicalPageNumber ?? '?'} は未配置です。割付を決めると対応するコンテを表示します。`;
+      return `カット番号P${loadedSession.selectedLogicalPageNumber ?? '?'} は未配置です。割付を決めると対応する Page を表示します。`;
     }
-    return `カット番号P${loadedSession.selectedLogicalPageNumber ?? '?'} をコンテP${loadedSession.selectedAssetIndex + 1} に割り付けています。`;
+    return `カット番号P${loadedSession.selectedLogicalPageNumber ?? '?'} を Page ${loadedSession.selectedAssetIndex + 1} に割り付けています。`;
   }, [
     loadedProject,
     loadedSession.selectedAssetIndex,

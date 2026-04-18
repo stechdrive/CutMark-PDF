@@ -19,10 +19,14 @@ const createOrganizer = () => ({
       asset: { sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 },
       logicalPageId: 'page-1',
       logicalPageNumber: 1,
-      logicalPage: { id: 'page-1', cuts: [], expectedAssetHint: null },
+      logicalPage: {
+        id: 'page-1',
+        cuts: [{ id: 'cut-1', x: 0.1, y: 0.2, label: '001', isBranch: false }],
+        expectedAssetHint: null,
+      },
       expectedAsset: { sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 },
       status: 'matched' as const,
-      cutCount: 0,
+      cutCount: 1,
       isSelected: false,
     },
     {
@@ -31,10 +35,20 @@ const createOrganizer = () => ({
       asset: { sourceKind: 'image' as const, sourceLabel: '009_revised.png', pageNumber: 2 },
       logicalPageId: 'page-2',
       logicalPageNumber: 2,
-      logicalPage: { id: 'page-2', cuts: [], expectedAssetHint: null },
+      logicalPage: {
+        id: 'page-2',
+        cuts: [
+          { id: 'cut-2', x: 0.2, y: 0.3, label: '012', isBranch: false },
+          { id: 'cut-3', x: 0.4, y: 0.5, label: '012A', isBranch: true },
+          { id: 'cut-4', x: 0.5, y: 0.6, label: '013', isBranch: false },
+          { id: 'cut-5', x: 0.6, y: 0.7, label: '013A', isBranch: true },
+          { id: 'cut-6', x: 0.7, y: 0.8, label: '014', isBranch: false },
+        ],
+        expectedAssetHint: null,
+      },
       expectedAsset: { sourceKind: 'image' as const, sourceLabel: '002.png', pageNumber: 2 },
       status: 'needs_review' as const,
-      cutCount: 1,
+      cutCount: 5,
       isSelected: true,
     },
     {
@@ -77,8 +91,6 @@ describe('ProjectOrganizerPanel', () => {
         organizer={createOrganizer()}
         canApplyProject={false}
         canResetBindings={true}
-        canUndoDraft={false}
-        canRedoDraft={false}
         onSelectLogicalPage={vi.fn()}
         onSelectContePage={vi.fn()}
         onInsertBlankPageAtAsset={vi.fn()}
@@ -86,19 +98,22 @@ describe('ProjectOrganizerPanel', () => {
         onUnassignLogicalPage={vi.fn()}
         onMoveLogicalPageToAsset={vi.fn()}
         onResetBindings={vi.fn()}
-        onUndoDraft={vi.fn()}
-        onRedoDraft={vi.fn()}
         onApplyProject={vi.fn()}
       />
     );
 
     expect(screen.getByText('コンテ順のページ整理')).toBeInTheDocument();
-    expect(screen.getByText('カット番号P2')).toBeInTheDocument();
-    expect(screen.getByText('コンテP2')).toBeInTheDocument();
+    expect(screen.getByText('012・012A・013・013A・014')).toBeInTheDocument();
+    expect(screen.getByText('採番無し / 前回: 004.png')).toBeInTheDocument();
+    expect(screen.getByText('Page 2')).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === '現在: 009_revised.png')
+    ).toBeInTheDocument();
     expect(screen.getByText('未配置のカット番号ページ')).toBeInTheDocument();
-    expect(screen.getByText('コンテP2').closest('.rounded-xl')).toHaveClass('ring-1');
-    expect(screen.getByText('コンテP1').closest('.rounded-xl')).not.toHaveClass('ring-1');
-    expect(screen.getByRole('button', { name: 'この割付を編集に反映' })).toBeDisabled();
+    expect(screen.getByText('未割付 1')).toBeInTheDocument();
+    expect(screen.getByText('Page 2').closest('.rounded-xl')).toHaveClass('ring-1');
+    expect(screen.getByText('Page 1').closest('.rounded-xl')).not.toHaveClass('ring-1');
+    expect(screen.getByRole('button', { name: '適用' })).toBeDisabled();
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
@@ -111,8 +126,6 @@ describe('ProjectOrganizerPanel', () => {
     const onUnassignLogicalPage = vi.fn();
     const onMoveLogicalPageToAsset = vi.fn();
     const onResetBindings = vi.fn();
-    const onUndoDraft = vi.fn();
-    const onRedoDraft = vi.fn();
     const onApplyProject = vi.fn();
 
     render(
@@ -124,8 +137,6 @@ describe('ProjectOrganizerPanel', () => {
         organizer={createOrganizer()}
         canApplyProject={true}
         canResetBindings={true}
-        canUndoDraft={true}
-        canRedoDraft={true}
         onSelectLogicalPage={onSelectLogicalPage}
         onSelectContePage={onSelectContePage}
         onInsertBlankPageAtAsset={onInsertBlankPageAtAsset}
@@ -133,32 +144,28 @@ describe('ProjectOrganizerPanel', () => {
         onUnassignLogicalPage={onUnassignLogicalPage}
         onMoveLogicalPageToAsset={onMoveLogicalPageToAsset}
         onResetBindings={onResetBindings}
-        onUndoDraft={onUndoDraft}
-        onRedoDraft={onRedoDraft}
         onApplyProject={onApplyProject}
       />
     );
 
-    const cardHolder = screen.getByText('コンテP1').closest('.rounded-xl');
+    const cardHolder = screen.getByText('Page 1').closest('.rounded-xl');
     if (!cardHolder) {
       throw new Error('Organizer card holder not found');
     }
 
     await user.click(cardHolder);
-    await user.click(screen.getByRole('button', { name: /カット番号P2/ }));
-    await user.click(screen.getByRole('button', { name: 'コンテP2 009_revised.png 保存時: 002.png' }));
-    await user.click(screen.getByRole('button', { name: 'コンテP3 003.png' }));
-    await user.click(screen.getByRole('button', { name: 'コンテP2 に空欄を挿入' }));
-    await user.click(screen.getByRole('button', { name: 'カット番号ページの削除方法を選ぶ 2' }));
+    await user.click(screen.getByRole('button', { name: /012・012A・013・013A・014/ }));
+    await user.click(screen.getByRole('button', { name: '現在: 009_revised.png 前回: 002.png' }));
+    await user.click(screen.getByRole('button', { name: '現在: 003.png' }));
+    await user.click(screen.getByRole('button', { name: 'Page 2 に空欄を挿入' }));
+    await user.click(screen.getByRole('button', { name: 'カット番号ページの削除方法を選ぶ Page 2' }));
     await user.click(screen.getByRole('button', { name: '未割付にする' }));
     await user.click(screen.getByRole('button', { name: '未配置のカット番号ページを削除 3' }));
-    await user.click(screen.getByRole('button', { name: 'Undo' }));
-    await user.click(screen.getByRole('button', { name: 'Redo' }));
-    await user.click(screen.getByRole('button', { name: /保存情報から自動割付/i }));
-    await user.click(screen.getByRole('button', { name: 'この割付を編集に反映' }));
+    await user.click(screen.getByRole('button', { name: /自動割付/i }));
+    await user.click(screen.getByRole('button', { name: '適用' }));
 
-    const dragChip = screen.getByText('カット番号P1').closest('[draggable="true"]');
-    const dropCard = screen.getByText('コンテP3').closest('.rounded-xl');
+    const dragChip = screen.getByText('001').closest('[draggable="true"]');
+    const dropCard = screen.getByText('Page 3').closest('.rounded-xl');
 
     if (!dragChip || !dropCard) {
       throw new Error('Organizer drag target not found');
@@ -187,8 +194,6 @@ describe('ProjectOrganizerPanel', () => {
     expect(onInsertBlankPageAtAsset).toHaveBeenCalledWith(1);
     expect(onUnassignLogicalPage).toHaveBeenCalledWith('page-2');
     expect(onRemoveLogicalPageFromConte).toHaveBeenCalledWith('page-3');
-    expect(onUndoDraft).toHaveBeenCalledTimes(1);
-    expect(onRedoDraft).toHaveBeenCalledTimes(1);
     expect(onResetBindings).toHaveBeenCalledTimes(1);
     expect(onApplyProject).toHaveBeenCalledTimes(1);
     expect(onMoveLogicalPageToAsset).toHaveBeenCalledWith('page-1', 2);
@@ -207,8 +212,6 @@ describe('ProjectOrganizerPanel', () => {
         organizer={createOrganizer()}
         canApplyProject={true}
         canResetBindings={true}
-        canUndoDraft={true}
-        canRedoDraft={true}
         onSelectLogicalPage={vi.fn()}
         onSelectContePage={vi.fn()}
         onInsertBlankPageAtAsset={vi.fn()}
@@ -216,13 +219,11 @@ describe('ProjectOrganizerPanel', () => {
         onUnassignLogicalPage={vi.fn()}
         onMoveLogicalPageToAsset={vi.fn()}
         onResetBindings={vi.fn()}
-        onUndoDraft={vi.fn()}
-        onRedoDraft={vi.fn()}
         onApplyProject={vi.fn()}
       />
     );
 
-    await user.click(screen.getByRole('button', { name: 'カット番号ページの削除方法を選ぶ 2' }));
+    await user.click(screen.getByRole('button', { name: 'カット番号ページの削除方法を選ぶ Page 2' }));
     await user.click(screen.getByRole('button', { name: '削除して後ろを詰める' }));
 
     expect(onRemoveLogicalPageFromConte).toHaveBeenCalledWith('page-2');

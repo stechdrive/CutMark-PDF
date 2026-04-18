@@ -233,7 +233,7 @@ describe('useProjectWorkspace', () => {
       const selectedLogicalPage =
         loadedProject.logicalPages.find((page) => page.id === selectedLogicalPageId) ?? null;
 
-      useProjectWorkspace({
+      const workspace = useProjectWorkspace({
         docType: 'images',
         currentPage,
         setCurrentPage,
@@ -274,6 +274,7 @@ describe('useProjectWorkspace', () => {
         currentPage,
         selectedLogicalPageId,
         setSelectedLogicalPageId,
+        ...workspace,
       };
     });
 
@@ -289,6 +290,7 @@ describe('useProjectWorkspace', () => {
       expect(result.current.selectedLogicalPageId).toBe('page-2');
     });
     expect(result.current.currentPage).toBe(1);
+    expect(result.current.canApplyLoadedProject).toBe(true);
   });
 
   it('exposes a conte-page focus action for organizer cards', () => {

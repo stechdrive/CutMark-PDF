@@ -64,8 +64,6 @@ export const useLoadedProjectOrganizer = ({
       ),
       canApplyProject,
       canResetBindings: currentAssets.length > 0,
-      canUndoDraft: loadedProjectSession.projectCutEditorApi.canUndo,
-      canRedoDraft: loadedProjectSession.projectCutEditorApi.canRedo,
       onSelectLogicalPage,
       onSelectContePage,
       onInsertBlankPageAtAsset,
@@ -73,8 +71,6 @@ export const useLoadedProjectOrganizer = ({
       onUnassignLogicalPage,
       onMoveLogicalPageToAsset,
       onResetBindings,
-      onUndoDraft: loadedProjectSession.undoDraft,
-      onRedoDraft: loadedProjectSession.redoDraft,
       onApplyProject,
     };
   }, [
