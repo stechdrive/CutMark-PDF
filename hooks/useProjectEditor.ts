@@ -139,6 +139,8 @@ export const useProjectEditor = (
       : null;
   const canUndo = (history?.past.length ?? 0) > 0;
   const canRedo = (history?.future.length ?? 0) > 0;
+  const historyIndex = (history?.past.length ?? 0) - 1;
+  const historyLength = (history?.past.length ?? 0) + (history?.future.length ?? 0);
   const assignedCount = project ? countAssignedProjectAssetBindings(project, bindings) : 0;
   const canApply = project ? hasCompleteProjectAssetBindings(project, bindings) : false;
 
@@ -484,6 +486,8 @@ export const useProjectEditor = (
     selectedAssetIndex,
     canUndo,
     canRedo,
+    historyIndex,
+    historyLength,
     assignedCount,
     canApply,
     loadProject,

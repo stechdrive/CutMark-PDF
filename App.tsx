@@ -29,10 +29,6 @@ import {
   ProjectAssetBindings,
 } from './application/projectBindings';
 import { summarizeProjectAssetComparison } from './application/projectComparison';
-import {
-  advanceNumberingState,
-  buildNumberLabel,
-} from './domain/numbering';
 
 // Hooks
 import { useDocumentViewer } from './hooks/useDocumentViewer';
@@ -41,6 +37,7 @@ import { useTemplates } from './hooks/useTemplates';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useProjectEditor } from './hooks/useProjectEditor';
+import { useActiveCutEditor } from './hooks/useActiveCutEditor';
 
 // Components
 import { Header } from './components/Header';
@@ -255,6 +252,8 @@ export default function App() {
   const projectBindings = projectEditor.bindings;
   const canUndoProjectDraft = projectEditor.canUndo;
   const canRedoProjectDraft = projectEditor.canRedo;
+  const projectDraftHistoryIndex = projectEditor.historyIndex;
+  const projectDraftHistoryLength = projectEditor.historyLength;
   const selectedLogicalPage = projectEditor.selectedLogicalPage;
   const selectedLogicalPageId = projectEditor.selectedLogicalPageId;
   const selectedLogicalPageNumber = projectEditor.selectedLogicalPageNumber;
@@ -308,10 +307,6 @@ export default function App() {
     }
     pdfAutoFontSizeRef.current = null;
   }, [docType, loadedProject, settings.fontSize, setSettings]);
-  const canUndoHistory = loadedProject ? canUndoProjectDraft : historyIndex > -1;
-  const canRedoHistory = loadedProject ? canRedoProjectDraft : historyIndex < historyLength - 1;
-  const handleUndoAction = loadedProject ? undoProjectDraft : undo;
-  const handleRedoAction = loadedProject ? redoProjectDraft : redo;
 
   const effectiveSettings = useMemo(
     () =>
@@ -460,7 +455,52 @@ export default function App() {
       projectName: currentProjectName,
     });
   }, [currentAssetHints, currentProjectName, cuts, docType, numPages, settings, template]);
-  const effectiveSelectedCutId = loadedProject ? projectEditor.selectedCutId : selectedCutId;
+  const activeCutEditor = useActiveCutEditor({
+    legacy: {
+      currentPage,
+      settings,
+      selectedCutId,
+      historyIndex,
+      historyLength,
+      getNextLabel,
+      getNextNumberingState,
+      setSelectedCutId,
+      addCut,
+      updateCutPosition,
+      handleCutDragEnd,
+      deleteCut,
+      setNumberingStateWithHistory,
+      renumberFromCut,
+      undo,
+      redo,
+    },
+    project: {
+      project: loadedProject,
+      settings: effectiveSettings,
+      selectedLogicalPageId,
+      selectedCutId: projectEditor.selectedCutId,
+      canUndo: canUndoProjectDraft,
+      canRedo: canRedoProjectDraft,
+      historyIndex: projectDraftHistoryIndex,
+      historyLength: projectDraftHistoryLength,
+      addCutToSelectedPage,
+      selectCut: selectProjectCut,
+      updateCutPosition: updateProjectCutPosition,
+      commitCutDrag,
+      deleteCut: deleteProjectCut,
+      setNumberingState: setEffectiveNumberingState,
+      renumberFromCut: renumberProjectFromCut,
+      undo: undoProjectDraft,
+      redo: redoProjectDraft,
+    },
+  });
+  const effectiveSelectedCutId = activeCutEditor.selectedCutId;
+  const canUndoHistory = activeCutEditor.canUndo;
+  const canRedoHistory = activeCutEditor.canRedo;
+  const activeHistoryIndex = activeCutEditor.historyIndex;
+  const activeHistoryLength = activeCutEditor.historyLength;
+  const handleUndoAction = activeCutEditor.undo;
+  const handleRedoAction = activeCutEditor.redo;
 
   const projectStatusMessage = useMemo(() => {
     if (!loadedProject) return null;
@@ -551,85 +591,13 @@ export default function App() {
     [activeProject, settings]
   );
 
-  // --- Logic Orchestration ---
-  
-  // Create a new cut at a specific position
-  const createCutAt = (x: number, y: number) => {
-    if (loadedProject && selectedLogicalPageId) {
-      const newCutId = crypto.randomUUID();
-      const currentNumbering = {
-        nextNumber: effectiveSettings.nextNumber,
-        branchChar: effectiveSettings.branchChar,
-      };
-      const nextNumbering = advanceNumberingState(
-        currentNumbering,
-        effectiveSettings.autoIncrement
-      );
-
-      addCutToSelectedPage({
-        id: newCutId,
-        x,
-        y,
-        label: buildNumberLabel(currentNumbering, effectiveSettings.minDigits),
-        isBranch: !!effectiveSettings.branchChar,
-      }, nextNumbering);
-      return;
-    }
-
-    const newCut: Cut = {
-      id: crypto.randomUUID(),
-      pageIndex: currentPage - 1,
-      x,
-      y,
-      label: getNextLabel(),
-      isBranch: !!settings.branchChar,
-    };
-    
-    const nextNumbering = getNextNumberingState();
-    addCut(newCut, nextNumbering);
-  };
-
   // Row Snap (Keyboard 1-9 or Button)
   const handleRowSnap = (rowIndex: number) => {
     if (rowIndex >= effectiveTemplate.rowPositions.length) return;
     const y = effectiveTemplate.rowPositions[rowIndex];
     const x = effectiveTemplate.xPosition;
-    createCutAt(x, y);
+    activeCutEditor.createCutAt(x, y);
   };
-
-  const handleRenumberFromSelected = useCallback((cutId: string) => {
-    if (loadedProject) {
-      renumberProjectFromCut(cutId, {
-        nextNumber: effectiveSettings.nextNumber,
-        branchChar: effectiveSettings.branchChar,
-        minDigits: effectiveSettings.minDigits,
-        autoIncrement: effectiveSettings.autoIncrement,
-      });
-      return;
-    }
-
-    renumberFromCut(
-      cutId,
-      {
-        nextNumber: settings.nextNumber,
-        branchChar: settings.branchChar,
-      },
-      settings.minDigits,
-      settings.autoIncrement
-    );
-  }, [
-    effectiveSettings.autoIncrement,
-    effectiveSettings.branchChar,
-    effectiveSettings.minDigits,
-    effectiveSettings.nextNumber,
-    loadedProject,
-    renumberFromCut,
-    renumberProjectFromCut,
-    settings.autoIncrement,
-    settings.branchChar,
-    settings.minDigits,
-    settings.nextNumber,
-  ]);
 
   const applyPdfDefaultFontSize = useCallback((page: { originalWidth: number }) => {
     if (loadedProject) return;
@@ -752,41 +720,6 @@ export default function App() {
   const handleSelectLogicalPage = useCallback((logicalPageId: string) => {
     selectLogicalProjectPage(logicalPageId);
   }, [selectLogicalProjectPage]);
-
-  const handleSelectPreviewCut = useCallback((cutId: string | null) => {
-    if (loadedProject) {
-      selectProjectCut(cutId);
-      return;
-    }
-    setSelectedCutId(cutId);
-  }, [loadedProject, selectProjectCut, setSelectedCutId]);
-
-  const handleDeletePreviewCut = useCallback((cutId: string) => {
-    if (loadedProject) {
-      deleteProjectCut(cutId);
-      return;
-    }
-
-    deleteCut(cutId);
-  }, [deleteCut, deleteProjectCut, loadedProject]);
-
-  const handlePreviewCutPositionChange = useCallback((cutId: string, x: number, y: number) => {
-    if (loadedProject) {
-      updateProjectCutPosition(cutId, x, y);
-      return;
-    }
-
-    updateCutPosition(cutId, x, y);
-  }, [loadedProject, updateCutPosition, updateProjectCutPosition]);
-
-  const handlePreviewCutDragEnd = useCallback(() => {
-    if (loadedProject) {
-      commitCutDrag();
-      return;
-    }
-
-    handleCutDragEnd();
-  }, [commitCutDrag, handleCutDragEnd, loadedProject]);
 
   const handleInsertLogicalPageAfter = useCallback((logicalPageId: string) => {
     insertProjectPageAfter(logicalPageId);
@@ -1040,9 +973,11 @@ export default function App() {
             kind: 'project',
             canUndo: canUndoProjectDraft,
             canRedo: canRedoProjectDraft,
+            historyIndex: activeHistoryIndex,
+            historyLength: activeHistoryLength,
             selectedLogicalPageId,
           })
-        : safeJsonStringify({ historyIndex, historyLength }),
+        : safeJsonStringify({ historyIndex: activeHistoryIndex, historyLength: activeHistoryLength }),
       '',
       '[PDF.js]',
       safeJsonStringify({
@@ -1072,8 +1007,8 @@ export default function App() {
     imageFiles,
     effectiveSettings,
     effectiveTemplate,
-    historyIndex,
-    historyLength,
+    activeHistoryIndex,
+    activeHistoryLength,
     canRedoProjectDraft,
     canUndoProjectDraft,
     selectedLogicalPageId,
@@ -1155,10 +1090,10 @@ export default function App() {
           
           cuts={previewCuts}
           selectedCutId={effectiveSelectedCutId}
-          setSelectedCutId={handleSelectPreviewCut}
-          deleteCut={handleDeletePreviewCut}
-          updateCutPosition={handlePreviewCutPositionChange}
-          handleCutDragEnd={handlePreviewCutDragEnd}
+          setSelectedCutId={activeCutEditor.selectCut}
+          deleteCut={activeCutEditor.deleteCut}
+          updateCutPosition={activeCutEditor.updateCutPosition}
+          handleCutDragEnd={activeCutEditor.commitCutDrag}
           
           mode={mode}
           template={effectiveTemplate}
@@ -1166,7 +1101,7 @@ export default function App() {
           onTemplateInteractionStart={loadedProject ? handleProjectDraftInteractionStart : undefined}
           onTemplateInteractionEnd={loadedProject ? handleProjectDraftInteractionEnd : undefined}
           settings={effectiveSettings}
-          onContentClick={createCutAt}
+          onContentClick={activeCutEditor.createCutAt}
           onPdfLoadSuccess={(pages) => logDebug('info', 'PDF読み込み成功', () => ({ numPages: pages }))}
           onPdfLoadError={(error) => logDebug('error', 'PDF読み込み失敗', () => ({ error: normalizeError(error) }))}
           onPdfSourceError={(error) => logDebug('error', 'PDFソース読み込み失敗', () => ({ error: normalizeError(error) }))}
@@ -1220,8 +1155,8 @@ export default function App() {
           setLiveSettings={loadedProject ? setEffectiveSettingsLive : undefined}
           onLiveSettingsStart={loadedProject ? handleProjectDraftInteractionStart : undefined}
           onLiveSettingsEnd={loadedProject ? handleProjectDraftInteractionEnd : undefined}
-          setNumberingState={loadedProject ? setEffectiveNumberingState : setNumberingStateWithHistory}
-          onRenumberFromSelected={handleRenumberFromSelected}
+          setNumberingState={activeCutEditor.setNumberingState}
+          onRenumberFromSelected={activeCutEditor.renumberFromSelected}
         />
         
       </div>

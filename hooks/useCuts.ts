@@ -1,13 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { HistoryState, createHistoryState, pushHistoryState, redoHistory, undoHistory } from '../application/history';
 import { Cut, NumberingState } from '../types';
-import {
-  isSameNumberingState,
-  renumberLegacyCuts,
-} from '../domain/numbering';
+import { isSameNumberingState, renumberLegacyCuts } from '../domain/numbering';
 
 const HISTORY_LIMIT = 100;
 
-type HistoryEntry = {
+type LegacyCutsState = {
   cuts: Cut[];
   numbering: NumberingState;
 };
@@ -17,135 +15,157 @@ interface UseCutsOptions {
   setNumberingState: (next: NumberingState) => void;
 }
 
+const createLegacyCutsState = (
+  cuts: Cut[],
+  numbering: NumberingState
+): LegacyCutsState => ({
+  cuts,
+  numbering,
+});
+
 export const useCuts = ({ numberingState, setNumberingState }: UseCutsOptions) => {
-  const [cuts, setCuts] = useState<Cut[]>([]);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [historyIndex, setHistoryIndex] = useState<number>(-1);
+  const [history, setHistory] = useState<HistoryState<LegacyCutsState>>(() =>
+    createHistoryState<LegacyCutsState>(createLegacyCutsState([], numberingState))
+  );
   const [selectedCutId, setSelectedCutId] = useState<string | null>(null);
 
-  // Use ref to track cuts for drag operations to avoid stale closures in event listeners
-  const cutsRef = useRef(cuts);
+  const historyRef = useRef<HistoryState<LegacyCutsState>>(history);
   useEffect(() => {
-    cutsRef.current = cuts;
-  }, [cuts]);
+    historyRef.current = history;
+  }, [history]);
 
-  const numberingRef = useRef(numberingState);
-  useEffect(() => {
-    numberingRef.current = numberingState;
-  }, [numberingState]);
+  const dragBaseRef = useRef<LegacyCutsState | null>(null);
 
-  const baseStateRef = useRef<HistoryEntry>({
-    cuts: [],
-    numbering: numberingState,
-  });
-
-  const pushHistory = useCallback((newCuts: Cut[]) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push({
-      cuts: newCuts,
-      numbering: numberingRef.current,
-    });
-    const overflow = Math.max(0, newHistory.length - HISTORY_LIMIT);
-    const trimmedHistory = overflow > 0 ? newHistory.slice(overflow) : newHistory;
-    if (overflow > 0) {
-      baseStateRef.current = newHistory[overflow - 1];
-    }
-    setHistory(trimmedHistory);
-    setHistoryIndex(trimmedHistory.length - 1);
-    setCuts(newCuts);
-  }, [history, historyIndex]);
-
-  const pushHistoryWithNumbering = useCallback((newCuts: Cut[], nextNumbering: NumberingState) => {
-    const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push({
-      cuts: newCuts,
-      numbering: nextNumbering,
-    });
-    const overflow = Math.max(0, newHistory.length - HISTORY_LIMIT);
-    const trimmedHistory = overflow > 0 ? newHistory.slice(overflow) : newHistory;
-    if (overflow > 0) {
-      baseStateRef.current = newHistory[overflow - 1];
-    }
-    setHistory(trimmedHistory);
-    setHistoryIndex(trimmedHistory.length - 1);
-    setCuts(newCuts);
-    setNumberingState(nextNumbering);
-  }, [history, historyIndex, setNumberingState]);
-
-  const undo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      setCuts(history[newIndex].cuts);
-      setNumberingState(history[newIndex].numbering);
-    } else if (historyIndex === 0) {
-      setHistoryIndex(-1);
-      setCuts(baseStateRef.current.cuts);
-      setNumberingState(baseStateRef.current.numbering);
-    }
-  }, [history, historyIndex, setNumberingState]);
-
-  const redo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      setCuts(history[newIndex].cuts);
-      setNumberingState(history[newIndex].numbering);
-    }
-  }, [history, historyIndex, setNumberingState]);
-
-  const resetCuts = useCallback(() => {
-    setCuts([]);
-    setHistory([]);
-    setHistoryIndex(-1);
-    setSelectedCutId(null);
-    baseStateRef.current = {
-      cuts: [],
-      numbering: numberingRef.current,
-    };
-  }, []);
-
-  const replaceCutsState = useCallback((nextCuts: Cut[], nextNumbering: NumberingState) => {
-    setCuts(nextCuts);
-    setHistory([]);
-    setHistoryIndex(-1);
-    setSelectedCutId(null);
-    baseStateRef.current = {
-      cuts: [],
-      numbering: nextNumbering,
-    };
-    setNumberingState(nextNumbering);
+  const requestNumberingSync = useCallback((next: NumberingState) => {
+    setNumberingState(next);
   }, [setNumberingState]);
 
-  const addCut = useCallback((newCut: Cut, nextNumbering?: NumberingState) => {
-    const newCuts = [...cutsRef.current, newCut];
-    if (nextNumbering) {
-      pushHistoryWithNumbering(newCuts, nextNumbering);
-      return;
+  const replacePresent = useCallback((updater: (state: LegacyCutsState) => LegacyCutsState) => {
+    const current = historyRef.current.present;
+    const next = updater(current);
+
+    setHistory((prev) => ({
+      ...prev,
+      present: next,
+    }));
+
+    if (!isSameNumberingState(current.numbering, next.numbering)) {
+      requestNumberingSync(next.numbering);
     }
-    pushHistory(newCuts);
-  }, [pushHistory, pushHistoryWithNumbering]);
+  }, [requestNumberingSync]);
+
+  const pushPresent = useCallback((updater: (state: LegacyCutsState) => LegacyCutsState) => {
+    const current = historyRef.current.present;
+    const next = updater(current);
+
+    setHistory((prev) => pushHistoryState(prev, next, HISTORY_LIMIT));
+
+    if (!isSameNumberingState(current.numbering, next.numbering)) {
+      requestNumberingSync(next.numbering);
+    }
+  }, [requestNumberingSync]);
+
+  const undo = useCallback(() => {
+    const current = historyRef.current;
+    const next = undoHistory<LegacyCutsState>(current);
+
+    if (next === current) return;
+
+    setHistory(next);
+    dragBaseRef.current = null;
+    if (!isSameNumberingState(current.present.numbering, next.present.numbering)) {
+      requestNumberingSync(next.present.numbering);
+    }
+  }, [requestNumberingSync]);
+
+  const redo = useCallback(() => {
+    const current = historyRef.current;
+    const next = redoHistory<LegacyCutsState>(current);
+
+    if (next === current) return;
+
+    setHistory(next);
+    dragBaseRef.current = null;
+    if (!isSameNumberingState(current.present.numbering, next.present.numbering)) {
+      requestNumberingSync(next.present.numbering);
+    }
+  }, [requestNumberingSync]);
+
+  const resetCuts = useCallback(() => {
+    setHistory(createHistoryState(createLegacyCutsState([], numberingState)));
+    setSelectedCutId(null);
+    dragBaseRef.current = null;
+  }, [numberingState]);
+
+  const replaceCutsState = useCallback((nextCuts: Cut[], nextNumbering: NumberingState) => {
+    setHistory(createHistoryState(createLegacyCutsState(nextCuts, nextNumbering)));
+    setSelectedCutId(null);
+    dragBaseRef.current = null;
+    if (!isSameNumberingState(numberingState, nextNumbering)) {
+      requestNumberingSync(nextNumbering);
+    }
+  }, [numberingState, requestNumberingSync]);
+
+  const addCut = useCallback((newCut: Cut, nextNumbering?: NumberingState) => {
+    pushPresent((current) => ({
+      cuts: [...current.cuts, newCut],
+      numbering: nextNumbering ?? current.numbering,
+    }));
+  }, [pushPresent]);
 
   const updateCutPosition = useCallback((id: string, x: number, y: number) => {
-    setCuts(prev => prev.map(c => c.id === id ? { ...c, x, y } : c));
-  }, []);
+    const current = historyRef.current.present;
+    if (!dragBaseRef.current) {
+      dragBaseRef.current = current;
+    }
+
+    replacePresent((state) => ({
+      ...state,
+      cuts: state.cuts.map((cut) => (cut.id === id ? { ...cut, x, y } : cut)),
+    }));
+  }, [replacePresent]);
 
   const handleCutDragEnd = useCallback(() => {
-    pushHistory(cutsRef.current);
-  }, [pushHistory]);
+    const dragBase = dragBaseRef.current;
+    dragBaseRef.current = null;
+    if (!dragBase) return;
+
+    const current = historyRef.current.present;
+    if (current === dragBase) return;
+
+    setHistory((prev) =>
+      pushHistoryState(
+        {
+          past: prev.past,
+          present: dragBase,
+          future: prev.future,
+        },
+        current,
+        HISTORY_LIMIT
+      )
+    );
+  }, []);
 
   const deleteCut = useCallback((id: string) => {
-    const newCuts = cuts.filter(c => c.id !== id);
-    pushHistory(newCuts);
-    if (selectedCutId === id) setSelectedCutId(null);
-  }, [cuts, selectedCutId, pushHistory]);
+    pushPresent((current) => ({
+      ...current,
+      cuts: current.cuts.filter((cut) => cut.id !== id),
+    }));
+    if (selectedCutId === id) {
+      setSelectedCutId(null);
+    }
+  }, [pushPresent, selectedCutId]);
 
   const setNumberingStateWithHistory = useCallback((nextNumbering: NumberingState) => {
-    if (isSameNumberingState(numberingRef.current, nextNumbering)) {
+    if (isSameNumberingState(historyRef.current.present.numbering, nextNumbering)) {
       return;
     }
-    pushHistoryWithNumbering(cutsRef.current, nextNumbering);
-  }, [pushHistoryWithNumbering]);
+
+    pushPresent((current) => ({
+      ...current,
+      numbering: nextNumbering,
+    }));
+  }, [pushPresent]);
 
   const renumberFromCut = useCallback((
     startCutId: string,
@@ -153,22 +173,27 @@ export const useCuts = ({ numberingState, setNumberingState }: UseCutsOptions) =
     minDigits: number,
     autoIncrement: boolean
   ) => {
+    const current = historyRef.current.present;
     const result = renumberLegacyCuts(
-      cutsRef.current,
+      current.cuts,
       startCutId,
       startNumbering,
       minDigits,
       autoIncrement
     );
     if (!result.found) return;
-    pushHistoryWithNumbering(result.cuts, result.nextNumbering);
-  }, [pushHistoryWithNumbering]);
+
+    pushPresent(() => ({
+      cuts: result.cuts,
+      numbering: result.nextNumbering,
+    }));
+  }, [pushPresent]);
 
   return {
-    cuts,
+    cuts: history.present.cuts,
     selectedCutId,
-    historyIndex,
-    historyLength: history.length,
+    historyIndex: history.past.length - 1,
+    historyLength: history.past.length + history.future.length,
     setSelectedCutId,
     addCut,
     updateCutPosition,
@@ -179,6 +204,6 @@ export const useCuts = ({ numberingState, setNumberingState }: UseCutsOptions) =
     undo,
     redo,
     resetCuts,
-    replaceCutsState
+    replaceCutsState,
   };
 };
