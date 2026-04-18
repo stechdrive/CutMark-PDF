@@ -151,3 +151,5 @@ export const useAppWorkspaceController = ({
     applyPdfDefaultFontSize,
   };
 };
+
+export type AppWorkspaceControllerState = ReturnType<typeof useAppWorkspaceController>;
