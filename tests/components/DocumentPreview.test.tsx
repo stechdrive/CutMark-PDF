@@ -274,6 +274,73 @@ describe('DocumentPreview', () => {
     expect(onContentClick).toHaveBeenCalledWith(0.1, 0.5);
   });
 
+  it('offsets free placement so the pointer lands near the marker center', () => {
+    const onContentClick = vi.fn();
+    const { container } = render(
+      <DocumentPreview
+        docType="images"
+        pdfFile={null}
+        currentImageUrl="blob:image"
+        numPages={2}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={vi.fn()}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={createTemplate({ xPosition: 0.1, rowPositions: [0.2, 0.5, 0.8] })}
+        setTemplate={vi.fn()}
+        settings={createAppSettings({ fontSize: 28, backgroundPadding: 4 })}
+        onContentClick={onContentClick}
+      />
+    );
+
+    const pageContainer = container.querySelector('.pdf-page-container') as HTMLElement;
+    vi.spyOn(pageContainer, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 1000,
+      width: 1000,
+      height: 1000,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(pageContainer, {
+      pointerId: 3,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 300,
+      clientY: 250,
+    });
+    fireEvent.pointerUp(pageContainer, {
+      pointerId: 3,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 300,
+      clientY: 250,
+    });
+
+    const [[placedX, placedY]] = onContentClick.mock.calls;
+    expect(placedX).toBeCloseTo(0.3, 5);
+    expect(placedY).toBeCloseTo(0.232, 5);
+  });
+
   it('does not place a cut when a pointer gesture turns into a drag', () => {
     const onContentClick = vi.fn();
     const { container } = render(

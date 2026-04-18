@@ -327,8 +327,10 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       x: relativePosition.x,
       y: relativePosition.y,
       contentWidthPx: relativePosition.rect.width,
+      contentHeightPx: relativePosition.rect.height,
       template,
       enableClickSnapToRows: settings.enableClickSnapToRows,
+      freePlacementOffsetYPx: (settings.fontSize + settings.backgroundPadding * 2) / 2,
     });
     onContentClick(placement.x, placement.y);
   };

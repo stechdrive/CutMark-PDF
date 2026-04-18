@@ -68,6 +68,23 @@ describe('documentPreviewMath', () => {
     })).toEqual({ x: 0.109, y: 0.6 });
   });
 
+  it('offsets free placement upward so the click lands near the visual center', () => {
+    const template = createTemplate({
+      xPosition: 0.1,
+      rowPositions: [0.2, 0.5, 0.8],
+    });
+
+    expect(getPlacementFromClick({
+      x: 0.3,
+      y: 0.25,
+      contentWidthPx: 1000,
+      contentHeightPx: 1000,
+      template,
+      enableClickSnapToRows: true,
+      freePlacementOffsetYPx: 18,
+    })).toEqual({ x: 0.3, y: 0.232 });
+  });
+
   it('snaps to the nearest previous row while forcing x to the template baseline', () => {
     const template = createTemplate({
       xPosition: 0.1,

@@ -15,9 +15,11 @@ interface ClickPlacementOptions {
   x: number;
   y: number;
   contentWidthPx: number;
+  contentHeightPx?: number;
   template: Template;
   enableClickSnapToRows: boolean;
   snapThresholdPx?: number;
+  freePlacementOffsetYPx?: number;
 }
 
 interface SnapCandidateOptions {
@@ -111,9 +113,11 @@ export const getPlacementFromClick = ({
   x,
   y,
   contentWidthPx,
+  contentHeightPx,
   template,
   enableClickSnapToRows,
   snapThresholdPx = CLICK_SNAP_THRESHOLD_PX,
+  freePlacementOffsetYPx = 0,
 }: ClickPlacementOptions): { x: number; y: number } => {
   const snapTarget = getClickSnapTarget({
     x,
@@ -124,7 +128,12 @@ export const getPlacementFromClick = ({
     snapThresholdPx,
   });
   if (!snapTarget) {
-    return { x, y };
+    const adjustedY =
+      contentHeightPx && freePlacementOffsetYPx > 0
+        ? Math.max(0, Math.min(1, y - freePlacementOffsetYPx / contentHeightPx))
+        : y;
+
+    return { x, y: adjustedY };
   }
 
   return {
