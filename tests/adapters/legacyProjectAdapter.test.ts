@@ -4,8 +4,6 @@ import {
   createAppSettingsFromProjectDocument,
   createAssetHintsFromCurrentDocument,
   createLegacyCutsFromProjectDocument,
-  createLegacyStateFromBoundProjectDocument,
-  createLegacyStateFromProjectDocument,
   createProjectDocumentFromLegacySnapshot,
   createTemplateFromProjectDocument,
 } from '../../adapters/legacyProjectAdapter';
@@ -36,56 +34,6 @@ describe('adapters/legacyProjectAdapter', () => {
     expect(project.logicalPages).toHaveLength(3);
     expect(project.logicalPages[1].cuts).toEqual([]);
     expect(project.logicalPages[2].expectedAssetHint?.sourceLabel).toBe('page-3.png');
-  });
-
-  it('restores legacy editor state from a project document', () => {
-    const project = createProjectDocumentFromLegacySnapshot({
-      cuts: [
-        createCut({ id: 'cut-1', pageIndex: 0, label: '010' }),
-        createCut({ id: 'cut-2', pageIndex: 1, label: '011' }),
-      ],
-      settings: createAppSettings({
-        nextNumber: 12,
-        minDigits: 4,
-        useWhiteBackground: true,
-      }),
-      template: createTemplate({ id: 'custom', name: 'Custom' }),
-      pageCount: 2,
-      projectName: 'Episode 02',
-    });
-
-    const legacy = createLegacyStateFromProjectDocument(project);
-
-    expect(legacy.projectName).toBe('Episode 02');
-    expect(legacy.logicalPageCount).toBe(2);
-    expect(legacy.cuts.map((cut) => cut.pageIndex)).toEqual([0, 1]);
-    expect(legacy.settings.nextNumber).toBe(12);
-    expect(legacy.settings.minDigits).toBe(4);
-    expect(legacy.template.name).toBe('Custom');
-  });
-
-  it('restores legacy editor state from a manually bound project order', () => {
-    const project = createProjectDocumentFromLegacySnapshot({
-      cuts: [
-        createCut({ id: 'cut-1', pageIndex: 0, label: '010', y: 0.2 }),
-        createCut({ id: 'cut-2', pageIndex: 1, label: '011', y: 0.1 }),
-      ],
-      settings: createAppSettings(),
-      template: createTemplate(),
-      pageCount: 2,
-      projectName: 'Episode 03',
-    });
-
-    const legacy = createLegacyStateFromBoundProjectDocument(project, {
-      'page-1': 1,
-      'page-2': 0,
-    });
-
-    expect(legacy.projectName).toBe('Episode 03');
-    expect(legacy.cuts.map((cut) => `${cut.id}:${cut.pageIndex}`)).toEqual([
-      'cut-2:0',
-      'cut-1:1',
-    ]);
   });
 
   it('projects legacy cuts, settings, and template directly from a bound project document', () => {

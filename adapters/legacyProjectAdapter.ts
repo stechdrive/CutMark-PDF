@@ -1,4 +1,4 @@
-import { AppSettings, Cut, DocType, NumberingState, Template } from '../types';
+import { AppSettings, Cut, DocType, Template } from '../types';
 import {
   AssetHint,
   createProjectDocument,
@@ -20,15 +20,6 @@ interface CurrentDocumentHintOptions {
   pdfFile: File | null;
   imageFiles: File[];
   pageCount: number;
-}
-
-export interface LegacyProjectState {
-  cuts: Cut[];
-  settings: AppSettings;
-  template: Template;
-  logicalPageCount: number;
-  projectName: string;
-  numberingState: NumberingState;
 }
 
 const deriveProjectName = (
@@ -180,33 +171,4 @@ export const createTemplateFromProjectDocument = (
   rowCount: project.template.rowCount,
   xPosition: project.template.xPosition,
   rowPositions: [...project.template.rowPositions],
-});
-
-export const createLegacyStateFromProjectDocument = (
-  project: ProjectDocument
-): LegacyProjectState => ({
-  cuts: createLegacyCutsFromProjectDocument(project),
-  settings: createAppSettingsFromProjectDocument(project),
-  template: createTemplateFromProjectDocument(project),
-  logicalPageCount: project.logicalPages.length,
-  projectName: project.meta.name,
-  numberingState: {
-    nextNumber: project.numbering.nextNumber,
-    branchChar: project.numbering.branchChar,
-  },
-});
-
-export const createLegacyStateFromBoundProjectDocument = (
-  project: ProjectDocument,
-  bindings: Record<string, number | null>
-): LegacyProjectState => ({
-  cuts: createLegacyCutsFromProjectDocument(project, bindings),
-  settings: createAppSettingsFromProjectDocument(project),
-  template: createTemplateFromProjectDocument(project),
-  logicalPageCount: project.logicalPages.length,
-  projectName: project.meta.name,
-  numberingState: {
-    nextNumber: project.numbering.nextNumber,
-    branchChar: project.numbering.branchChar,
-  },
 });
