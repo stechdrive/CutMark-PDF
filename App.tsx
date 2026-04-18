@@ -14,15 +14,10 @@ import {
 
 // Hooks
 import { useDocumentViewer } from './hooks/useDocumentViewer';
-import { useCurrentProjectSession } from './hooks/useCurrentProjectSession';
 import { useTemplates } from './hooks/useTemplates';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { useActiveCutEditor } from './hooks/useActiveCutEditor';
-import { useProjectWorkspace } from './hooks/useProjectWorkspace';
-import { useWorkspacePresentation } from './hooks/useWorkspacePresentation';
-import { useLoadedProjectSession } from './hooks/useLoadedProjectSession';
-import { useLoadedProjectManager } from './hooks/useLoadedProjectManager';
+import { useEditorWorkspace } from './hooks/useEditorWorkspace';
 
 // Components
 import { Header } from './components/Header';
@@ -232,37 +227,10 @@ export default function App() {
     return undefined;
   }, [docType, imageFiles, pdfFile]);
 
-  const currentProjectSession = useCurrentProjectSession({
-    docType,
-    currentPage,
-    numPages,
-    currentAssetHints,
-    currentProjectName,
-    settings,
-    numberingState,
-    setNumberingState,
-    template,
-  });
-
-  useEffect(() => {
-    resetLegacyCutEditorRef.current = currentProjectSession.resetCuts;
-  }, [currentProjectSession.resetCuts]);
-
-  const loadedProjectSession = useLoadedProjectSession(currentAssetHints, settings);
-  const loadedProject = loadedProjectSession.project;
-  const selectedLogicalPageId = loadedProjectSession.workspaceSession.selectedLogicalPageId;
-  useEffect(() => {
-    if (loadedProject) return;
-    if (docType !== 'images') return;
-    if (pdfAutoFontSizeRef.current !== null && settings.fontSize === pdfAutoFontSizeRef.current) {
-      setSettings(prev => ({
-        ...prev,
-        fontSize: DEFAULT_IMAGE_FONT_SIZE,
-      }));
-    }
-    pdfAutoFontSizeRef.current = null;
-  }, [docType, loadedProject, settings.fontSize, setSettings]);
   const {
+    resetCurrentProject,
+    isLoadedProjectActive,
+    selectedLogicalPageId,
     effectiveSettings,
     effectiveTemplate,
     setEffectiveSettings,
@@ -275,11 +243,24 @@ export default function App() {
     handleDistributeRows,
     handleProjectDraftInteractionStart,
     handleProjectDraftInteractionEnd,
-  } = useWorkspacePresentation({
-    loadedProject,
+    activeProject,
+    previewCuts,
+    effectiveExportCuts,
+    effectiveExportSettings,
+    canApplyLoadedProject,
+    loadedProjectManager,
+    activeCutEditor,
+  } = useEditorWorkspace({
+    docType,
+    currentPage,
+    setCurrentPage,
+    numPages,
+    currentAssetHints,
+    currentProjectName,
     settings,
     setSettings,
-    setCurrentNumberingStateWithHistory: currentProjectSession.setNumberingStateWithHistory,
+    numberingState,
+    setNumberingState,
     templateApi: {
       templates,
       template,
@@ -290,52 +271,26 @@ export default function App() {
       deleteTemplate,
       deleteTemplateById,
       distributeRows,
+      upsertTemplate,
     },
-    projectDraftApi: loadedProjectSession.projectDraftApi,
-  });
-  const workspace = useProjectWorkspace({
-    docType,
-    currentPage,
-    setCurrentPage,
-    currentAssetHints,
-    effectiveSettings,
-    effectiveTemplate,
-    fallbackSettings: settings,
-    loadedSession: loadedProjectSession.workspaceSession,
-    currentSession: currentProjectSession.workspaceSession,
-  });
-  const {
-    projectComparison,
-    canApplyLoadedProject,
-    projectStatusMessage,
-    resolveProjectDocumentForCurrentState,
-    activeProject,
-    activeProjectBindings,
-    previewCuts,
-    effectiveExportCuts,
-    effectiveExportSettings,
-  } = workspace;
-  const currentProject = currentProjectSession.project;
-  const loadedProjectManager = useLoadedProjectManager({
-    loadedProjectSession,
-    docType,
-    numPages,
-    currentAssetHints,
-    currentProject,
-    currentProjectBindings: activeProjectBindings,
-    comparison: projectComparison,
-    statusMessage: projectStatusMessage,
-    canApplyLoadedProject,
-    resolveProjectDocumentForCurrentState,
-    upsertTemplate,
     setMode,
     logDebug,
   });
-  const activeCutEditor = useActiveCutEditor({
-    editor: loadedProject
-      ? loadedProjectSession.projectCutEditorApi
-      : currentProjectSession.projectCutEditorApi,
-  });
+
+  useEffect(() => {
+    resetLegacyCutEditorRef.current = resetCurrentProject;
+  }, [resetCurrentProject]);
+  useEffect(() => {
+    if (isLoadedProjectActive) return;
+    if (docType !== 'images') return;
+    if (pdfAutoFontSizeRef.current !== null && settings.fontSize === pdfAutoFontSizeRef.current) {
+      setSettings(prev => ({
+        ...prev,
+        fontSize: DEFAULT_IMAGE_FONT_SIZE,
+      }));
+    }
+    pdfAutoFontSizeRef.current = null;
+  }, [docType, isLoadedProjectActive, settings.fontSize, setSettings]);
   const effectiveSelectedCutId = activeCutEditor.selectedCutId;
   const canUndoHistory = activeCutEditor.canUndo;
   const canRedoHistory = activeCutEditor.canRedo;
@@ -353,7 +308,7 @@ export default function App() {
   };
 
   const applyPdfDefaultFontSize = useCallback((page: { originalWidth: number }) => {
-    if (loadedProject) return;
+    if (isLoadedProjectActive) return;
     if (docType !== 'pdf') return;
     if (pdfFontSizeAppliedRef.current) return;
     if (settings.fontSize !== DEFAULT_IMAGE_FONT_SIZE) return;
@@ -370,7 +325,7 @@ export default function App() {
         fontSize: nextFontSize,
       }));
     }
-  }, [docType, loadedProject, settings.fontSize, setSettings]);
+  }, [docType, isLoadedProjectActive, settings.fontSize, setSettings]);
 
   // PDF Load
   const onPdfLoaded = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -442,7 +397,7 @@ export default function App() {
 
   // Export PDF
   const handleExportPdf = async () => {
-    if (loadedProject && !canApplyLoadedProject) {
+    if (isLoadedProjectActive && !canApplyLoadedProject) {
       alert('論理ページの割当を完了してから書き出してください');
       return;
     }
@@ -492,7 +447,7 @@ export default function App() {
         return;
     }
 
-    if (loadedProject && !canApplyLoadedProject) {
+    if (isLoadedProjectActive && !canApplyLoadedProject) {
         alert('論理ページの割当を完了してから書き出してください');
         return;
     }
@@ -580,11 +535,11 @@ export default function App() {
       safeJsonStringify(effectiveTemplate),
       '',
       '[History]',
-      loadedProject
+      isLoadedProjectActive
         ? safeJsonStringify({
             kind: 'project',
-            canUndo: loadedProjectSession.projectCutEditorApi.canUndo,
-            canRedo: loadedProjectSession.projectCutEditorApi.canRedo,
+            canUndo: canUndoHistory,
+            canRedo: canRedoHistory,
             historyIndex: activeHistoryIndex,
             historyLength: activeHistoryLength,
             selectedLogicalPageId,
@@ -613,7 +568,7 @@ export default function App() {
     scale,
     activeProject,
     effectiveSelectedCutId,
-    loadedProject,
+    isLoadedProjectActive,
     pdfFile,
     previewCuts.length,
     imageFiles,
@@ -621,8 +576,8 @@ export default function App() {
     effectiveTemplate,
     activeHistoryIndex,
     activeHistoryLength,
-    loadedProjectSession.projectCutEditorApi.canRedo,
-    loadedProjectSession.projectCutEditorApi.canUndo,
+    canRedoHistory,
+    canUndoHistory,
     selectedLogicalPageId,
   ]);
 
@@ -709,9 +664,9 @@ export default function App() {
           
           mode={mode}
           template={effectiveTemplate}
-          setTemplate={loadedProject ? setEffectiveTemplateLive : setEffectiveTemplate}
-          onTemplateInteractionStart={loadedProject ? handleProjectDraftInteractionStart : undefined}
-          onTemplateInteractionEnd={loadedProject ? handleProjectDraftInteractionEnd : undefined}
+          setTemplate={isLoadedProjectActive ? setEffectiveTemplateLive : setEffectiveTemplate}
+          onTemplateInteractionStart={isLoadedProjectActive ? handleProjectDraftInteractionStart : undefined}
+          onTemplateInteractionEnd={isLoadedProjectActive ? handleProjectDraftInteractionEnd : undefined}
           settings={effectiveSettings}
           onContentClick={activeCutEditor.createCutAt}
           onPdfLoadSuccess={(pages) => logDebug('info', 'PDF読み込み成功', () => ({ numPages: pages }))}
@@ -742,9 +697,9 @@ export default function App() {
           onRowSnap={handleRowSnap}
           settings={effectiveSettings}
           setSettings={setEffectiveSettings}
-          setLiveSettings={loadedProject ? setEffectiveSettingsLive : undefined}
-          onLiveSettingsStart={loadedProject ? handleProjectDraftInteractionStart : undefined}
-          onLiveSettingsEnd={loadedProject ? handleProjectDraftInteractionEnd : undefined}
+          setLiveSettings={isLoadedProjectActive ? setEffectiveSettingsLive : undefined}
+          onLiveSettingsStart={isLoadedProjectActive ? handleProjectDraftInteractionStart : undefined}
+          onLiveSettingsEnd={isLoadedProjectActive ? handleProjectDraftInteractionEnd : undefined}
           setNumberingState={activeCutEditor.setNumberingState}
           onRenumberFromSelected={activeCutEditor.renumberFromSelected}
         />
