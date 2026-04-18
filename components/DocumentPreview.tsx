@@ -11,6 +11,12 @@ import { useDocumentPlacementInteraction } from '../hooks/useDocumentPlacementIn
 import { useDocumentPreviewViewport } from '../hooks/useDocumentPreviewViewport';
 import { AppSettings, Cut, Template, DocType } from '../types';
 
+const pdfDocumentOptions = {
+  cMapUrl: `${import.meta.env.BASE_URL}cmaps/`,
+  cMapPacked: true,
+  standardFontDataUrl: `${import.meta.env.BASE_URL}standard_fonts/`,
+} as const;
+
 interface DocumentPreviewProps {
   layoutMode?: 'desktop' | 'mobile';
   docType: DocType | null;
@@ -174,6 +180,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             {docType === 'pdf' && pdfFile && (
                 <Document
                 file={pdfFile}
+                options={pdfDocumentOptions}
                 onLoadSuccess={({ numPages }) => {
                   setNumPages(numPages);
                   onPdfLoadSuccess?.(numPages);

@@ -2,7 +2,7 @@
   "homepage": "https://stechdrive.github.io/CutMark-PDF/",
   "name": "cutmark-pdf",
   "private": true,
-  "version": "2.4.5",
+  "version": "2.4.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -48,6 +48,7 @@
     "typescript": "~5.8.2",
     "typescript-eslint": "^8.53.0",
     "vite": "^6.2.0",
+    "vite-plugin-static-copy": "^4.0.1",
     "vitest": "^4.1.4"
   }
 }

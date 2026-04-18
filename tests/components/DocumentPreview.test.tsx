@@ -4,12 +4,63 @@ import { describe, expect, it, vi } from 'vitest';
 import { DocumentPreview } from '../../components/DocumentPreview';
 import { createAppSettings, createTemplate } from '../../test/factories';
 
+const reactPdfMocks = vi.hoisted(() => ({
+  document: vi.fn(),
+}));
+
 vi.mock('react-pdf', () => ({
-  Document: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  Document: ({ children, ...props }: { children: React.ReactNode }) => {
+    reactPdfMocks.document(props);
+    return <div>{children}</div>;
+  },
   Page: () => <div>PDF Page</div>,
 }));
 
 describe('DocumentPreview', () => {
+  it('passes PDF.js font and CMap asset options to Document', () => {
+    render(
+      <DocumentPreview
+        docType="pdf"
+        pdfFile={new File(['pdf'], 'sample.pdf', { type: 'application/pdf' })}
+        currentImageUrl={null}
+        numPages={1}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={vi.fn()}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={createTemplate()}
+        setTemplate={vi.fn()}
+        settings={createAppSettings()}
+        onContentClick={vi.fn()}
+      />
+    );
+
+    expect(reactPdfMocks.document).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          cMapUrl: '/cmaps/',
+          cMapPacked: true,
+          standardFontDataUrl: '/standard_fonts/',
+        }),
+      })
+    );
+  });
+
   it('uses wheel input to change pages inside the preview viewport', () => {
     const setCurrentPage = vi.fn();
     const { container } = render(
