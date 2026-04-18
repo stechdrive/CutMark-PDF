@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Document, Page } from 'react-pdf';
 import { Upload, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TemplateOverlay } from './TemplateOverlay';
@@ -153,6 +153,51 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     };
   }, []);
 
+  const changePageBy = useCallback((direction: -1 | 1) => {
+    if (numPages < 2) return;
+    const nextPage = Math.max(1, Math.min(numPages, currentPage + direction));
+    if (nextPage !== currentPage) {
+      setCurrentPage(nextPage);
+    }
+  }, [currentPage, numPages, setCurrentPage]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return undefined;
+
+    const handleWheel = (event: WheelEvent) => {
+      if (!docType || numPages < 2 || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+        return;
+      }
+
+      event.preventDefault();
+      wheelDeltaRef.current += event.deltaY;
+
+      if (wheelResetTimeoutRef.current != null) {
+        window.clearTimeout(wheelResetTimeoutRef.current);
+      }
+
+      wheelResetTimeoutRef.current = window.setTimeout(() => {
+        wheelDeltaRef.current = 0;
+        wheelResetTimeoutRef.current = null;
+      }, WHEEL_RESET_MS);
+
+      if (Math.abs(wheelDeltaRef.current) < WHEEL_PAGE_THRESHOLD) {
+        return;
+      }
+
+      const direction = wheelDeltaRef.current > 0 ? 1 : -1;
+      wheelDeltaRef.current = 0;
+      changePageBy(direction);
+    };
+
+    viewport.addEventListener('wheel', handleWheel, { passive: false });
+
+    return () => {
+      viewport.removeEventListener('wheel', handleWheel);
+    };
+  }, [changePageBy, docType, numPages]);
+
   useEffect(() => {
     if (!isMiddlePanning) return;
 
@@ -177,40 +222,6 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       window.removeEventListener('mouseup', stopMiddlePan);
     };
   }, [isMiddlePanning]);
-
-  const changePageBy = (direction: -1 | 1) => {
-    if (numPages < 2) return;
-    const nextPage = Math.max(1, Math.min(numPages, currentPage + direction));
-    if (nextPage !== currentPage) {
-      setCurrentPage(nextPage);
-    }
-  };
-
-  const handleViewportWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if (!docType || numPages < 2 || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) {
-      return;
-    }
-
-    e.preventDefault();
-    wheelDeltaRef.current += e.deltaY;
-
-    if (wheelResetTimeoutRef.current != null) {
-      window.clearTimeout(wheelResetTimeoutRef.current);
-    }
-
-    wheelResetTimeoutRef.current = window.setTimeout(() => {
-      wheelDeltaRef.current = 0;
-      wheelResetTimeoutRef.current = null;
-    }, WHEEL_RESET_MS);
-
-    if (Math.abs(wheelDeltaRef.current) < WHEEL_PAGE_THRESHOLD) {
-      return;
-    }
-
-    const direction = wheelDeltaRef.current > 0 ? 1 : -1;
-    wheelDeltaRef.current = 0;
-    changePageBy(direction);
-  };
 
   const handleViewportMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 1 || !viewportRef.current) return;
@@ -405,7 +416,6 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       onDragOver={dragHandlers.onDragOver}
       onDragLeave={dragHandlers.onDragLeave}
       onDrop={onFileDropped}
-      onWheel={handleViewportWheel}
       onMouseDown={handleViewportMouseDown}
       onAuxClick={handleViewportAuxClick}
       onClick={() => setSelectedCutId(null)}

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'path';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 
 const packageJson = JSON.parse(
@@ -16,7 +17,7 @@ export default defineConfig({
     port: 3000,
     host: '0.0.0.0',
   },
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   define: {
     // package.json の version をアプリに注入
     __APP_VERSION__: JSON.stringify(appVersion),
