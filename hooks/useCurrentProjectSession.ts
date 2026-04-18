@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  createLegacyCutsFromProjectDocument,
-  createProjectDocumentFromLegacySnapshot,
-} from '../adapters/legacyProjectAdapter';
+  createCutsFromProjectDocument,
+  createProjectDocumentFromCuts,
+} from '../application/projectProjection';
 import { HistoryState, createHistoryState, pushHistoryState, redoHistory, undoHistory } from '../application/history';
 import { createSequentialProjectAssetBindings } from '../application/projectBindings';
 import {
@@ -79,7 +79,7 @@ const createCurrentProjectDocument = ({
 }: CreateProjectOptions): ProjectDocument | null => {
   if (!docType) return null;
 
-  return createProjectDocumentFromLegacySnapshot({
+  return createProjectDocumentFromCuts({
     cuts,
     settings,
     template,
@@ -131,7 +131,7 @@ const syncProjectWithInputs = (
       nextNumber: project.numbering.nextNumber,
       branchChar: project.numbering.branchChar,
     },
-    cuts: createLegacyCutsFromProjectDocument(project),
+    cuts: createCutsFromProjectDocument(project),
     savedAt: project.meta.savedAt,
   });
 };
@@ -490,7 +490,7 @@ export const useCurrentProjectSession = ({
 
   const project = history.present.project;
   const cuts = useMemo(
-    () => (project ? createLegacyCutsFromProjectDocument(project) : []),
+    () => (project ? createCutsFromProjectDocument(project) : []),
     [project]
   );
   const bindings = useMemo(

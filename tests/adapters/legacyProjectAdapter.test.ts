@@ -4,8 +4,8 @@ import {
   createAppSettingsFromProjectDocument,
   createAssetHintsFromCurrentDocument,
   createLegacyCutsFromProjectDocument,
-  createProjectDocumentFromLegacySnapshot,
   createTemplateFromProjectDocument,
+  createProjectDocumentFromLegacySnapshot,
 } from '../../adapters/legacyProjectAdapter';
 
 describe('adapters/legacyProjectAdapter', () => {
@@ -36,7 +36,7 @@ describe('adapters/legacyProjectAdapter', () => {
     expect(project.logicalPages[2].expectedAssetHint?.sourceLabel).toBe('page-3.png');
   });
 
-  it('projects legacy cuts, settings, and template directly from a bound project document', () => {
+  it('projects cuts, settings, and template directly from a bound project document', () => {
     const project = createProjectDocumentFromLegacySnapshot({
       cuts: [
         createCut({ id: 'cut-1', pageIndex: 0, label: '010', y: 0.2 }),

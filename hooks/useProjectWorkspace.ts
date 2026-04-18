@@ -1,8 +1,6 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo } from 'react';
-import {
-  createAppSettingsFromProjectDocument,
-  createLegacyCutsFromProjectDocument,
-} from '../adapters/legacyProjectAdapter';
+import { createAppSettingsFromProjectDocument } from '../adapters/legacyProjectAdapter';
+import { createCutsFromProjectDocument } from '../application/projectProjection';
 import {
   applyBoundAssetHintsToProject,
   ProjectAssetBindings,
@@ -149,7 +147,7 @@ export const useProjectWorkspace = ({
   const effectiveExportCuts = useMemo(
     () =>
       activeProject
-        ? createLegacyCutsFromProjectDocument(activeProject, activeProjectBindings)
+        ? createCutsFromProjectDocument(activeProject, activeProjectBindings)
         : [],
     [activeProject, activeProjectBindings]
   );
