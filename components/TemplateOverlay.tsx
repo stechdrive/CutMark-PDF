@@ -14,11 +14,15 @@ export const TemplateOverlay: React.FC<TemplateOverlayProps> = ({
   onInteractionStart,
   onInteractionEnd,
 }) => {
-  const handleXDrag = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleXDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    e.preventDefault();
     // Simplified drag logic - in a real app would use a more robust hook
     // For this demo, we assume the parent container is the reference
     const parent = (e.target as HTMLElement).closest('.pdf-page-container');
     if (!parent) return;
+    const pointerId = e.pointerId;
 
     const updateX = (clientX: number) => {
       const rect = parent.getBoundingClientRect();
@@ -26,26 +30,33 @@ export const TemplateOverlay: React.FC<TemplateOverlayProps> = ({
       onChange({ ...template, xPosition: x });
     };
 
-    const mouseMove = (ev: MouseEvent) => updateX(ev.clientX);
-    const touchMove = (ev: TouchEvent) => updateX(ev.touches[0].clientX);
-    const stop = () => {
-      window.removeEventListener('mousemove', mouseMove);
-      window.removeEventListener('touchmove', touchMove);
-      window.removeEventListener('mouseup', stop);
-      window.removeEventListener('touchend', stop);
+    const pointerMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      ev.preventDefault();
+      updateX(ev.clientX);
+    };
+    const stop = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener('pointermove', pointerMove);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
       onInteractionEnd?.();
     };
 
     onInteractionStart?.();
-    window.addEventListener('mousemove', mouseMove);
-    window.addEventListener('touchmove', touchMove);
-    window.addEventListener('mouseup', stop);
-    window.addEventListener('touchend', stop);
+    e.currentTarget.setPointerCapture?.(pointerId);
+    window.addEventListener('pointermove', pointerMove, { passive: false });
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
   };
 
-  const handleYDrag = (index: number, e: React.MouseEvent | React.TouchEvent) => {
+  const handleYDrag = (index: number, e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    e.preventDefault();
     const parent = (e.target as HTMLElement).closest('.pdf-page-container');
     if (!parent) return;
+    const pointerId = e.pointerId;
 
     const updateY = (clientY: number) => {
       const rect = parent.getBoundingClientRect();
@@ -55,34 +66,39 @@ export const TemplateOverlay: React.FC<TemplateOverlayProps> = ({
       onChange({ ...template, rowPositions: newRows });
     };
 
-    const mouseMove = (ev: MouseEvent) => updateY(ev.clientY);
-    const touchMove = (ev: TouchEvent) => updateY(ev.touches[0].clientY);
-    const stop = () => {
-      window.removeEventListener('mousemove', mouseMove);
-      window.removeEventListener('touchmove', touchMove);
-      window.removeEventListener('mouseup', stop);
-      window.removeEventListener('touchend', stop);
+    const pointerMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      ev.preventDefault();
+      updateY(ev.clientY);
+    };
+    const stop = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener('pointermove', pointerMove);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
       onInteractionEnd?.();
     };
 
     onInteractionStart?.();
-    window.addEventListener('mousemove', mouseMove);
-    window.addEventListener('touchmove', touchMove);
-    window.addEventListener('mouseup', stop);
-    window.addEventListener('touchend', stop);
+    e.currentTarget.setPointerCapture?.(pointerId);
+    window.addEventListener('pointermove', pointerMove, { passive: false });
+    window.addEventListener('pointerup', stop);
+    window.addEventListener('pointercancel', stop);
   };
 
   return (
     <div className="absolute inset-0 pointer-events-none z-30">
       {/* X Axis Line */}
       <div
-        className="absolute top-0 bottom-0 w-0.5 bg-red-500 cursor-col-resize pointer-events-auto hover:w-1 hover:bg-red-400 transition-all"
+        className="absolute top-0 bottom-0 w-0.5 bg-red-500 cursor-col-resize touch-none pointer-events-auto hover:w-1 hover:bg-red-400 transition-all"
         style={{ left: `${template.xPosition * 100}%` }}
-        onMouseDown={handleXDrag}
-        onTouchStart={handleXDrag}
+        onPointerDown={handleXDrag}
       >
-        <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-1 rounded whitespace-nowrap">
-          横位置 (中央基準)
+        <div
+          className="absolute top-2 left-2 bg-red-600 text-white text-xs px-1 rounded whitespace-nowrap"
+          title="カット番号の配置全体の中心がこの縦線に合う位置です。"
+        >
+          横位置 (配置の中心)
         </div>
       </div>
 
@@ -90,13 +106,15 @@ export const TemplateOverlay: React.FC<TemplateOverlayProps> = ({
       {template.rowPositions.map((y, i) => (
         <div
           key={i}
-          className="absolute left-0 right-0 h-0.5 bg-blue-500 cursor-row-resize pointer-events-auto hover:h-1 hover:bg-blue-400 transition-all"
+          className="absolute left-0 right-0 h-0.5 bg-blue-500 cursor-row-resize touch-none pointer-events-auto hover:h-1 hover:bg-blue-400 transition-all"
           style={{ top: `${y * 100}%` }}
-          onMouseDown={(e) => handleYDrag(i, e)}
-          onTouchStart={(e) => handleYDrag(i, e)}
+          onPointerDown={(e) => handleYDrag(i, e)}
         >
-          <div className="absolute left-2 -top-6 bg-blue-600 text-white text-xs px-1 rounded flex items-center shadow-sm">
-             行 {i + 1} (上基準)
+          <div
+            className="absolute left-2 -top-6 bg-blue-600 text-white text-xs px-1 rounded flex items-center shadow-sm"
+            title="カット番号の配置全体の上端がこの横線に合う位置です。"
+          >
+             行 {i + 1} (配置の上端)
           </div>
         </div>
       ))}

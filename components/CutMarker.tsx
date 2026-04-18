@@ -23,7 +23,10 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
   onDragEnd,
   containerRef,
 }) => {
-  const handleDragStart = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    e.preventDefault();
     e.stopPropagation();
     onSelect(cut.id);
 
@@ -31,8 +34,9 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
     if (!container) return;
 
     const rect = container.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    const pointerId = e.pointerId;
 
     // Calculate initial mouse percentage relative to container
     const mouseX = (clientX - rect.left) / rect.width;
@@ -52,31 +56,30 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
       onUpdatePosition(cut.id, newX, newY);
     };
 
-    const handleMove = (ev: MouseEvent | TouchEvent) => {
+    const handleMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
       ev.preventDefault(); // Prevent scrolling on mobile
-      const cx = 'touches' in ev ? ev.touches[0].clientX : (ev as MouseEvent).clientX;
-      const cy = 'touches' in ev ? ev.touches[0].clientY : (ev as MouseEvent).clientY;
-      update(cx, cy);
+      update(ev.clientX, ev.clientY);
     };
 
-    const handleUp = () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('touchmove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      window.removeEventListener('touchend', handleUp);
+    const handleUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
       // Notify App to commit history
       onDragEnd();
     };
 
-    window.addEventListener('mousemove', handleMove, { passive: false });
-    window.addEventListener('touchmove', handleMove, { passive: false });
-    window.addEventListener('mouseup', handleUp);
-    window.addEventListener('touchend', handleUp);
+    e.currentTarget.setPointerCapture?.(pointerId);
+    window.addEventListener('pointermove', handleMove, { passive: false });
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
   };
 
   return (
     <div
-      className={`absolute flex items-start justify-start cursor-move group select-none transition-transform ${
+      className={`absolute flex items-start justify-start cursor-move touch-none group select-none transition-transform ${
         isSelected ? 'z-50 scale-110' : 'z-10'
       }`}
       style={{
@@ -85,8 +88,8 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
         // X: Center (translateX -50%), Y: Top (no translate needed as top is 0)
         transform: 'translateX(-50%)', 
       }}
-      onMouseDown={handleDragStart}
-      onTouchStart={handleDragStart}
+      onPointerDown={handleDragStart}
+      onPointerUp={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Background (Visual Simulation of the PDF output) */}
@@ -116,7 +119,7 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
         {/* Delete Button (Visible on Hover/Select) */}
         {(isSelected) && (
           <button
-            onMouseDown={(e) => {
+            onPointerDown={(e) => {
                // Prevent drag start
                e.stopPropagation();
             }}

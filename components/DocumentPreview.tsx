@@ -8,11 +8,12 @@ import { AppSettings, Cut, Template, DocType } from '../types';
 import {
   calculateFitScale,
   getPlacementFromClick,
-  isClickSnapCandidate,
+  getClickSnapTarget,
 } from '../utils/documentPreviewMath';
 
 const WHEEL_PAGE_THRESHOLD = 60;
 const WHEEL_RESET_MS = 160;
+const POINTER_TAP_SLOP_PX = 8;
 
 interface DocumentPreviewProps {
   docType: DocType | null;
@@ -108,9 +109,15 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     scrollLeft: number;
     scrollTop: number;
   } | null>(null);
-  const [isSnapCandidate, setIsSnapCandidate] = useState(false);
+  const placementPointerRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
+  const [snapTarget, setSnapTarget] = useState<{ y: number; rowIndex: number } | null>(null);
   const [isMiddlePanning, setIsMiddlePanning] = useState(false);
-  const showSnapCandidate = settings.enableClickSnapToRows && isSnapCandidate;
+  const showSnapCandidate = settings.enableClickSnapToRows && snapTarget !== null;
 
   // Image sizing state
   const [imgSize, setImgSize] = useState<{ key: string; width: number; height: number } | null>(null);
@@ -222,56 +229,121 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   };
 
 
-  const handlePageClick = (e: React.MouseEvent) => {
-    if (mode === 'template') return;
-    if (!containerRef.current) return;
+  const getRelativePointerPosition = (clientX: number, clientY: number) => {
+    if (!containerRef.current) return null;
 
     const rect = containerRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
+    const x = (clientX - rect.left) / rect.width;
+    const y = (clientY - rect.top) / rect.height;
 
-    // Safety check for bounds
     if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
-      const placement = getPlacementFromClick({
-        x,
-        y,
-        contentWidthPx: rect.width,
-        template,
-        enableClickSnapToRows: settings.enableClickSnapToRows,
-      });
-      onContentClick(placement.x, placement.y);
+      return { rect, x, y };
+    }
+
+    return null;
+  };
+
+  const updateSnapTarget = (clientX: number, clientY: number) => {
+    if (mode === 'template' || !settings.enableClickSnapToRows) {
+      setSnapTarget(null);
+      return;
+    }
+
+    const relativePosition = getRelativePointerPosition(clientX, clientY);
+    if (!relativePosition || template.rowPositions.length === 0) {
+      setSnapTarget(null);
+      return;
+    }
+
+    const nextSnapTarget = getClickSnapTarget({
+      x: relativePosition.x,
+      y: relativePosition.y,
+      contentWidthPx: relativePosition.rect.width,
+      template,
+      enableClickSnapToRows: settings.enableClickSnapToRows,
+    });
+
+    setSnapTarget(
+      nextSnapTarget
+        ? {
+            y: nextSnapTarget.y,
+            rowIndex: nextSnapTarget.rowIndex,
+          }
+        : null
+    );
+  };
+
+  const handlePagePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (mode === 'template') return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    placementPointerRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+    };
+
+    if (e.pointerType !== 'mouse') {
+      updateSnapTarget(e.clientX, e.clientY);
     }
   };
 
-  const handlePointerMove = (e: React.MouseEvent) => {
-    if (mode === 'template' || !settings.enableClickSnapToRows) {
-      setIsSnapCandidate(false);
-      return;
-    }
-    if (!containerRef.current || template.rowPositions.length === 0) {
-      setIsSnapCandidate(false);
-      return;
-    }
+  const handlePagePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    updateSnapTarget(e.clientX, e.clientY);
 
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-
-    if (x < 0 || x > 1 || y < 0 || y > 1) {
-      setIsSnapCandidate(false);
+    const activePointer = placementPointerRef.current;
+    if (!activePointer || activePointer.pointerId !== e.pointerId) {
       return;
     }
 
-    setIsSnapCandidate(isClickSnapCandidate({
-      x,
-      contentWidthPx: rect.width,
+    if (
+      Math.hypot(e.clientX - activePointer.startX, e.clientY - activePointer.startY) >
+      POINTER_TAP_SLOP_PX
+    ) {
+      activePointer.moved = true;
+    }
+  };
+
+  const handlePagePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (mode === 'template') return;
+
+    const activePointer = placementPointerRef.current;
+    if (!activePointer || activePointer.pointerId !== e.pointerId) {
+      return;
+    }
+
+    placementPointerRef.current = null;
+    if (activePointer.moved) {
+      return;
+    }
+
+    const relativePosition = getRelativePointerPosition(e.clientX, e.clientY);
+    if (!relativePosition) {
+      return;
+    }
+
+    const placement = getPlacementFromClick({
+      x: relativePosition.x,
+      y: relativePosition.y,
+      contentWidthPx: relativePosition.rect.width,
       template,
       enableClickSnapToRows: settings.enableClickSnapToRows,
-    }));
+    });
+    onContentClick(placement.x, placement.y);
+  };
+
+  const clearPointerState = () => {
+    placementPointerRef.current = null;
+  };
+
+  const handlePagePointerCancel = () => {
+    clearPointerState();
+    setSnapTarget(null);
   };
 
   const handlePointerLeave = () => {
-    setIsSnapCandidate(false);
+    setSnapTarget(null);
   };
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const { naturalWidth, naturalHeight } = e.currentTarget;
@@ -400,10 +472,12 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 >
                 <div
                     ref={containerRef}
-                    className={`relative pdf-page-container ${showSnapCandidate ? 'cursor-row-resize' : 'cursor-crosshair'}`}
-                    onClick={handlePageClick}
-                    onMouseMove={handlePointerMove}
-                    onMouseLeave={handlePointerLeave}
+                    className="relative pdf-page-container cursor-crosshair"
+                    onPointerDown={handlePagePointerDown}
+                    onPointerMove={handlePagePointerMove}
+                    onPointerUp={handlePagePointerUp}
+                    onPointerCancel={handlePagePointerCancel}
+                    onPointerLeave={handlePointerLeave}
                 >
                     <Page
                     pageNumber={currentPage}
@@ -422,19 +496,39 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                           onInteractionEnd={onTemplateInteractionEnd}
                         />
                     ) : (
-                        cuts.map((cut) => (
-                        <CutMarker
-                            key={cut.id}
-                            cut={cut}
-                            settings={settings}
-                            isSelected={selectedCutId === cut.id}
-                            onSelect={setSelectedCutId}
-                            onDelete={deleteCut}
-                            onUpdatePosition={updateCutPosition}
-                            onDragEnd={handleCutDragEnd}
-                            containerRef={containerRef}
-                        />
-                        ))
+                        <>
+                          {showSnapCandidate && snapTarget && (
+                            <div className="pointer-events-none absolute inset-0 z-20" aria-hidden="true">
+                              <div
+                                className="absolute top-0 bottom-0 w-10 -translate-x-1/2 rounded-full border border-sky-400/50 bg-sky-300/15"
+                                style={{ left: `${template.xPosition * 100}%` }}
+                              />
+                              <div
+                                className="absolute left-0 right-0 h-0.5 bg-sky-500 shadow-[0_0_0_3px_rgba(14,165,233,0.15)]"
+                                style={{ top: `${snapTarget.y * 100}%` }}
+                              />
+                              <div
+                                className="absolute top-2 -translate-x-1/2 rounded-full bg-sky-600/95 px-2 py-0.5 text-[10px] font-medium text-white shadow"
+                                style={{ left: `${template.xPosition * 100}%` }}
+                              >
+                                自動スナップ
+                              </div>
+                            </div>
+                          )}
+                          {cuts.map((cut) => (
+                          <CutMarker
+                              key={cut.id}
+                              cut={cut}
+                              settings={settings}
+                              isSelected={selectedCutId === cut.id}
+                              onSelect={setSelectedCutId}
+                              onDelete={deleteCut}
+                              onUpdatePosition={updateCutPosition}
+                              onDragEnd={handleCutDragEnd}
+                              containerRef={containerRef}
+                          />
+                          ))}
+                        </>
                     )}
                 </div>
                 </Document>
@@ -442,16 +536,18 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
 
             {docType === 'images' && currentImageUrl && (
                 <div 
-                    className={`relative pdf-page-container bg-white ${showSnapCandidate ? 'cursor-row-resize' : 'cursor-crosshair'}`}
+                    className="relative pdf-page-container bg-white cursor-crosshair"
                     ref={containerRef}
                     style={{
                         width: activeImgSize ? activeImgSize.width : 'auto',
                         height: activeImgSize ? activeImgSize.height : 'auto',
                         // Optional: Limit max display size if needed, but scaling handles it
                     }}
-                    onClick={handlePageClick}
-                    onMouseMove={handlePointerMove}
-                    onMouseLeave={handlePointerLeave}
+                    onPointerDown={handlePagePointerDown}
+                    onPointerMove={handlePagePointerMove}
+                    onPointerUp={handlePagePointerUp}
+                    onPointerCancel={handlePagePointerCancel}
+                    onPointerLeave={handlePointerLeave}
                 >
                     <img 
                         src={currentImageUrl}
@@ -464,6 +560,24 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     {/* Overlays (Only show if image is loaded to have correct dimensions) */}
                     {activeImgSize && (
                         <>
+                            {showSnapCandidate && snapTarget && (
+                                <div className="pointer-events-none absolute inset-0 z-20" aria-hidden="true">
+                                    <div
+                                        className="absolute top-0 bottom-0 w-10 -translate-x-1/2 rounded-full border border-sky-400/50 bg-sky-300/15"
+                                        style={{ left: `${template.xPosition * 100}%` }}
+                                    />
+                                    <div
+                                        className="absolute left-0 right-0 h-0.5 bg-sky-500 shadow-[0_0_0_3px_rgba(14,165,233,0.15)]"
+                                        style={{ top: `${snapTarget.y * 100}%` }}
+                                    />
+                                    <div
+                                        className="absolute top-2 -translate-x-1/2 rounded-full bg-sky-600/95 px-2 py-0.5 text-[10px] font-medium text-white shadow"
+                                        style={{ left: `${template.xPosition * 100}%` }}
+                                    >
+                                        自動スナップ
+                                    </div>
+                                </div>
+                            )}
                             {mode === 'template' ? (
                                 <TemplateOverlay
                                   template={template}

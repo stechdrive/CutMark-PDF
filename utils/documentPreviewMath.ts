@@ -28,6 +28,16 @@ interface SnapCandidateOptions {
   snapThresholdPx?: number;
 }
 
+interface ClickSnapTargetOptions extends SnapCandidateOptions {
+  y: number;
+}
+
+interface ClickSnapTarget {
+  x: number;
+  y: number;
+  rowIndex: number;
+}
+
 export const calculateFitScale = ({
   contentWidth,
   contentHeight,
@@ -59,6 +69,44 @@ export const isClickSnapCandidate = ({
   return dxPx <= snapThresholdPx;
 };
 
+export const getClickSnapTarget = ({
+  x,
+  y,
+  contentWidthPx,
+  template,
+  enableClickSnapToRows,
+  snapThresholdPx = CLICK_SNAP_THRESHOLD_PX,
+}: ClickSnapTargetOptions): ClickSnapTarget | null => {
+  if (!enableClickSnapToRows || template.rowPositions.length === 0) {
+    return null;
+  }
+
+  const dxPx = Math.abs(x - template.xPosition) * contentWidthPx;
+  if (dxPx > snapThresholdPx) {
+    return null;
+  }
+
+  const sortedRows = template.rowPositions
+    .map((rowY, rowIndex) => ({ rowY, rowIndex }))
+    .sort((a, b) => a.rowY - b.rowY);
+
+  let snapTarget = sortedRows[0];
+
+  for (const row of sortedRows) {
+    if (row.rowY <= y) {
+      snapTarget = row;
+    } else {
+      break;
+    }
+  }
+
+  return {
+    x: template.xPosition,
+    y: snapTarget.rowY,
+    rowIndex: snapTarget.rowIndex,
+  };
+};
+
 export const getPlacementFromClick = ({
   x,
   y,
@@ -67,28 +115,20 @@ export const getPlacementFromClick = ({
   enableClickSnapToRows,
   snapThresholdPx = CLICK_SNAP_THRESHOLD_PX,
 }: ClickPlacementOptions): { x: number; y: number } => {
-  if (!enableClickSnapToRows || template.rowPositions.length === 0) {
+  const snapTarget = getClickSnapTarget({
+    x,
+    y,
+    contentWidthPx,
+    template,
+    enableClickSnapToRows,
+    snapThresholdPx,
+  });
+  if (!snapTarget) {
     return { x, y };
-  }
-
-  const dxPx = Math.abs(x - template.xPosition) * contentWidthPx;
-  if (dxPx > snapThresholdPx) {
-    return { x, y };
-  }
-
-  const sortedRows = [...template.rowPositions].sort((a, b) => a - b);
-  let snapY = sortedRows[0];
-
-  for (const row of sortedRows) {
-    if (row <= y) {
-      snapY = row;
-    } else {
-      break;
-    }
   }
 
   return {
-    x: template.xPosition,
-    y: snapY,
+    x: snapTarget.x,
+    y: snapTarget.y,
   };
 };

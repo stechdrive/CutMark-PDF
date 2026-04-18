@@ -138,6 +138,144 @@ describe('DocumentPreview', () => {
     ).toBeInTheDocument();
   });
 
+  it('places a cut from touch pointer input using row snap placement', () => {
+    const onContentClick = vi.fn();
+    const template = createTemplate({
+      xPosition: 0.1,
+      rowCount: 3,
+      rowPositions: [0.2, 0.5, 0.8],
+    });
+
+    const { container } = render(
+      <DocumentPreview
+        docType="images"
+        pdfFile={null}
+        currentImageUrl="blob:image"
+        numPages={2}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={vi.fn()}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={template}
+        setTemplate={vi.fn()}
+        settings={createAppSettings()}
+        onContentClick={onContentClick}
+      />
+    );
+
+    const pageContainer = container.querySelector('.pdf-page-container') as HTMLElement;
+    vi.spyOn(pageContainer, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 1000,
+      width: 1000,
+      height: 1000,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(pageContainer, {
+      pointerId: 1,
+      pointerType: 'touch',
+      clientX: 95,
+      clientY: 540,
+    });
+    fireEvent.pointerUp(pageContainer, {
+      pointerId: 1,
+      pointerType: 'touch',
+      clientX: 95,
+      clientY: 540,
+    });
+
+    expect(onContentClick).toHaveBeenCalledWith(0.1, 0.5);
+  });
+
+  it('does not place a cut when a pointer gesture turns into a drag', () => {
+    const onContentClick = vi.fn();
+    const { container } = render(
+      <DocumentPreview
+        docType="images"
+        pdfFile={null}
+        currentImageUrl="blob:image"
+        numPages={2}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={vi.fn()}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={createTemplate()}
+        setTemplate={vi.fn()}
+        settings={createAppSettings()}
+        onContentClick={onContentClick}
+      />
+    );
+
+    const pageContainer = container.querySelector('.pdf-page-container') as HTMLElement;
+    vi.spyOn(pageContainer, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 1000,
+      width: 1000,
+      height: 1000,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(pageContainer, {
+      pointerId: 2,
+      pointerType: 'pen',
+      clientX: 100,
+      clientY: 100,
+    });
+    fireEvent.pointerMove(pageContainer, {
+      pointerId: 2,
+      pointerType: 'pen',
+      clientX: 130,
+      clientY: 130,
+    });
+    fireEvent.pointerUp(pageContainer, {
+      pointerId: 2,
+      pointerType: 'pen',
+      clientX: 130,
+      clientY: 130,
+    });
+
+    expect(onContentClick).not.toHaveBeenCalled();
+  });
+
   it('shows the updated import guidance in the empty welcome state', () => {
     render(
       <DocumentPreview
