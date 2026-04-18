@@ -81,8 +81,11 @@ export const TemplateOverlay: React.FC<TemplateOverlayProps> = ({
         onMouseDown={handleXDrag}
         onTouchStart={handleXDrag}
       >
-        <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-1 rounded whitespace-nowrap">
-          横位置 (中央基準)
+        <div
+          className="absolute top-2 left-2 bg-red-600 text-white text-xs px-1 rounded whitespace-nowrap"
+          title="カット番号の配置全体の中心がこの縦線に合う位置です。"
+        >
+          横位置 (配置の中心)
         </div>
       </div>
 
@@ -95,8 +98,11 @@ export const TemplateOverlay: React.FC<TemplateOverlayProps> = ({
           onMouseDown={(e) => handleYDrag(i, e)}
           onTouchStart={(e) => handleYDrag(i, e)}
         >
-          <div className="absolute left-2 -top-6 bg-blue-600 text-white text-xs px-1 rounded flex items-center shadow-sm">
-             行 {i + 1} (上基準)
+          <div
+            className="absolute left-2 -top-6 bg-blue-600 text-white text-xs px-1 rounded flex items-center shadow-sm"
+            title="カット番号の配置全体の上端がこの横線に合う位置です。"
+          >
+             行 {i + 1} (配置の上端)
           </div>
         </div>
       ))}

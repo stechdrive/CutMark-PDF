@@ -8,7 +8,6 @@ import { SidebarTemplateSelector } from './SidebarTemplateSelector';
 
 interface SidebarProps {
   mode: 'edit' | 'template';
-  setMode: (mode: 'edit' | 'template') => void;
   pdfFile: File | null;
   selectedCutId: string | null;
   // Template Props
@@ -32,7 +31,6 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({
   mode,
-  setMode,
   selectedCutId,
   templates,
   template,
@@ -61,7 +59,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             saveTemplateByName={saveTemplateByName}
             deleteTemplate={deleteTemplate}
             distributeRows={distributeRows}
-            setMode={setMode}
           />
         ) : (
           <div className="space-y-4">

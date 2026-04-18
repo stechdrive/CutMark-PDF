@@ -211,7 +211,6 @@ export const useAppPresentationController = ({
     },
     sidebar: {
       mode: workspace.mode,
-      setMode: workspace.setMode,
       pdfFile: workspace.pdfFile || (workspace.imageFiles.length > 0 ? workspace.imageFiles[0] : null),
       selectedCutId: effectiveSelectedCutId,
       projectOrganizerProps: workspace.loadedProjectManager.projectOrganizerProps,

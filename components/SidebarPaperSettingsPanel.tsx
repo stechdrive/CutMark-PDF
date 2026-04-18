@@ -4,7 +4,6 @@ import {
   ArrowUpDown,
   Check,
   ChevronDown,
-  ChevronLeft,
   Minus,
   Plus,
   Save,
@@ -20,7 +19,6 @@ interface SidebarPaperSettingsPanelProps {
   saveTemplateByName: (name: string) => void;
   deleteTemplate: () => void;
   distributeRows: () => void;
-  setMode: (mode: 'edit' | 'template') => void;
 }
 
 export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps> = ({
@@ -31,7 +29,6 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
   saveTemplateByName,
   deleteTemplate,
   distributeRows,
-  setMode,
 }) => {
   const [localState, setLocalState] = useState(() => ({
     templateId: template.id,
@@ -98,21 +95,11 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <h3
-          className="text-sm font-semibold text-gray-900"
-          title="プレビュー上の赤線と青線をドラッグして用紙枠を調整します。行数や縦位置を整えたら、必要に応じてテンプレートを保存してください。"
-        >
-          コンテ用紙設定
-        </h3>
-        <button
-          type="button"
-          onClick={() => setMode('edit')}
-          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-800"
-        >
-          <ChevronLeft size={14} />
-          戻る
-        </button>
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold text-gray-900">コンテ用紙設定</h3>
+        <p className="mt-1 text-[11px] leading-4 text-gray-500">
+          赤線と青線をドラッグして用紙枠を調整します。整えたら必要に応じて保存してください。
+        </p>
       </div>
 
       <div className="space-y-2.5 rounded-lg border border-gray-200 bg-gray-50 p-2.5">
@@ -252,7 +239,7 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
             onClick={distributeRows}
             disabled={template.rowCount <= 2}
             className="mt-2.5 flex w-full items-center justify-center gap-2 rounded border border-gray-200 bg-white py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-            title="プレビュー上の赤線と青線をドラッグして用紙枠を調整します。"
+            title="1行目と最終行を基準に、間の行を等間隔に並べ直します。"
           >
             <ArrowUpDown size={14} /> 縦位置を均等配置
           </button>

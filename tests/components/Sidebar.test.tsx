@@ -15,7 +15,6 @@ const createSidebarProps = (mode: 'edit' | 'template' = 'edit') => {
 
   return {
     mode,
-    setMode: vi.fn(),
     pdfFile: null,
     selectedCutId: 'cut-1',
     templates: [
@@ -63,21 +62,19 @@ describe('Sidebar', () => {
   });
 
   it('replaces the right panel with paper settings in template mode', async () => {
-    const user = userEvent.setup();
     const props = createSidebarProps('template');
 
     render(<Sidebar {...props} />);
 
     expect(screen.getByText('コンテ用紙設定')).toBeInTheDocument();
+    expect(
+      screen.getByText('赤線と青線をドラッグして用紙枠を調整します。整えたら必要に応じて保存してください。')
+    ).toBeInTheDocument();
     expect(screen.getByText('縦位置を均等配置')).toBeInTheDocument();
     expect(screen.queryByText('画面クリックで配置。カット番号列付近なら自動スナップ。')).not.toBeInTheDocument();
     expect(screen.queryByText('番号設定')).not.toBeInTheDocument();
     expect(screen.queryByText('表示スタイル')).not.toBeInTheDocument();
     expect(screen.queryByText('用紙テンプレート')).not.toBeInTheDocument();
     expect(screen.queryByText('行スナップ入力')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: '戻る' }));
-
-    expect(props.setMode).toHaveBeenCalledWith('edit');
   });
 });
