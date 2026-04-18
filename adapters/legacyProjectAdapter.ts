@@ -120,37 +120,74 @@ export const createProjectDocumentFromLegacySnapshot = ({
   });
 };
 
+export const createLegacyCutsFromProjectDocument = (
+  project: ProjectDocument,
+  bindings?: Record<string, number | null>
+): Cut[] =>
+  (bindings
+    ? project.logicalPages
+        .flatMap((page) => {
+          const pageIndex = bindings[page.id];
+          if (pageIndex == null || pageIndex < 0) return [];
+          return page.cuts.map((cut) => ({
+            id: cut.id,
+            pageIndex,
+            x: cut.x,
+            y: cut.y,
+            label: cut.label,
+            isBranch: cut.isBranch,
+          }));
+        })
+        .sort((left, right) => {
+          if (left.pageIndex !== right.pageIndex) {
+            return left.pageIndex - right.pageIndex;
+          }
+          if (left.y !== right.y) {
+            return left.y - right.y;
+          }
+          return left.x - right.x;
+        })
+    : project.logicalPages.flatMap((page, pageIndex) =>
+        page.cuts.map((cut) => ({
+          id: cut.id,
+          pageIndex,
+          x: cut.x,
+          y: cut.y,
+          label: cut.label,
+          isBranch: cut.isBranch,
+        }))
+      ));
+
+export const createAppSettingsFromProjectDocument = (
+  project: ProjectDocument
+): AppSettings => ({
+  fontSize: project.style.fontSize,
+  useWhiteBackground: project.style.useWhiteBackground,
+  backgroundPadding: project.style.backgroundPadding,
+  nextNumber: project.numbering.nextNumber,
+  branchChar: project.numbering.branchChar,
+  autoIncrement: project.numbering.autoIncrement,
+  minDigits: project.numbering.minDigits,
+  textOutlineWidth: project.style.textOutlineWidth,
+  enableClickSnapToRows: project.style.enableClickSnapToRows,
+});
+
+export const createTemplateFromProjectDocument = (
+  project: ProjectDocument
+): Template => ({
+  id: project.template.id,
+  name: project.template.name,
+  rowCount: project.template.rowCount,
+  xPosition: project.template.xPosition,
+  rowPositions: [...project.template.rowPositions],
+});
+
 export const createLegacyStateFromProjectDocument = (
   project: ProjectDocument
 ): LegacyProjectState => ({
-  cuts: project.logicalPages.flatMap((page, pageIndex) =>
-    page.cuts.map((cut) => ({
-      id: cut.id,
-      pageIndex,
-      x: cut.x,
-      y: cut.y,
-      label: cut.label,
-      isBranch: cut.isBranch,
-    }))
-  ),
-  settings: {
-    fontSize: project.style.fontSize,
-    useWhiteBackground: project.style.useWhiteBackground,
-    backgroundPadding: project.style.backgroundPadding,
-    nextNumber: project.numbering.nextNumber,
-    branchChar: project.numbering.branchChar,
-    autoIncrement: project.numbering.autoIncrement,
-    minDigits: project.numbering.minDigits,
-    textOutlineWidth: project.style.textOutlineWidth,
-    enableClickSnapToRows: project.style.enableClickSnapToRows,
-  },
-  template: {
-    id: project.template.id,
-    name: project.template.name,
-    rowCount: project.template.rowCount,
-    xPosition: project.template.xPosition,
-    rowPositions: [...project.template.rowPositions],
-  },
+  cuts: createLegacyCutsFromProjectDocument(project),
+  settings: createAppSettingsFromProjectDocument(project),
+  template: createTemplateFromProjectDocument(project),
   logicalPageCount: project.logicalPages.length,
   projectName: project.meta.name,
   numberingState: {
@@ -163,46 +200,9 @@ export const createLegacyStateFromBoundProjectDocument = (
   project: ProjectDocument,
   bindings: Record<string, number | null>
 ): LegacyProjectState => ({
-  cuts: project.logicalPages
-    .flatMap((page) => {
-      const pageIndex = bindings[page.id];
-      if (pageIndex == null || pageIndex < 0) return [];
-      return page.cuts.map((cut) => ({
-        id: cut.id,
-        pageIndex,
-        x: cut.x,
-        y: cut.y,
-        label: cut.label,
-        isBranch: cut.isBranch,
-      }));
-    })
-    .sort((left, right) => {
-      if (left.pageIndex !== right.pageIndex) {
-        return left.pageIndex - right.pageIndex;
-      }
-      if (left.y !== right.y) {
-        return left.y - right.y;
-      }
-      return left.x - right.x;
-    }),
-  settings: {
-    fontSize: project.style.fontSize,
-    useWhiteBackground: project.style.useWhiteBackground,
-    backgroundPadding: project.style.backgroundPadding,
-    nextNumber: project.numbering.nextNumber,
-    branchChar: project.numbering.branchChar,
-    autoIncrement: project.numbering.autoIncrement,
-    minDigits: project.numbering.minDigits,
-    textOutlineWidth: project.style.textOutlineWidth,
-    enableClickSnapToRows: project.style.enableClickSnapToRows,
-  },
-  template: {
-    id: project.template.id,
-    name: project.template.name,
-    rowCount: project.template.rowCount,
-    xPosition: project.template.xPosition,
-    rowPositions: [...project.template.rowPositions],
-  },
+  cuts: createLegacyCutsFromProjectDocument(project, bindings),
+  settings: createAppSettingsFromProjectDocument(project),
+  template: createTemplateFromProjectDocument(project),
   logicalPageCount: project.logicalPages.length,
   projectName: project.meta.name,
   numberingState: {

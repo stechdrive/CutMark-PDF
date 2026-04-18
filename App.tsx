@@ -6,10 +6,11 @@ import { Cut, NumberingState } from './types';
 import { saveMarkedPdf, saveImagesAsPdf } from './services/pdfService';
 import { exportImagesAsZip } from './services/imageExportService';
 import {
+  createAppSettingsFromProjectDocument,
   createAssetHintsFromCurrentDocument,
-  createLegacyStateFromBoundProjectDocument,
-  createLegacyStateFromProjectDocument,
+  createLegacyCutsFromProjectDocument,
   createProjectDocumentFromLegacySnapshot,
+  createTemplateFromProjectDocument,
 } from './adapters/legacyProjectAdapter';
 import {
   downloadProjectDocument,
@@ -331,9 +332,10 @@ export default function App() {
     selectedLogicalPageNumber,
   ]);
 
-  const materializeProjectDraft = useCallback((
+  const resolveProjectDocumentForCurrentState = useCallback((
     project: ProjectDocument,
-    bindings: ProjectAssetBindings
+    bindings: ProjectAssetBindings,
+    options: { touchSavedAt?: boolean } = {}
   ) => {
     const projectWithBoundHints = applyBoundAssetHintsToProject(
       project,
@@ -345,13 +347,39 @@ export default function App() {
       ...projectWithBoundHints,
       meta: {
         ...projectWithBoundHints.meta,
-        savedAt: new Date().toISOString(),
+        savedAt: options.touchSavedAt
+          ? new Date().toISOString()
+          : projectWithBoundHints.meta.savedAt,
       },
       numbering: toNumberingPolicy(settings),
       style: toStyleSettings(settings),
       template: toTemplateSnapshot(template),
     };
   }, [currentAssetHints, settings, template]);
+
+  const resolvedLoadedProject = useMemo(
+    () =>
+      loadedProject
+        ? resolveProjectDocumentForCurrentState(loadedProject, projectBindings)
+        : null,
+    [loadedProject, projectBindings, resolveProjectDocumentForCurrentState]
+  );
+
+  const effectiveExportCuts = useMemo(
+    () =>
+      resolvedLoadedProject
+        ? createLegacyCutsFromProjectDocument(resolvedLoadedProject, projectBindings)
+        : cuts,
+    [cuts, projectBindings, resolvedLoadedProject]
+  );
+
+  const effectiveExportSettings = useMemo(
+    () =>
+      resolvedLoadedProject
+        ? createAppSettingsFromProjectDocument(resolvedLoadedProject)
+        : settings,
+    [resolvedLoadedProject, settings]
+  );
 
   // --- Logic Orchestration ---
   
@@ -526,26 +554,27 @@ export default function App() {
     bindings?: ProjectAssetBindings
   ) => {
     const projectForApply =
-      bindings ? materializeProjectDraft(project, bindings) : project;
-    const legacy = bindings
-      ? createLegacyStateFromBoundProjectDocument(projectForApply, bindings)
-      : createLegacyStateFromProjectDocument(projectForApply);
-    setSettings(legacy.settings);
-    upsertTemplate(legacy.template);
-    replaceCutsState(legacy.cuts, legacy.numberingState);
+      bindings ? resolveProjectDocumentForCurrentState(project, bindings) : project;
+    const nextCuts = createLegacyCutsFromProjectDocument(projectForApply, bindings);
+    setSettings(createAppSettingsFromProjectDocument(projectForApply));
+    upsertTemplate(createTemplateFromProjectDocument(projectForApply));
+    replaceCutsState(nextCuts, {
+      nextNumber: projectForApply.numbering.nextNumber,
+      branchChar: projectForApply.numbering.branchChar,
+    });
     setCurrentPage(1);
     setMode('edit');
 
     logDebug('info', 'プロジェクト適用完了', () => ({
-      projectName: legacy.projectName,
-      logicalPages: legacy.logicalPageCount,
-      cutCount: legacy.cuts.length,
+      projectName: projectForApply.meta.name,
+      logicalPages: projectForApply.logicalPages.length,
+      cutCount: nextCuts.length,
       assignedPages: bindings
         ? Object.values(bindings).filter((pageIndex) => pageIndex != null).length
-        : legacy.logicalPageCount,
+        : projectForApply.logicalPages.length,
       sourceFile,
     }));
-  }, [logDebug, materializeProjectDraft, replaceCutsState, setCurrentPage, setSettings, upsertTemplate]);
+  }, [logDebug, replaceCutsState, resolveProjectDocumentForCurrentState, setCurrentPage, setSettings, upsertTemplate]);
 
   const handleProjectBindingChange = useCallback((logicalPageId: string, nextAssetIndex: number | null) => {
     assignProjectAsset(logicalPageId, nextAssetIndex);
@@ -622,7 +651,11 @@ export default function App() {
     }
 
     if (loadedProject) {
-      const project = materializeProjectDraft(loadedProject, projectBindings);
+      const project = resolveProjectDocumentForCurrentState(
+        loadedProject,
+        projectBindings,
+        { touchSavedAt: true }
+      );
       replaceEditorProject(project, projectBindings);
       downloadProjectDocument(project);
       logDebug('info', 'プロジェクト保存', () => ({
@@ -666,10 +699,10 @@ export default function App() {
     imageFiles,
     loadedProject,
     logDebug,
-    materializeProjectDraft,
     numPages,
     pdfFile,
     projectBindings,
+    resolveProjectDocumentForCurrentState,
     settings,
     template,
     loadProjectIntoEditor,
@@ -685,11 +718,10 @@ export default function App() {
       const project = await loadProjectDocumentFromFile(file);
       const fileInfo = toFileInfo(file);
       const suggestedBindings = createSuggestedProjectAssetBindings(project, currentAssetHints);
-      const legacySnapshot = createLegacyStateFromProjectDocument(project);
 
       loadProjectIntoEditor(project);
-      setSettings(legacySnapshot.settings);
-      upsertTemplate(legacySnapshot.template);
+      setSettings(createAppSettingsFromProjectDocument(project));
+      upsertTemplate(createTemplateFromProjectDocument(project));
       logDebug('info', 'プロジェクト読込完了', () => ({
         projectName: project.meta.name,
         logicalPages: project.logicalPages.length,
@@ -729,6 +761,11 @@ export default function App() {
 
   // Export PDF
   const handleExportPdf = async () => {
+    if (loadedProject && !canApplyLoadedProject) {
+      alert('論理ページの割当を完了してから書き出してください');
+      return;
+    }
+
     setIsExporting(true);
     try {
         let pdfBytes: Uint8Array;
@@ -738,11 +775,11 @@ export default function App() {
             filename = `marked_${pdfFile.name}`;
             logDebug('info', 'PDF書き出し開始', () => ({ mode: 'pdf', filename }));
             const arrayBuffer = await pdfFile.arrayBuffer();
-            pdfBytes = await saveMarkedPdf(arrayBuffer, cuts, settings);
+            pdfBytes = await saveMarkedPdf(arrayBuffer, effectiveExportCuts, effectiveExportSettings);
         } else if (docType === 'images' && imageFiles.length > 0) {
             filename = 'marked_images.pdf';
             logDebug('info', 'PDF書き出し開始', () => ({ mode: 'images', filename }));
-            pdfBytes = await saveImagesAsPdf(imageFiles, cuts, settings);
+            pdfBytes = await saveImagesAsPdf(imageFiles, effectiveExportCuts, effectiveExportSettings);
         } else {
             return;
         }
@@ -773,11 +810,16 @@ export default function App() {
         logDebug('warn', '画像書き出し不可', () => ({ docType, imageCount: imageFiles.length }));
         return;
     }
+
+    if (loadedProject && !canApplyLoadedProject) {
+        alert('論理ページの割当を完了してから書き出してください');
+        return;
+    }
     
     setIsExporting(true);
     try {
         logDebug('info', '画像書き出し開始', () => ({ imageCount: imageFiles.length }));
-        await exportImagesAsZip(imageFiles, cuts, settings, (curr, total) => {
+        await exportImagesAsZip(imageFiles, effectiveExportCuts, effectiveExportSettings, (curr, total) => {
             // Optional: Update progress UI
             console.log(`Processing ${curr}/${total}`);
         });
