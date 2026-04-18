@@ -1,4 +1,4 @@
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, DragEvent } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -172,6 +172,34 @@ describe('useWorkspaceFileActions', () => {
           { sourceKind: 'pdf-page', sourceLabel: 'sample.pdf', pageNumber: 2 },
           { sourceKind: 'pdf-page', sourceLabel: 'sample.pdf', pageNumber: 3 },
         ],
+      })
+    );
+  });
+
+  it('accepts the same combined import patterns from drag and drop', async () => {
+    const options = createOptions();
+    const imageFile = new File(['img'], '001.png', { type: 'image/png' });
+    const projectFile = new File(['{}'], 'sample.cutmark.json', { type: 'application/json' });
+    const event = {
+      dataTransfer: {
+        types: ['Files'],
+        files: createFileList([projectFile, imageFile]),
+      },
+    } as unknown as DragEvent<HTMLDivElement>;
+
+    const { result } = renderHook(() => useWorkspaceFileActions(options));
+
+    await act(async () => {
+      await result.current.onFileDropped(event);
+    });
+
+    expect(options.onDrop).toHaveBeenCalledWith(event);
+    expect(options.loadImages).toHaveBeenCalledWith([imageFile]);
+    expect(options.loadProjectFile).toHaveBeenCalledWith(
+      projectFile,
+      expect.objectContaining({
+        docType: 'images',
+        numPages: 1,
       })
     );
   });

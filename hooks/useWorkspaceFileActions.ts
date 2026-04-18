@@ -14,6 +14,29 @@ const VALID_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
 
 class WorkspaceImportValidationError extends Error {}
 
+type FileSystemEntry = {
+  isFile: boolean;
+  isDirectory: boolean;
+};
+
+type FileSystemFileEntry = FileSystemEntry & {
+  isFile: true;
+  file: (success: (file: File) => void, error?: () => void) => void;
+};
+
+type FileSystemDirectoryEntry = FileSystemEntry & {
+  isDirectory: true;
+  createReader: () => FileSystemDirectoryReader;
+};
+
+type FileSystemDirectoryReader = {
+  readEntries: (success: (entries: FileSystemEntry[]) => void, error?: () => void) => void;
+};
+
+type DataTransferItemWithEntry = DataTransferItem & {
+  webkitGetAsEntry?: () => FileSystemEntry | null;
+};
+
 interface UseWorkspaceFileActionsOptions {
   docType: DocType | null;
   pdfFile: File | null;
@@ -44,6 +67,10 @@ interface WorkspaceImportPlan {
   imageFiles: File[];
   unsupportedFiles: File[];
 }
+
+const isFileEntry = (entry: FileSystemEntry): entry is FileSystemFileEntry => entry.isFile;
+const isDirectoryEntry = (entry: FileSystemEntry): entry is FileSystemDirectoryEntry =>
+  entry.isDirectory;
 
 const isProjectFile = (file: File) => {
   const lowerName = file.name.toLowerCase();
@@ -190,6 +217,80 @@ const createProjectImportContext = async (
   return undefined;
 };
 
+const readDroppedDirectoryEntries = async (reader: FileSystemDirectoryReader) => {
+  const allEntries: FileSystemEntry[] = [];
+
+  while (true) {
+    const batch = await new Promise<FileSystemEntry[]>((resolve) => {
+      reader.readEntries((entries) => resolve(entries), () => resolve([]));
+    });
+
+    if (batch.length === 0) {
+      break;
+    }
+
+    allEntries.push(...batch);
+  }
+
+  return allEntries;
+};
+
+const collectDroppedFiles = async (items: DataTransferItemList): Promise<File[]> => {
+  const entries: FileSystemEntry[] = [];
+
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index] as DataTransferItemWithEntry;
+    const entry = item.webkitGetAsEntry?.();
+    if (entry) {
+      entries.push(entry);
+    }
+  }
+
+  if (entries.length === 0) {
+    const files: File[] = [];
+    for (let index = 0; index < items.length; index++) {
+      const file = items[index].getAsFile();
+      if (file) {
+        files.push(file);
+      }
+    }
+    return files;
+  }
+
+  const files: File[] = [];
+
+  const readEntry = async (entry: FileSystemEntry): Promise<void> => {
+    if (isFileEntry(entry)) {
+      await new Promise<void>((resolve) => {
+        entry.file((file) => {
+          files.push(file);
+          resolve();
+        }, () => resolve());
+      });
+      return;
+    }
+
+    if (isDirectoryEntry(entry)) {
+      const childEntries = await readDroppedDirectoryEntries(entry.createReader());
+      for (const childEntry of childEntries) {
+        if (!isFileEntry(childEntry)) {
+          continue;
+        }
+
+        await new Promise<void>((resolve) => {
+          childEntry.file((file) => {
+            files.push(file);
+            resolve();
+          }, () => resolve());
+        });
+      }
+    }
+  };
+
+  await Promise.all(entries.map((entry) => readEntry(entry)));
+  return files;
+};
+
 export const useWorkspaceFileActions = ({
   docType,
   pdfFile,
@@ -205,16 +306,14 @@ export const useWorkspaceFileActions = ({
   setIsExporting,
   logDebug,
 }: UseWorkspaceFileActionsOptions) => {
-  const onImportFilesSelected = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-
+  const importFiles = useCallback(async (selectedFiles: FileList | File[]) => {
     try {
-      if (!files || files.length === 0) {
+      if (!selectedFiles || selectedFiles.length === 0) {
         logDebug('warn', '読み込みキャンセル');
         return;
       }
 
-      const plan = createWorkspaceImportPlan(classifyImportFiles(files));
+      const plan = createWorkspaceImportPlan(classifyImportFiles(selectedFiles));
       let importContext: ProjectImportContext | undefined;
 
       if (plan.projectFile && plan.assetType !== 'none') {
@@ -264,24 +363,42 @@ export const useWorkspaceFileActions = ({
       }
     } catch (error) {
       const isValidationError = error instanceof WorkspaceImportValidationError;
-      const selectedFiles: File[] = files ? Array.from(files) : [];
+      const files = Array.from(selectedFiles);
       alert(isValidationError ? error.message : '読み込み中にエラーが発生しました');
       logDebug(isValidationError ? 'warn' : 'error', '読み込み失敗', () => ({
         error: normalizeError(error),
-        files: selectedFiles.map((file) => toFileInfo(file)),
+        files: files.map((file) => toFileInfo(file)),
       }));
-    } finally {
-      e.target.value = '';
     }
   }, [loadImages, loadPdf, loadProjectFile, logDebug]);
 
-  const onFileDropped = useCallback((e: DragEvent<HTMLDivElement>) => {
+  const onImportFilesSelected = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+    try {
+      if (!e.target.files) {
+        logDebug('warn', '読み込みキャンセル');
+        return;
+      }
+
+      await importFiles(e.target.files);
+    } finally {
+      e.target.value = '';
+    }
+  }, [importFiles, logDebug]);
+
+  const onFileDropped = useCallback(async (e: DragEvent<HTMLDivElement>) => {
     logDebug('info', 'ファイルドロップ', () => ({
       types: Array.from(e.dataTransfer?.types ?? []),
       itemCount: e.dataTransfer?.items?.length ?? 0,
     }));
+
     onDrop(e);
-  }, [logDebug, onDrop]);
+
+    const droppedFiles = e.dataTransfer?.items?.length
+      ? await collectDroppedFiles(e.dataTransfer.items)
+      : Array.from(e.dataTransfer?.files ?? []);
+
+    await importFiles(droppedFiles);
+  }, [importFiles, logDebug, onDrop]);
 
   const handleExportPdf = useCallback(async () => {
     if (isLoadedProjectActive && !canApplyLoadedProject) {

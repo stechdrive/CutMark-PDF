@@ -3,33 +3,6 @@ import { useState, useRef, useCallback, useEffect, type DragEvent } from 'react'
 import { DocType } from '../types';
 import { getExifOrientation, renderImageWithOrientation } from '../services/imageProcessing';
 
-type FileSystemEntry = {
-  isFile: boolean;
-  isDirectory: boolean;
-};
-
-type FileSystemFileEntry = FileSystemEntry & {
-  isFile: true;
-  file: (success: (file: File) => void, error?: () => void) => void;
-};
-
-type FileSystemDirectoryEntry = FileSystemEntry & {
-  isDirectory: true;
-  createReader: () => FileSystemDirectoryReader;
-};
-
-type FileSystemDirectoryReader = {
-  readEntries: (success: (entries: FileSystemEntry[]) => void, error?: () => void) => void;
-};
-
-type DataTransferItemWithEntry = DataTransferItem & {
-  webkitGetAsEntry?: () => FileSystemEntry | null;
-};
-
-const isFileEntry = (entry: FileSystemEntry): entry is FileSystemFileEntry => entry.isFile;
-const isDirectoryEntry = (entry: FileSystemEntry): entry is FileSystemDirectoryEntry =>
-  entry.isDirectory;
-
 export const useDocumentViewer = (onLoadComplete?: () => void) => {
   const [docType, setDocType] = useState<DocType | null>(null);
   
@@ -148,121 +121,12 @@ export const useDocumentViewer = (onLoadComplete?: () => void) => {
     e.stopPropagation();
   }, []);
 
-  // Helper to scan files from DataTransferItems
-  const scanFiles = async (items: DataTransferItemList): Promise<{ pdf: File | null, images: File[] }> => {
-    const entries: FileSystemEntry[] = [];
-    
-    for (let i = 0; i < items.length; i++) {
-        const item = items[i] as DataTransferItemWithEntry;
-        // webkitGetAsEntry は非標準だが主要ブラウザで利用可能
-        const entry = item.webkitGetAsEntry?.();
-        if (entry) entries.push(entry);
-    }
-
-    const imageList: File[] = [];
-    let pdfItem: File | null = null;
-    const validExts = ['.jpg', '.jpeg', '.png'];
-
-    const readAllEntries = async (reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> => {
-        const all: FileSystemEntry[] = [];
-
-        while (true) {
-            const batch = await new Promise<FileSystemEntry[]>((resolve) => {
-                reader.readEntries((entries) => resolve(entries), () => resolve([]));
-            });
-
-            if (batch.length === 0) break;
-            all.push(...batch);
-        }
-
-        return all;
-    };
-
-    const readEntry = async (entry: FileSystemEntry) => {
-        if (isFileEntry(entry)) {
-            return new Promise<void>((resolve) => {
-                // entry.file() gets the File object
-                entry.file((file: File) => {
-                    const lowerName = file.name.toLowerCase();
-                    if (file.type === 'application/pdf' || lowerName.endsWith('.pdf')) {
-                        pdfItem = file;
-                    } else if (validExts.some(ext => lowerName.endsWith(ext))) {
-                        imageList.push(file);
-                    }
-                    resolve();
-                }, () => resolve()); // Error handler resolves anyway
-            });
-        } else if (isDirectoryEntry(entry)) {
-            // Create a reader to read entries in the directory
-            const dirReader = entry.createReader();
-            return new Promise<void>((resolve) => {
-                // readEntries returns an array of entries
-                readAllEntries(dirReader)
-                  .then(async (subEntries) => {
-                      // Only scan first level children, no recursion as per requirements
-                      // "フォルダ内の連番静止画JPG/PNG（子フォルダの再帰なし）"
-                      for (const sub of subEntries) {
-                           if (isFileEntry(sub)) {
-                               await new Promise<void>((res) => {
-                                   sub.file((file: File) => {
-                                       const lowerName = file.name.toLowerCase();
-                                       if (validExts.some(ext => lowerName.endsWith(ext))) {
-                                           imageList.push(file);
-                                       }
-                                       res();
-                                   }, () => res());
-                               });
-                           }
-                      }
-                      resolve();
-                  })
-                  .catch(() => resolve());
-            });
-        }
-    };
-
-    // If multiple items dropped (e.g. multiple images selected), we process all.
-    // If a single folder is dropped, we process its content.
-    // If FileSystem API is not available (entries empty), fallback logic could be added here if needed,
-    // but drag-and-drop usually supports this in modern browsers.
-    if (entries.length > 0) {
-        await Promise.all(entries.map(readEntry));
-    } else {
-        // Fallback for browsers not supporting webkitGetAsEntry (very rare nowadays for DnD)
-        // Just treat them as flat files
-        for (let i = 0; i < items.length; i++) {
-            const file = items[i].getAsFile();
-            if (file) {
-                 const lowerName = file.name.toLowerCase();
-                 if (file.type === 'application/pdf' || lowerName.endsWith('.pdf')) {
-                     pdfItem = file;
-                 } else if (validExts.some(ext => lowerName.endsWith(ext))) {
-                     imageList.push(file);
-                 }
-            }
-        }
-    }
-    
-    return { pdf: pdfItem, images: imageList };
-  };
-
-  const handleDrop = useCallback(async (e: DragEvent<HTMLDivElement>) => {
+  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     dragCounter.current = 0;
-
-    const items = e.dataTransfer.items;
-    if (!items || items.length === 0) return;
-
-    const { pdf, images } = await scanFiles(items);
-
-    if (pdf) {
-        loadPdf(pdf);
-    } else if (images.length > 0) {
-        loadImages(images);
-    }
-  }, [loadPdf, loadImages]);
+  }, []);
 
   const setPage = useCallback((newPage: number | ((prev: number) => number)) => {
     if (typeof newPage === 'function') {

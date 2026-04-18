@@ -350,10 +350,13 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               ? 'ここにドロップして開く'
               : (
                 <>
-                  ファイル/フォルダをドラッグ＆ドロップ<br />
-                  または「読み込み」から PDF / プロジェクト / 画像を選んでください
+                  ファイルや画像フォルダをドラッグ＆ドロップ<br />
+                  または「読み込み」から PDF / 連番画像 / プロジェクトJSON を選んでください
                 </>
               )}
+          </p>
+          <p className="mt-2 text-sm text-gray-500">
+            プロジェクトJSONは、PDF 1つ または 連番画像と一緒に読み込めます
           </p>
           <p className="mt-4 text-xs text-gray-500">
             データはブラウザ内だけで処理されサーバーには送信されません

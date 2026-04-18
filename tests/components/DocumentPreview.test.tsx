@@ -137,4 +137,47 @@ describe('DocumentPreview', () => {
       screen.getByText('右パネルで現在の素材ページを割り当てると、プレビューが同期します。')
     ).toBeInTheDocument();
   });
+
+  it('shows the updated import guidance in the empty welcome state', () => {
+    render(
+      <DocumentPreview
+        docType={null}
+        pdfFile={null}
+        currentImageUrl={null}
+        numPages={0}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={vi.fn()}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={createTemplate()}
+        setTemplate={vi.fn()}
+        settings={createAppSettings()}
+        onContentClick={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText((content) =>
+        content.includes('または「読み込み」から PDF / 連番画像 / プロジェクトJSON を選んでください')
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('プロジェクトJSONは、PDF 1つ または 連番画像と一緒に読み込めます')
+    ).toBeInTheDocument();
+  });
 });
