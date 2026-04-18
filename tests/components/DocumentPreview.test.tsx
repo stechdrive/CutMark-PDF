@@ -177,7 +177,7 @@ describe('DocumentPreview', () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText('プロジェクトJSONは、PDF 1つ または 連番画像と一緒に読み込めます')
+      screen.getByText('プロジェクトJSONも、PDF や連番画像とまとめてドロップできます')
     ).toBeInTheDocument();
   });
 });

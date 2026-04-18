@@ -356,7 +356,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               )}
           </p>
           <p className="mt-2 text-sm text-gray-500">
-            プロジェクトJSONは、PDF 1つ または 連番画像と一緒に読み込めます
+            プロジェクトJSONも、PDF や連番画像とまとめてドロップできます
           </p>
           <p className="mt-4 text-xs text-gray-500">
             データはブラウザ内だけで処理されサーバーには送信されません
