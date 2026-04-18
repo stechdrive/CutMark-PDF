@@ -49,7 +49,7 @@ describe('application/currentDocumentProjection', () => {
         pdfFile: new File(['pdf'], 'book.pdf', { type: 'application/pdf' }),
         imageFiles: [],
       })
-    ).toBe('book.pdf');
+    ).toBe('book');
 
     expect(
       deriveCurrentProjectName({

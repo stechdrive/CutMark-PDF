@@ -23,7 +23,7 @@ describe('useCurrentDocumentMetadata', () => {
       })
     );
 
-    expect(result.current.currentProjectName).toBe('book.pdf');
+    expect(result.current.currentProjectName).toBe('book');
     expect(result.current.currentAssetHints).toEqual([
       { sourceKind: 'pdf-page', sourceLabel: 'book.pdf', pageNumber: 1 },
       { sourceKind: 'pdf-page', sourceLabel: 'book.pdf', pageNumber: 2 },

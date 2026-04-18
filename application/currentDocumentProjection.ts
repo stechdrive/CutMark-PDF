@@ -50,15 +50,17 @@ export const deriveCurrentProjectName = ({
   pdfFile,
   imageFiles,
 }: Omit<CurrentDocumentHintOptions, 'pageCount'>) => {
+  const stripExtension = (name?: string) => name?.replace(/\.[^.]+$/, '') || name;
+
   if (docType === 'pdf') {
-    return pdfFile?.name;
+    return stripExtension(pdfFile?.name);
   }
   if (docType === 'images') {
     const folderName = imageFiles[0]?.webkitRelativePath?.split('/')[0];
     if (folderName) return folderName;
 
     const firstFileName = imageFiles[0]?.name;
-    return firstFileName?.replace(/\.[^.]+$/, '') || firstFileName;
+    return stripExtension(firstFileName);
   }
   return undefined;
 };
