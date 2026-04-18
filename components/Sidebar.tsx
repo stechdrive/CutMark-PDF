@@ -7,6 +7,7 @@ import { SidebarPaperSettingsPanel } from './SidebarPaperSettingsPanel';
 import { SidebarTemplateSelector } from './SidebarTemplateSelector';
 
 interface SidebarProps {
+  layout?: 'desktop' | 'mobile';
   mode: 'edit' | 'template';
   pdfFile: File | null;
   selectedCutId: string | null;
@@ -30,6 +31,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
+  layout = 'desktop',
   mode,
   selectedCutId,
   templates,
@@ -47,9 +49,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setNumberingState,
   onRenumberFromSelected,
 }) => {
+  const isMobileLayout = layout === 'mobile';
+
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col shadow-xl z-20">
-      <div className="flex-1 overflow-y-auto p-3">
+    <div
+      className={`flex min-h-0 flex-col bg-white ${
+        isMobileLayout ? 'h-full' : 'z-20 w-80 border-l border-gray-200 shadow-xl'
+      }`}
+    >
+      <div className={`flex-1 overflow-y-auto ${isMobileLayout ? 'p-3' : 'p-3'}`}>
         {mode === 'template' ? (
           <SidebarPaperSettingsPanel
             templates={templates}
@@ -94,13 +102,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Footer */}
-      <div className="border-t border-gray-200 bg-white px-3 py-2 text-center text-[10px] leading-4 text-gray-400">
-        CutMark PDF v{__APP_VERSION__}<br />Copyright (c) 2025 stechdrive<br />
-        ブラウザ内でのみ処理を行います<br />
-        読み込みんだデータや保存したテンプレートが<br />
-        サーバーに送信されることはありません
-      </div>
+      {!isMobileLayout && (
+        <div className="border-t border-gray-200 bg-white px-3 py-2 text-center text-[10px] leading-4 text-gray-400">
+          CutMark PDF v{__APP_VERSION__}<br />Copyright (c) 2025 stechdrive<br />
+          ブラウザ内でのみ処理を行います<br />
+          読み込みんだデータや保存したテンプレートが<br />
+          サーバーに送信されることはありません
+        </div>
+      )}
     </div>
   );
 };

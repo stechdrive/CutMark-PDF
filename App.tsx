@@ -11,6 +11,8 @@ import { Sidebar } from './components/Sidebar';
 import { DocumentPreview } from './components/DocumentPreview';
 import { ExportOverlay } from './components/ExportOverlay';
 import { DebugModal } from './components/DebugModal';
+import { MobileWorkspaceShell } from './components/MobileWorkspaceShell';
+import { useIsMobileLayout } from './hooks/useIsMobileLayout';
 
 // Worker setup: GH-Pages でもローカルのワーカーを利用する
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -19,6 +21,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 export default function App() {
+  const isMobileLayout = useIsMobileLayout();
   const {
     headerProps,
     leftProjectPanel,
@@ -34,15 +37,31 @@ export default function App() {
 
       <div className="flex flex-1 overflow-hidden relative">
         <ExportOverlay {...exportOverlayProps} />
-        {leftProjectPanel && (
-          <aside className="w-96 shrink-0 border-r border-gray-200 bg-white shadow-xl z-20">
-            <div className="h-full p-4">
-              {leftProjectPanel}
-            </div>
-          </aside>
+        {isMobileLayout ? (
+          <MobileWorkspaceShell
+            mode={headerProps.mode}
+            leftProjectPanel={leftProjectPanel}
+            documentPreview={
+              <DocumentPreview
+                {...documentPreviewProps}
+                layoutMode="mobile"
+              />
+            }
+            sidebar={<Sidebar {...sidebarProps} layout="mobile" />}
+          />
+        ) : (
+          <>
+            {leftProjectPanel && (
+              <aside className="w-96 shrink-0 border-r border-gray-200 bg-white shadow-xl z-20">
+                <div className="h-full p-4">
+                  {leftProjectPanel}
+                </div>
+              </aside>
+            )}
+            <DocumentPreview {...documentPreviewProps} layoutMode="desktop" />
+            <Sidebar {...sidebarProps} layout="desktop" />
+          </>
         )}
-        <DocumentPreview {...documentPreviewProps} />
-        <Sidebar {...sidebarProps} />
       </div>
 
       <DebugModal {...debugModalProps} />

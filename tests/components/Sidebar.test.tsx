@@ -77,4 +77,12 @@ describe('Sidebar', () => {
     expect(screen.queryByText('用紙テンプレート')).not.toBeInTheDocument();
     expect(screen.queryByText('行スナップ入力')).not.toBeInTheDocument();
   });
+
+  it('hides the footer copy in mobile layout', () => {
+    const props = createSidebarProps('edit');
+
+    render(<Sidebar {...props} layout="mobile" />);
+
+    expect(screen.queryByText(/CutMark PDF v/)).not.toBeInTheDocument();
+  });
 });

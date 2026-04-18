@@ -16,6 +16,7 @@ const WHEEL_RESET_MS = 160;
 const POINTER_TAP_SLOP_PX = 8;
 
 interface DocumentPreviewProps {
+  layoutMode?: 'desktop' | 'mobile';
   docType: DocType | null;
   pdfFile: File | null;
   currentImageUrl: string | null;
@@ -65,6 +66,7 @@ interface DocumentPreviewProps {
 }
 
 export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
+  layoutMode = 'desktop',
   docType,
   pdfFile,
   currentImageUrl,
@@ -98,6 +100,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   onPdfPageError,
   onImageLoadError,
 }) => {
+  const isMobileLayout = layoutMode === 'mobile';
   const viewportRef = useRef<HTMLDivElement>(null); // Scrollable container
   const containerRef = useRef<HTMLDivElement>(null); // Content wrapper
   const autoFitDone = useRef<boolean>(false); // Track if we've fitted the current doc
@@ -609,14 +612,20 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           </div>
 
           {/* Zoom Controls */}
-          <div className="absolute bottom-6 left-6 bg-white rounded-lg shadow-lg p-2 flex gap-2 z-40 border border-gray-200">
+          <div
+            className={`absolute z-40 flex border border-gray-200 bg-white shadow-lg ${
+              isMobileLayout
+                ? 'bottom-24 left-3 gap-1.5 rounded-xl p-1.5'
+                : 'bottom-6 left-6 gap-2 rounded-lg p-2'
+            }`}
+          >
             <button
               onClick={() => setScale((s) => Math.max(0.1, s - 0.1))}
               className="p-2 hover:bg-gray-100 rounded"
             >
               <ZoomOut size={20} />
             </button>
-            <span className="flex items-center justify-center w-12 font-mono text-sm">
+            <span className={`flex items-center justify-center font-mono text-sm ${isMobileLayout ? 'w-10' : 'w-12'}`}>
               {Math.round(scale * 100)}%
             </span>
             <button
@@ -628,8 +637,16 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
           </div>
 
           {/* Pagination */}
-          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-40">
-            <div className="bg-slate-800 text-white rounded-full shadow-xl px-4 py-2 flex items-center gap-4">
+          <div
+            className={`fixed left-1/2 z-40 flex -translate-x-1/2 flex-col items-center ${
+              isMobileLayout ? 'bottom-20 gap-1.5' : 'bottom-4 gap-2'
+            }`}
+          >
+            <div
+              className={`flex items-center gap-4 rounded-full bg-slate-800 text-white shadow-xl ${
+                isMobileLayout ? 'px-3 py-1.5' : 'px-4 py-2'
+              }`}
+            >
               <button
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage <= 1}
@@ -648,7 +665,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                 <ChevronRight />
               </button>
             </div>
-            <span className="text-[10px] font-medium text-slate-500 bg-white/80 px-2 py-0.5 rounded border border-gray-200 shadow-sm backdrop-blur">
+            <span className="hidden rounded border border-gray-200 bg-white/80 px-2 py-0.5 text-[10px] font-medium text-slate-500 shadow-sm backdrop-blur md:block">
               ホイールでページ移動 / 中ドラッグでパン
             </span>
           </div>
