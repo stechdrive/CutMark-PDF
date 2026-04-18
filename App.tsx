@@ -26,6 +26,8 @@ import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { SidebarProjectPanel } from './components/SidebarProjectPanel';
 import { DocumentPreview } from './components/DocumentPreview';
+import { ExportOverlay } from './components/ExportOverlay';
+import { DebugModal } from './components/DebugModal';
 
 // Worker setup: GH-Pages でもローカルのワーカーを利用する
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -303,13 +305,7 @@ export default function App() {
       />
 
       <div className="flex flex-1 overflow-hidden relative">
-        {isExporting && (
-            <div className="absolute inset-0 bg-black/50 z-50 flex items-center justify-center text-white flex-col gap-2">
-                <div className="animate-spin rounded-full h-10 w-10 border-4 border-white border-t-transparent"></div>
-                <div className="font-bold">書き出し処理中...</div>
-                <div className="text-sm opacity-80">大量の画像の場合、時間がかかることがあります</div>
-            </div>
-        )}
+        <ExportOverlay isExporting={isExporting} />
         
         <DocumentPreview
           docType={docType}
@@ -376,48 +372,14 @@ export default function App() {
         
       </div>
 
-      {debugOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-3xl bg-white rounded-lg shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-                <div className="font-bold text-sm text-gray-800">デバッグログ</div>
-              <button
-                onClick={closeDebug}
-                className="text-xs text-gray-500 hover:text-gray-700"
-              >
-                閉じる
-              </button>
-            </div>
-            <div className="p-4 space-y-3">
-              <textarea
-                ref={debugTextRef}
-                readOnly
-                value={debugReport}
-                className="w-full h-80 p-3 text-xs font-mono border border-gray-200 rounded bg-gray-50 text-gray-700"
-              />
-              <div className="flex items-center justify-between">
-                <div className="text-xs text-gray-500">
-                  このログをコピーして共有してください
-                </div>
-                <div className="flex items-center gap-2">
-                  {debugCopyStatus === 'copied' && (
-                    <span className="text-xs text-green-600">コピーしました</span>
-                  )}
-                  {debugCopyStatus === 'failed' && (
-                    <span className="text-xs text-red-600">コピーできませんでした</span>
-                  )}
-                  <button
-                    onClick={handleCopyDebugReport}
-                    className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white"
-                  >
-                    コピー
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <DebugModal
+        open={debugOpen}
+        debugTextRef={debugTextRef}
+        debugReport={debugReport}
+        debugCopyStatus={debugCopyStatus}
+        onClose={closeDebug}
+        onCopy={handleCopyDebugReport}
+      />
     </div>
   );
 }
