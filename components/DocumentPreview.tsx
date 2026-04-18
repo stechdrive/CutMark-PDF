@@ -12,9 +12,9 @@ import { useDocumentPreviewViewport } from '../hooks/useDocumentPreviewViewport'
 import { AppSettings, Cut, Template, DocType } from '../types';
 
 const pdfDocumentOptions = {
-  cMapUrl: `${import.meta.env.BASE_URL}cmaps/`,
+  cMapUrl: `${import.meta.env.BASE_URL}node_modules/pdfjs-dist/cmaps/`,
   cMapPacked: true,
-  standardFontDataUrl: `${import.meta.env.BASE_URL}standard_fonts/`,
+  standardFontDataUrl: `${import.meta.env.BASE_URL}node_modules/pdfjs-dist/standard_fonts/`,
 } as const;
 
 interface DocumentPreviewProps {

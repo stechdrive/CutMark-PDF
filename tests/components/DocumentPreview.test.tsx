@@ -57,9 +57,9 @@ describe('DocumentPreview', () => {
     expect(reactPdfMocks.document).toHaveBeenCalledWith(
       expect.objectContaining({
         options: expect.objectContaining({
-          cMapUrl: '/cmaps/',
+          cMapUrl: '/node_modules/pdfjs-dist/cmaps/',
           cMapPacked: true,
-          standardFontDataUrl: '/standard_fonts/',
+          standardFontDataUrl: '/node_modules/pdfjs-dist/standard_fonts/',
         }),
       })
     );
