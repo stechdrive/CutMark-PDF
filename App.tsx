@@ -1,20 +1,20 @@
 
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { pdfjs } from 'react-pdf';
 
 import { NumberingState } from './types';
-import {
-  createAssetHintsFromCurrentDocument,
-} from './adapters/legacyProjectAdapter';
 import {
   ProjectDocument,
 } from './domain/project';
 
 // Hooks
+import { useCurrentDocumentMetadata } from './hooks/useCurrentDocumentMetadata';
 import { useDocumentViewer } from './hooks/useDocumentViewer';
 import { useTemplates } from './hooks/useTemplates';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useDebugLogger } from './hooks/useDebugLogger';
+import { useDocumentResetController } from './hooks/useDocumentResetController';
+import { useEditorCanvasBehavior } from './hooks/useEditorCanvasBehavior';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useDebugPanel } from './hooks/useDebugPanel';
 import { useEditorWorkspace } from './hooks/useEditorWorkspace';
@@ -33,11 +33,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url
 ).toString();
-
-const DEFAULT_IMAGE_FONT_SIZE = 28;
-const IMAGE_A4_WIDTH_AT_150_DPI = 1240.5; // 8.27inch * 150dpi
-const FONT_SIZE_MIN = 12;
-const FONT_SIZE_MAX = 72;
 
 const countProjectCuts = (project: ProjectDocument) =>
   project.logicalPages.reduce((count, page) => count + page.cuts.length, 0);
@@ -61,10 +56,10 @@ export default function App() {
     branchChar: settings.branchChar,
   }), [settings.nextNumber, settings.branchChar]);
 
-  const resetLegacyCutEditorRef = useRef<() => void>(() => {});
-  const handleDocumentReset = useCallback(() => {
-    resetLegacyCutEditorRef.current();
-  }, []);
+  const {
+    handleDocumentReset,
+    setResetHandler,
+  } = useDocumentResetController();
 
   const {
     docType, pdfFile, imageFiles, currentImageUrl,
@@ -81,41 +76,20 @@ export default function App() {
   // --- UI State ---
   const [mode, setMode] = useState<'edit' | 'template'>('edit');
   const [isExporting, setIsExporting] = useState(false);
-  const pdfFontSizeAppliedRef = useRef(false);
-  const pdfAutoFontSizeRef = useRef<number | null>(null);
   const {
     debugEnabled,
     debugLogs,
     logDebug,
   } = useDebugLogger();
-
-  useEffect(() => {
-    pdfFontSizeAppliedRef.current = false;
-  }, [pdfFile]);
-
-  const currentAssetHints = useMemo(() => {
-    if (!docType) return [];
-
-    const pageCount = docType === 'images' ? imageFiles.length : numPages;
-    if (pageCount < 1) return [];
-
-    return createAssetHintsFromCurrentDocument({
-      docType,
-      pdfFile,
-      imageFiles,
-      pageCount,
-    });
-  }, [docType, imageFiles, numPages, pdfFile]);
-
-  const currentProjectName = useMemo(() => {
-    if (docType === 'pdf') {
-      return pdfFile?.name;
-    }
-    if (docType === 'images') {
-      return imageFiles[0]?.webkitRelativePath.split('/')[0] || imageFiles[0]?.name;
-    }
-    return undefined;
-  }, [docType, imageFiles, pdfFile]);
+  const {
+    currentAssetHints,
+    currentProjectName,
+  } = useCurrentDocumentMetadata({
+    docType,
+    pdfFile,
+    imageFiles,
+    numPages,
+  });
 
   const {
     resetCurrentProject,
@@ -168,19 +142,8 @@ export default function App() {
   });
 
   useEffect(() => {
-    resetLegacyCutEditorRef.current = resetCurrentProject;
-  }, [resetCurrentProject]);
-  useEffect(() => {
-    if (isLoadedProjectActive) return;
-    if (docType !== 'images') return;
-    if (pdfAutoFontSizeRef.current !== null && settings.fontSize === pdfAutoFontSizeRef.current) {
-      setSettings(prev => ({
-        ...prev,
-        fontSize: DEFAULT_IMAGE_FONT_SIZE,
-      }));
-    }
-    pdfAutoFontSizeRef.current = null;
-  }, [docType, isLoadedProjectActive, settings.fontSize, setSettings]);
+    setResetHandler(resetCurrentProject);
+  }, [resetCurrentProject, setResetHandler]);
   const effectiveSelectedCutId = activeCutEditor.selectedCutId;
   const canUndoHistory = activeCutEditor.canUndo;
   const canRedoHistory = activeCutEditor.canRedo;
@@ -189,33 +152,18 @@ export default function App() {
   const handleUndoAction = activeCutEditor.undo;
   const handleRedoAction = activeCutEditor.redo;
 
-  // Row Snap (Keyboard 1-9 or Button)
-  const handleRowSnap = (rowIndex: number) => {
-    if (rowIndex >= effectiveTemplate.rowPositions.length) return;
-    const y = effectiveTemplate.rowPositions[rowIndex];
-    const x = effectiveTemplate.xPosition;
-    activeCutEditor.createCutAt(x, y);
-  };
-
-  const applyPdfDefaultFontSize = useCallback((page: { originalWidth: number }) => {
-    if (isLoadedProjectActive) return;
-    if (docType !== 'pdf') return;
-    if (pdfFontSizeAppliedRef.current) return;
-    if (settings.fontSize !== DEFAULT_IMAGE_FONT_SIZE) return;
-
-    const ratio = DEFAULT_IMAGE_FONT_SIZE / IMAGE_A4_WIDTH_AT_150_DPI;
-    const proposed = Math.round(page.originalWidth * ratio);
-    const nextFontSize = Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, proposed));
-
-    pdfFontSizeAppliedRef.current = true;
-    pdfAutoFontSizeRef.current = nextFontSize;
-    if (nextFontSize !== settings.fontSize) {
-      setSettings(prev => ({
-        ...prev,
-        fontSize: nextFontSize,
-      }));
-    }
-  }, [docType, isLoadedProjectActive, settings.fontSize, setSettings]);
+  const {
+    handleRowSnap,
+    applyPdfDefaultFontSize,
+  } = useEditorCanvasBehavior({
+    docType,
+    pdfFile,
+    settings,
+    setSettings,
+    template: effectiveTemplate,
+    isLoadedProjectActive,
+    createCutAt: activeCutEditor.createCutAt,
+  });
 
   const {
     debugOpen,
