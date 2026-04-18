@@ -18,13 +18,12 @@ import { useDebugLogger } from './hooks/useDebugLogger';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useDebugPanel } from './hooks/useDebugPanel';
 import { useEditorWorkspace } from './hooks/useEditorWorkspace';
+import { useAppShellProps } from './hooks/useAppShellProps';
 import { useWorkspaceFileActions } from './hooks/useWorkspaceFileActions';
-import { normalizeError } from './utils/debugData';
 
 // Components
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
-import { SidebarProjectPanel } from './components/SidebarProjectPanel';
 import { DocumentPreview } from './components/DocumentPreview';
 import { ExportOverlay } from './components/ExportOverlay';
 import { DebugModal } from './components/DebugModal';
@@ -281,105 +280,109 @@ export default function App() {
     onPagePrev: () => setCurrentPage(p => p - 1),
     onRowSnap: handleRowSnap
   });
+  const {
+    headerProps,
+    documentPreviewProps,
+    sidebarProps,
+    debugModalProps,
+    exportOverlayProps,
+  } = useAppShellProps({
+    header: {
+      docType,
+      mode,
+      setMode,
+      isExporting,
+      canUndo: canUndoHistory,
+      canRedo: canRedoHistory,
+      onUndo: handleUndoAction,
+      onRedo: handleRedoAction,
+      onPdfFileChange: onPdfLoaded,
+      onFolderChange: onFolderLoaded,
+      onProjectFileChange: loadedProjectManager.onProjectLoaded,
+      onSaveProject: loadedProjectManager.handleSaveProject,
+      onExportPdf: handleExportPdf,
+      onExportImages: handleExportImages,
+      onOpenDebug: openDebug,
+      showDebug: debugEnabled,
+    },
+    preview: {
+      docType,
+      pdfFile,
+      currentImageUrl,
+      numPages,
+      setNumPages,
+      currentPage,
+      setCurrentPage,
+      scale,
+      setScale,
+      isDragging,
+      dragHandlers,
+      onFileDropped,
+      cuts: previewCuts,
+      selectedCutId: effectiveSelectedCutId,
+      setSelectedCutId: activeCutEditor.selectCut,
+      deleteCut: activeCutEditor.deleteCut,
+      updateCutPosition: activeCutEditor.updateCutPosition,
+      handleCutDragEnd: activeCutEditor.commitCutDrag,
+      mode,
+      template: effectiveTemplate,
+      setTemplate: setEffectiveTemplate,
+      setTemplateLive: setEffectiveTemplateLive,
+      onTemplateInteractionStart: handleProjectDraftInteractionStart,
+      onTemplateInteractionEnd: handleProjectDraftInteractionEnd,
+      settings: effectiveSettings,
+      onContentClick: activeCutEditor.createCutAt,
+      onPdfPageLoadSuccess: applyPdfDefaultFontSize,
+      logDebug,
+      isLoadedProjectActive,
+    },
+    sidebar: {
+      mode,
+      setMode,
+      pdfFile: pdfFile || (imageFiles.length > 0 ? imageFiles[0] : null),
+      selectedCutId: effectiveSelectedCutId,
+      projectPanelProps: loadedProjectManager.projectPanelProps,
+      templates,
+      template: effectiveTemplate,
+      setTemplate: setEffectiveTemplate,
+      changeTemplate: handleTemplateChange,
+      saveTemplateByName: handleSaveTemplate,
+      deleteTemplate: handleDeleteTemplate,
+      distributeRows: handleDistributeRows,
+      onRowSnap: handleRowSnap,
+      settings: effectiveSettings,
+      setSettings: setEffectiveSettings,
+      setLiveSettings: setEffectiveSettingsLive,
+      onLiveSettingsStart: handleProjectDraftInteractionStart,
+      onLiveSettingsEnd: handleProjectDraftInteractionEnd,
+      setNumberingState: activeCutEditor.setNumberingState,
+      onRenumberFromSelected: activeCutEditor.renumberFromSelected,
+      isLoadedProjectActive,
+    },
+    debugModal: {
+      open: debugOpen,
+      debugTextRef,
+      debugReport,
+      debugCopyStatus,
+      onClose: closeDebug,
+      onCopy: handleCopyDebugReport,
+    },
+    exportOverlay: {
+      isExporting,
+    },
+  });
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 text-gray-800 font-sans overflow-hidden">
-      
-      <Header
-        docType={docType}
-        onPdfFileChange={onPdfLoaded}
-        onFolderChange={onFolderLoaded}
-        onProjectFileChange={loadedProjectManager.onProjectLoaded}
-        onSaveProject={loadedProjectManager.handleSaveProject}
-        onExportPdf={handleExportPdf}
-        onExportImages={handleExportImages}
-        isExporting={isExporting}
-        mode={mode}
-        setMode={setMode}
-        canUndo={canUndoHistory}
-        canRedo={canRedoHistory}
-        onUndo={handleUndoAction}
-        onRedo={handleRedoAction}
-        onOpenDebug={openDebug}
-        showDebug={debugEnabled}
-      />
+      <Header {...headerProps} />
 
       <div className="flex flex-1 overflow-hidden relative">
-        <ExportOverlay isExporting={isExporting} />
-        
-        <DocumentPreview
-          docType={docType}
-          pdfFile={pdfFile}
-          currentImageUrl={currentImageUrl}
-          numPages={numPages}
-          setNumPages={setNumPages}
-          currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
-          scale={scale}
-          setScale={setScale}
-          isDragging={isDragging}
-          dragHandlers={dragHandlers}
-          onFileDropped={onFileDropped}
-          
-          cuts={previewCuts}
-          selectedCutId={effectiveSelectedCutId}
-          setSelectedCutId={activeCutEditor.selectCut}
-          deleteCut={activeCutEditor.deleteCut}
-          updateCutPosition={activeCutEditor.updateCutPosition}
-          handleCutDragEnd={activeCutEditor.commitCutDrag}
-          
-          mode={mode}
-          template={effectiveTemplate}
-          setTemplate={isLoadedProjectActive ? setEffectiveTemplateLive : setEffectiveTemplate}
-          onTemplateInteractionStart={isLoadedProjectActive ? handleProjectDraftInteractionStart : undefined}
-          onTemplateInteractionEnd={isLoadedProjectActive ? handleProjectDraftInteractionEnd : undefined}
-          settings={effectiveSettings}
-          onContentClick={activeCutEditor.createCutAt}
-          onPdfLoadSuccess={(pages) => logDebug('info', 'PDF読み込み成功', () => ({ numPages: pages }))}
-          onPdfLoadError={(error) => logDebug('error', 'PDF読み込み失敗', () => ({ error: normalizeError(error) }))}
-          onPdfSourceError={(error) => logDebug('error', 'PDFソース読み込み失敗', () => ({ error: normalizeError(error) }))}
-          onPdfPageLoadSuccess={applyPdfDefaultFontSize}
-          onPdfPageError={(error) => logDebug('error', 'PDFページ読み込み失敗', () => ({ error: normalizeError(error) }))}
-          onImageLoadError={(src) => logDebug('error', '画像読み込み失敗', () => ({ src }))}
-        />
-
-        <Sidebar
-          mode={mode}
-          setMode={setMode}
-          pdfFile={pdfFile || (imageFiles.length > 0 ? imageFiles[0] : null)}
-          selectedCutId={effectiveSelectedCutId}
-          projectPanel={
-            loadedProjectManager.projectPanelProps ? (
-              <SidebarProjectPanel {...loadedProjectManager.projectPanelProps} />
-            ) : undefined
-          }
-          templates={templates}
-          template={effectiveTemplate}
-          setTemplate={setEffectiveTemplate}
-          changeTemplate={handleTemplateChange}
-          saveTemplateByName={handleSaveTemplate}
-          deleteTemplate={handleDeleteTemplate}
-          distributeRows={handleDistributeRows}
-          onRowSnap={handleRowSnap}
-          settings={effectiveSettings}
-          setSettings={setEffectiveSettings}
-          setLiveSettings={isLoadedProjectActive ? setEffectiveSettingsLive : undefined}
-          onLiveSettingsStart={isLoadedProjectActive ? handleProjectDraftInteractionStart : undefined}
-          onLiveSettingsEnd={isLoadedProjectActive ? handleProjectDraftInteractionEnd : undefined}
-          setNumberingState={activeCutEditor.setNumberingState}
-          onRenumberFromSelected={activeCutEditor.renumberFromSelected}
-        />
-        
+        <ExportOverlay {...exportOverlayProps} />
+        <DocumentPreview {...documentPreviewProps} />
+        <Sidebar {...sidebarProps} />
       </div>
 
-      <DebugModal
-        open={debugOpen}
-        debugTextRef={debugTextRef}
-        debugReport={debugReport}
-        debugCopyStatus={debugCopyStatus}
-        onClose={closeDebug}
-        onCopy={handleCopyDebugReport}
-      />
+      <DebugModal {...debugModalProps} />
     </div>
   );
 }
