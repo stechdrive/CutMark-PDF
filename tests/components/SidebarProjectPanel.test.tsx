@@ -47,6 +47,8 @@ describe('SidebarProjectPanel', () => {
       <SidebarProjectPanel
         projectName="catalog-revision"
         savedAt="2026-04-18T01:23:45.000Z"
+        selectedLogicalPageId="page-2"
+        statusMessage="論理P2 を現在P2 に割り当てています。"
         comparison={createComparisonSummary()}
         bindings={{
           'page-1': 0,
@@ -61,11 +63,16 @@ describe('SidebarProjectPanel', () => {
         ]}
         canApplyProject={true}
         canResetBindings={true}
+        canUndoDraft={false}
+        canRedoDraft={false}
+        onSelectLogicalPage={vi.fn()}
         onBindingChange={vi.fn()}
         onInsertLogicalPageAfter={vi.fn()}
         onRemoveLogicalPage={vi.fn()}
         onMoveLogicalPage={vi.fn()}
         onResetBindings={vi.fn()}
+        onUndoDraft={vi.fn()}
+        onRedoDraft={vi.fn()}
         onApplyProject={vi.fn()}
       />
     );
@@ -74,6 +81,7 @@ describe('SidebarProjectPanel', () => {
     expect(screen.getByText('catalog-revision')).toBeInTheDocument();
     expect(screen.getByText('ページ数一致')).toBeInTheDocument();
     expect(screen.getByText('差分のあるページ')).toBeInTheDocument();
+    expect(screen.getByText('論理P2 を現在P2 に割り当てています。')).toBeInTheDocument();
     expect(screen.getAllByText('保存時: 002.png').length).toBeGreaterThan(0);
     expect(screen.getAllByText('割当中: 009_revised.png').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: '現在の素材へ割当どおりに適用' })).toBeEnabled();
@@ -87,11 +95,16 @@ describe('SidebarProjectPanel', () => {
     const onRemoveLogicalPage = vi.fn();
     const onMoveLogicalPage = vi.fn();
     const onResetBindings = vi.fn();
+    const onSelectLogicalPage = vi.fn();
+    const onUndoDraft = vi.fn();
+    const onRedoDraft = vi.fn();
 
     render(
       <SidebarProjectPanel
         projectName="catalog-revision"
         savedAt="2026-04-18T01:23:45.000Z"
+        selectedLogicalPageId="page-2"
+        statusMessage="論理P2 を現在P2 に割り当てています。"
         comparison={createComparisonSummary()}
         bindings={{
           'page-1': 0,
@@ -106,22 +119,33 @@ describe('SidebarProjectPanel', () => {
         ]}
         canApplyProject={true}
         canResetBindings={true}
+        canUndoDraft={true}
+        canRedoDraft={true}
+        onSelectLogicalPage={onSelectLogicalPage}
         onBindingChange={onBindingChange}
         onInsertLogicalPageAfter={onInsertLogicalPageAfter}
         onRemoveLogicalPage={onRemoveLogicalPage}
         onMoveLogicalPage={onMoveLogicalPage}
         onResetBindings={onResetBindings}
+        onUndoDraft={onUndoDraft}
+        onRedoDraft={onRedoDraft}
         onApplyProject={vi.fn()}
       />
     );
 
+    await user.click(screen.getByRole('button', { name: '論理P2' }));
     await user.selectOptions(
       screen.getByRole('combobox', { name: '論理ページ 2 の割当' }),
       '0'
     );
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+    await user.click(screen.getByRole('button', { name: 'Redo' }));
     await user.click(screen.getByRole('button', { name: '自動候補に戻す' }));
 
+    expect(onSelectLogicalPage).toHaveBeenCalledWith('page-2');
     expect(onBindingChange).toHaveBeenCalledWith('page-2', 0);
+    expect(onUndoDraft).toHaveBeenCalled();
+    expect(onRedoDraft).toHaveBeenCalled();
     expect(onResetBindings).toHaveBeenCalled();
   });
 
@@ -135,6 +159,8 @@ describe('SidebarProjectPanel', () => {
       <SidebarProjectPanel
         projectName="catalog-revision"
         savedAt="2026-04-18T01:23:45.000Z"
+        selectedLogicalPageId="page-2"
+        statusMessage="論理P2 を現在P2 に割り当てています。"
         comparison={createComparisonSummary()}
         bindings={{
           'page-1': 0,
@@ -149,11 +175,16 @@ describe('SidebarProjectPanel', () => {
         ]}
         canApplyProject={true}
         canResetBindings={true}
+        canUndoDraft={false}
+        canRedoDraft={false}
+        onSelectLogicalPage={vi.fn()}
         onBindingChange={vi.fn()}
         onInsertLogicalPageAfter={onInsertLogicalPageAfter}
         onRemoveLogicalPage={onRemoveLogicalPage}
         onMoveLogicalPage={onMoveLogicalPage}
         onResetBindings={vi.fn()}
+        onUndoDraft={vi.fn()}
+        onRedoDraft={vi.fn()}
         onApplyProject={vi.fn()}
       />
     );
@@ -178,6 +209,8 @@ describe('SidebarProjectPanel', () => {
       <SidebarProjectPanel
         projectName="catalog-revision"
         savedAt="2026-04-18T01:23:45.000Z"
+        selectedLogicalPageId={null}
+        statusMessage={null}
         comparison={createComparisonSummary({
           currentAssetCount: 0,
           matchedPageCount: 0,
@@ -199,11 +232,16 @@ describe('SidebarProjectPanel', () => {
         currentAssets={[]}
         canApplyProject={false}
         canResetBindings={false}
+        canUndoDraft={false}
+        canRedoDraft={false}
+        onSelectLogicalPage={vi.fn()}
         onBindingChange={vi.fn()}
         onInsertLogicalPageAfter={vi.fn()}
         onRemoveLogicalPage={vi.fn()}
         onMoveLogicalPage={vi.fn()}
         onResetBindings={vi.fn()}
+        onUndoDraft={vi.fn()}
+        onRedoDraft={vi.fn()}
         onApplyProject={onApplyProject}
       />
     );

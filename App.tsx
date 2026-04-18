@@ -15,7 +15,7 @@ import {
   downloadProjectDocument,
   loadProjectDocumentFromFile,
 } from './repositories/projectRepository';
-import { ProjectDocument } from './domain/project';
+import { createLogicalPage, ProjectDocument } from './domain/project';
 import {
   countAssignedProjectAssetBindings,
   createSuggestedProjectAssetBindings,
@@ -30,6 +30,13 @@ import {
   moveLogicalPage,
   removeLogicalPage,
 } from './application/projectPages';
+import {
+  createHistoryState,
+  HistoryState,
+  pushHistoryState,
+  redoHistory,
+  undoHistory,
+} from './application/history';
 
 // Hooks
 import { useDocumentViewer } from './hooks/useDocumentViewer';
@@ -65,6 +72,11 @@ const DEFAULT_IMAGE_FONT_SIZE = 28;
 const IMAGE_A4_WIDTH_AT_150_DPI = 1240.5; // 8.27inch * 150dpi
 const FONT_SIZE_MIN = 12;
 const FONT_SIZE_MAX = 72;
+
+type ProjectDraft = {
+  project: ProjectDocument;
+  bindings: ProjectAssetBindings;
+};
 
 const toFileInfo = (file: File | null) => {
   if (!file) return null;
@@ -153,8 +165,8 @@ export default function App() {
   // --- UI State ---
   const [mode, setMode] = useState<'edit' | 'template'>('edit');
   const [isExporting, setIsExporting] = useState(false);
-  const [loadedProject, setLoadedProject] = useState<ProjectDocument | null>(null);
-  const [projectBindings, setProjectBindings] = useState<ProjectAssetBindings>({});
+  const [projectDraftHistory, setProjectDraftHistory] = useState<HistoryState<ProjectDraft> | null>(null);
+  const [selectedLogicalPageId, setSelectedLogicalPageId] = useState<string | null>(null);
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
   const [debugCopyStatus, setDebugCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
@@ -247,6 +259,14 @@ export default function App() {
     });
   }, [docType, imageFiles, numPages, pdfFile]);
 
+  const loadedProject = projectDraftHistory?.present.project ?? null;
+  const projectBindings = useMemo(
+    () => projectDraftHistory?.present.bindings ?? {},
+    [projectDraftHistory]
+  );
+  const canUndoProjectDraft = (projectDraftHistory?.past.length ?? 0) > 0;
+  const canRedoProjectDraft = (projectDraftHistory?.future.length ?? 0) > 0;
+
   const projectComparison = useMemo(() => {
     if (!loadedProject) return null;
     return summarizeProjectAssetComparison(loadedProject, currentAssetHints);
@@ -254,14 +274,83 @@ export default function App() {
 
   useEffect(() => {
     if (!loadedProject) {
-      setProjectBindings({});
+      setSelectedLogicalPageId(null);
       return;
     }
 
-    setProjectBindings((prev) =>
-      synchronizeProjectAssetBindings(loadedProject, currentAssetHints, prev)
-    );
+    setProjectDraftHistory((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        present: {
+          ...prev.present,
+          bindings: synchronizeProjectAssetBindings(
+            prev.present.project,
+            currentAssetHints,
+            prev.present.bindings
+          ),
+        },
+      };
+    });
   }, [currentAssetHints, loadedProject]);
+
+  useEffect(() => {
+    if (!loadedProject) {
+      setSelectedLogicalPageId(null);
+      return;
+    }
+
+    const hasSelectedLogicalPage =
+      !!selectedLogicalPageId &&
+      loadedProject.logicalPages.some((page) => page.id === selectedLogicalPageId);
+
+    if (!hasSelectedLogicalPage) {
+      setSelectedLogicalPageId(loadedProject.logicalPages[0]?.id ?? null);
+    }
+  }, [loadedProject, selectedLogicalPageId]);
+
+  useEffect(() => {
+    if (!selectedLogicalPageId) return;
+    const assetIndex = projectBindings[selectedLogicalPageId];
+    if (assetIndex == null) return;
+    if (assetIndex + 1 !== currentPage) {
+      setCurrentPage(assetIndex + 1);
+    }
+  }, [currentPage, projectBindings, selectedLogicalPageId, setCurrentPage]);
+
+  const updateProjectDraft = useCallback((
+    updater: (draft: ProjectDraft) => ProjectDraft,
+    options: { pushHistory?: boolean } = {}
+  ) => {
+    setProjectDraftHistory((prev) => {
+      if (!prev) return prev;
+      const nextPresent = updater(prev.present);
+      if (!options.pushHistory) {
+        return {
+          ...prev,
+          present: nextPresent,
+        };
+      }
+      return pushHistoryState(prev, nextPresent);
+    });
+  }, []);
+
+  const setProjectDraft = useCallback((project: ProjectDocument, bindings: ProjectAssetBindings) => {
+    setProjectDraftHistory(createHistoryState({ project, bindings }));
+    setSelectedLogicalPageId(project.logicalPages[0]?.id ?? null);
+  }, []);
+
+  const pushProjectDraft = useCallback((updater: (draft: ProjectDraft) => ProjectDraft) => {
+    updateProjectDraft(updater, { pushHistory: true });
+  }, [updateProjectDraft]);
+
+  const handleUndoProjectDraft = useCallback(() => {
+    setProjectDraftHistory((prev) => (prev ? undoHistory(prev) : prev));
+  }, []);
+
+  const handleRedoProjectDraft = useCallback(() => {
+    setProjectDraftHistory((prev) => (prev ? redoHistory(prev) : prev));
+  }, []);
 
   const assignedProjectBindingCount = useMemo(() => {
     if (!loadedProject) return 0;
@@ -274,6 +363,36 @@ export default function App() {
     }
     return hasCompleteProjectAssetBindings(loadedProject, projectBindings);
   }, [currentAssetHints.length, docType, loadedProject, projectBindings]);
+
+  const selectedLogicalPage = useMemo(() => {
+    if (!loadedProject || !selectedLogicalPageId) return null;
+    return loadedProject.logicalPages.find((page) => page.id === selectedLogicalPageId) ?? null;
+  }, [loadedProject, selectedLogicalPageId]);
+
+  const selectedLogicalPageNumber = useMemo(() => {
+    if (!loadedProject || !selectedLogicalPageId) return null;
+    const pageIndex = loadedProject.logicalPages.findIndex((page) => page.id === selectedLogicalPageId);
+    return pageIndex >= 0 ? pageIndex + 1 : null;
+  }, [loadedProject, selectedLogicalPageId]);
+
+  const selectedLogicalPageAssetIndex =
+    selectedLogicalPageId != null ? projectBindings[selectedLogicalPageId] ?? null : null;
+
+  const projectStatusMessage = useMemo(() => {
+    if (!loadedProject) return null;
+    if (!selectedLogicalPage) {
+      return '論理ページを選ぶと、割当先の素材ページへプレビューを合わせます。';
+    }
+    if (selectedLogicalPageAssetIndex == null) {
+      return `論理P${selectedLogicalPageNumber ?? '?'} は未割当です。割当を決めると対応する素材ページを表示します。`;
+    }
+    return `論理P${selectedLogicalPageNumber ?? '?'} を現在P${selectedLogicalPageAssetIndex + 1} に割り当てています。`;
+  }, [
+    loadedProject,
+    selectedLogicalPage,
+    selectedLogicalPageAssetIndex,
+    selectedLogicalPageNumber,
+  ]);
 
   // --- Logic Orchestration ---
   
@@ -425,38 +544,46 @@ export default function App() {
   }, [logDebug, replaceCutsState, setCurrentPage, setSettings, upsertTemplate]);
 
   const handleProjectBindingChange = useCallback((logicalPageId: string, nextAssetIndex: number | null) => {
-    setProjectBindings((prev) =>
-      reassignProjectAssetBinding(prev, logicalPageId, nextAssetIndex)
-    );
-  }, []);
+    pushProjectDraft((draft) => ({
+      ...draft,
+      bindings: reassignProjectAssetBinding(draft.bindings, logicalPageId, nextAssetIndex),
+    }));
+  }, [pushProjectDraft]);
 
   const handleResetProjectBindings = useCallback(() => {
     if (!loadedProject) return;
-    setProjectBindings(
-      createSuggestedProjectAssetBindings(loadedProject, currentAssetHints)
-    );
-  }, [currentAssetHints, loadedProject]);
+    pushProjectDraft((draft) => ({
+      ...draft,
+      bindings: createSuggestedProjectAssetBindings(draft.project, currentAssetHints),
+    }));
+  }, [currentAssetHints, loadedProject, pushProjectDraft]);
+
+  const handleSelectLogicalPage = useCallback((logicalPageId: string) => {
+    setSelectedLogicalPageId(logicalPageId);
+  }, []);
 
   const handleInsertLogicalPageAfter = useCallback((logicalPageId: string) => {
-    setLoadedProject((prev) => {
-      if (!prev) return prev;
-      return insertLogicalPageAfter(prev, logicalPageId);
-    });
-  }, []);
+    const nextPage = createLogicalPage();
+    pushProjectDraft((draft) => ({
+      ...draft,
+      project: insertLogicalPageAfter(draft.project, logicalPageId, nextPage),
+    }));
+    setSelectedLogicalPageId(nextPage.id);
+  }, [pushProjectDraft]);
 
   const handleRemoveLogicalPage = useCallback((logicalPageId: string) => {
-    setLoadedProject((prev) => {
-      if (!prev) return prev;
-      return removeLogicalPage(prev, logicalPageId);
-    });
-  }, []);
+    pushProjectDraft((draft) => ({
+      ...draft,
+      project: removeLogicalPage(draft.project, logicalPageId),
+    }));
+  }, [pushProjectDraft]);
 
   const handleMoveLogicalPage = useCallback((logicalPageId: string, direction: -1 | 1) => {
-    setLoadedProject((prev) => {
-      if (!prev) return prev;
-      return moveLogicalPage(prev, logicalPageId, direction);
-    });
-  }, []);
+    pushProjectDraft((draft) => ({
+      ...draft,
+      project: moveLogicalPage(draft.project, logicalPageId, direction),
+    }));
+  }, [pushProjectDraft]);
 
   const handleApplyLoadedProject = useCallback(() => {
     if (!loadedProject || !canApplyLoadedProject) {
@@ -492,14 +619,17 @@ export default function App() {
           : imageFiles[0]?.webkitRelativePath.split('/')[0] || imageFiles[0]?.name,
     });
 
-    setLoadedProject(project);
+    setProjectDraft(
+      project,
+      createSuggestedProjectAssetBindings(project, currentAssetHints)
+    );
     downloadProjectDocument(project);
     logDebug('info', 'プロジェクト保存', () => ({
       projectName: project.meta.name,
       logicalPages: project.logicalPages.length,
       cutCount: cuts.length,
     }));
-  }, [cuts, docType, imageFiles, logDebug, numPages, pdfFile, settings, template]);
+  }, [currentAssetHints, cuts, docType, imageFiles, logDebug, numPages, pdfFile, setProjectDraft, settings, template]);
 
   const onProjectLoaded = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -511,8 +641,7 @@ export default function App() {
       const fileInfo = toFileInfo(file);
       const suggestedBindings = createSuggestedProjectAssetBindings(project, currentAssetHints);
 
-      setLoadedProject(project);
-      setProjectBindings(suggestedBindings);
+      setProjectDraft(project, suggestedBindings);
       logDebug('info', 'プロジェクト読込完了', () => ({
         projectName: project.meta.name,
         logicalPages: project.logicalPages.length,
@@ -548,7 +677,7 @@ export default function App() {
     } finally {
       e.target.value = '';
     }
-  }, [applyLoadedProjectToCurrentDocument, currentAssetHints, docType, logDebug, numPages]);
+  }, [applyLoadedProjectToCurrentDocument, currentAssetHints, docType, logDebug, numPages, setProjectDraft]);
 
   // Export PDF
   const handleExportPdf = async () => {
@@ -822,17 +951,24 @@ export default function App() {
               <SidebarProjectPanel
                 projectName={loadedProject.meta.name}
                 savedAt={loadedProject.meta.savedAt}
+                selectedLogicalPageId={selectedLogicalPageId}
+                statusMessage={projectStatusMessage}
                 comparison={projectComparison}
                 bindings={projectBindings}
                 assignedCount={assignedProjectBindingCount}
                 currentAssets={currentAssetHints}
                 canApplyProject={canApplyLoadedProject}
                 canResetBindings={currentAssetHints.length > 0}
+                canUndoDraft={canUndoProjectDraft}
+                canRedoDraft={canRedoProjectDraft}
+                onSelectLogicalPage={handleSelectLogicalPage}
                 onBindingChange={handleProjectBindingChange}
                 onInsertLogicalPageAfter={handleInsertLogicalPageAfter}
                 onRemoveLogicalPage={handleRemoveLogicalPage}
                 onMoveLogicalPage={handleMoveLogicalPage}
                 onResetBindings={handleResetProjectBindings}
+                onUndoDraft={handleUndoProjectDraft}
+                onRedoDraft={handleRedoProjectDraft}
                 onApplyProject={handleApplyLoadedProject}
               />
             ) : undefined

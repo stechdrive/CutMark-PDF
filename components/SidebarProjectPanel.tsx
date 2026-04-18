@@ -9,17 +9,24 @@ import { AssetHint } from '../domain/project';
 interface SidebarProjectPanelProps {
   projectName: string;
   savedAt: string;
+  selectedLogicalPageId: string | null;
+  statusMessage: string | null;
   comparison: ProjectAssetComparisonSummary;
   bindings: ProjectAssetBindings;
   assignedCount: number;
   currentAssets: Array<AssetHint | null | undefined>;
   canApplyProject: boolean;
   canResetBindings: boolean;
+  canUndoDraft: boolean;
+  canRedoDraft: boolean;
+  onSelectLogicalPage: (logicalPageId: string) => void;
   onBindingChange: (logicalPageId: string, nextAssetIndex: number | null) => void;
   onInsertLogicalPageAfter: (logicalPageId: string) => void;
   onRemoveLogicalPage: (logicalPageId: string) => void;
   onMoveLogicalPage: (logicalPageId: string, direction: -1 | 1) => void;
   onResetBindings: () => void;
+  onUndoDraft: () => void;
+  onRedoDraft: () => void;
   onApplyProject: () => void;
 }
 
@@ -42,17 +49,24 @@ const formatRowStatus = (row: ProjectAssetComparisonRow) => {
 export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
   projectName,
   savedAt,
+  selectedLogicalPageId,
+  statusMessage,
   comparison,
   bindings,
   assignedCount,
   currentAssets,
   canApplyProject,
   canResetBindings,
+  canUndoDraft,
+  canRedoDraft,
+  onSelectLogicalPage,
   onBindingChange,
   onInsertLogicalPageAfter,
   onRemoveLogicalPage,
   onMoveLogicalPage,
   onResetBindings,
+  onUndoDraft,
+  onRedoDraft,
   onApplyProject,
 }) => {
   const unresolvedRows = comparison.rows.filter((row) => row.status !== 'matched').slice(0, 5);
@@ -126,6 +140,34 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
         )}
       </div>
 
+      {statusMessage && (
+        <div className="rounded-lg border border-sky-100 bg-white/80 px-3 py-2 text-xs text-slate-600">
+          {statusMessage}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-semibold text-slate-700">仮編集履歴</div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onUndoDraft}
+            disabled={!canUndoDraft}
+            className="rounded border border-sky-100 px-2 py-1 text-[11px] text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={onRedoDraft}
+            disabled={!canRedoDraft}
+            className="rounded border border-sky-100 px-2 py-1 text-[11px] text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Redo
+          </button>
+        </div>
+      </div>
+
       {comparison.currentAssetCount > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -142,9 +184,22 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
           </div>
           <div className="space-y-2">
             {comparison.rows.map((row) => (
-              <div key={row.logicalPageId} className="rounded-lg border border-sky-100 bg-white/80 p-2 text-xs">
+              <div
+                key={row.logicalPageId}
+                className={`rounded-lg border p-2 text-xs transition-colors ${
+                  row.logicalPageId === selectedLogicalPageId
+                    ? 'border-sky-400 bg-sky-100/70'
+                    : 'border-sky-100 bg-white/80'
+                }`}
+              >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-semibold text-slate-800">論理P{row.pageNumber}</span>
+                  <button
+                    type="button"
+                    onClick={() => onSelectLogicalPage(row.logicalPageId)}
+                    className="text-left font-semibold text-slate-800 hover:text-sky-700"
+                  >
+                    論理P{row.pageNumber}
+                  </button>
                   <div className="flex items-center gap-1">
                     <span className="text-slate-500">{formatRowStatus(row)}</span>
                     <button
