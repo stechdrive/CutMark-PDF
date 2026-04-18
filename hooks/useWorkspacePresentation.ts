@@ -2,7 +2,7 @@ import { SetStateAction, useCallback, useMemo } from 'react';
 import {
   createAppSettingsFromProjectDocument,
   createTemplateFromProjectDocument,
-} from '../adapters/legacyProjectAdapter';
+} from '../application/projectPresentation';
 import { ProjectDocument } from '../domain/project';
 import { AppSettings, NumberingState, Template } from '../types';
 

@@ -1,9 +1,9 @@
 import { ChangeEvent, useCallback } from 'react';
-import { createTemplateFromProjectDocument } from '../adapters/legacyProjectAdapter';
 import {
   createSuggestedProjectAssetBindings,
   ProjectAssetBindings,
 } from '../application/projectBindings';
+import { createTemplateFromProjectDocument } from '../application/projectPresentation';
 import { ProjectDocument, TemplateSnapshot } from '../domain/project';
 import {
   downloadProjectDocument,

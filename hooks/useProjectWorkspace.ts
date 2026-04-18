@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useMemo } from 'react';
-import { createAppSettingsFromProjectDocument } from '../adapters/legacyProjectAdapter';
 import { createCutsFromProjectDocument } from '../application/projectProjection';
+import { createAppSettingsFromProjectDocument } from '../application/projectPresentation';
 import {
   applyBoundAssetHintsToProject,
   ProjectAssetBindings,

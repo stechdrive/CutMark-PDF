@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createAppSettings, createCut, createTemplate } from '../../test/factories';
 import {
-  createAppSettingsFromProjectDocument,
   createLegacyCutsFromProjectDocument,
-  createTemplateFromProjectDocument,
   createProjectDocumentFromLegacySnapshot,
 } from '../../adapters/legacyProjectAdapter';
 
@@ -35,7 +33,7 @@ describe('adapters/legacyProjectAdapter', () => {
     expect(project.logicalPages[2].expectedAssetHint?.sourceLabel).toBe('page-3.png');
   });
 
-  it('projects cuts, settings, and template directly from a bound project document', () => {
+  it('projects cuts directly from a bound project document', () => {
     const project = createProjectDocumentFromLegacySnapshot({
       cuts: [
         createCut({ id: 'cut-1', pageIndex: 0, label: '010', y: 0.2 }),
@@ -56,23 +54,10 @@ describe('adapters/legacyProjectAdapter', () => {
       'page-1': 1,
       'page-2': 0,
     });
-    const projectedSettings = createAppSettingsFromProjectDocument(project);
-    const projectedTemplate = createTemplateFromProjectDocument(project);
 
     expect(projectedCuts.map((cut) => `${cut.id}:${cut.pageIndex}`)).toEqual([
       'cut-2:0',
       'cut-1:1',
     ]);
-    expect(projectedSettings).toMatchObject({
-      nextNumber: 12,
-      minDigits: 4,
-      fontSize: 32,
-      useWhiteBackground: true,
-    });
-    expect(projectedTemplate).toMatchObject({
-      id: 'custom',
-      name: 'Custom',
-      rowCount: 3,
-    });
   });
 });

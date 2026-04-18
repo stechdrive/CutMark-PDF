@@ -1,6 +1,6 @@
 import { SetStateAction, useMemo } from 'react';
-import { createAppSettingsFromProjectDocument } from '../adapters/legacyProjectAdapter';
 import { ProjectAssetBindings } from '../application/projectBindings';
+import { createAppSettingsFromProjectDocument } from '../application/projectPresentation';
 import { ProjectDocument } from '../domain/project';
 import { LogicalCutEditorApi } from './logicalCutEditorApi';
 import { ProjectWorkspaceSession } from './projectWorkspaceSession';
