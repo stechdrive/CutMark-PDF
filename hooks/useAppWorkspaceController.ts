@@ -1,10 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { NumberingState } from '../types';
-import { useCurrentDocumentMetadata } from './useCurrentDocumentMetadata';
-import { useDocumentViewer } from './useDocumentViewer';
-import { useTemplates } from './useTemplates';
-import { useAppSettings } from './useAppSettings';
-import { useDocumentResetController } from './useDocumentResetController';
+import { useEffect, useState } from 'react';
+import { useAppDocumentController } from './useAppDocumentController';
 import { useEditorCanvasBehavior } from './useEditorCanvasBehavior';
 import { useEditorWorkspace } from './useEditorWorkspace';
 
@@ -17,88 +12,34 @@ interface UseAppWorkspaceControllerOptions {
 export const useAppWorkspaceController = ({
   logDebug,
 }: UseAppWorkspaceControllerOptions) => {
-  const { settings, setSettings } = useAppSettings();
-
-  const setNumberingState = useCallback((next: NumberingState) => {
-    setSettings((prev) => ({
-      ...prev,
-      nextNumber: next.nextNumber,
-      branchChar: next.branchChar,
-    }));
-  }, [setSettings]);
-
-  const numberingState = useMemo(() => ({
-    nextNumber: settings.nextNumber,
-    branchChar: settings.branchChar,
-  }), [settings.branchChar, settings.nextNumber]);
-
-  const {
-    handleDocumentReset,
-    setResetHandler,
-  } = useDocumentResetController();
-  const {
-    docType,
-    pdfFile,
-    imageFiles,
-    currentImageUrl,
-    numPages,
-    currentPage,
-    scale,
-    isDragging,
-    loadPdf,
-    loadImages,
-    setNumPages,
-    setCurrentPage,
-    setScale,
-    dragHandlers,
-  } = useDocumentViewer(handleDocumentReset);
-  const {
-    templates,
-    template,
-    setTemplate,
-    changeTemplate,
-    saveTemplateByName,
-    saveTemplateDraftByName,
-    deleteTemplate,
-    deleteTemplateById,
-    distributeRows,
-    upsertTemplate,
-  } = useTemplates();
-
   const [mode, setMode] = useState<'edit' | 'template'>('edit');
-
   const {
-    currentAssetHints,
-    currentProjectName,
-  } = useCurrentDocumentMetadata({
-    docType,
-    pdfFile,
-    imageFiles,
-    numPages,
-  });
+    setResetHandler,
+    ...documentState
+  } = useAppDocumentController();
 
   const editorWorkspace = useEditorWorkspace({
-    docType,
-    currentPage,
-    setCurrentPage,
-    numPages,
-    currentAssetHints,
-    currentProjectName,
-    settings,
-    setSettings,
-    numberingState,
-    setNumberingState,
+    docType: documentState.docType,
+    currentPage: documentState.currentPage,
+    setCurrentPage: documentState.setCurrentPage,
+    numPages: documentState.numPages,
+    currentAssetHints: documentState.currentAssetHints,
+    currentProjectName: documentState.currentProjectName,
+    settings: documentState.settings,
+    setSettings: documentState.setSettings,
+    numberingState: documentState.numberingState,
+    setNumberingState: documentState.setNumberingState,
     templateApi: {
-      templates,
-      template,
-      setTemplate,
-      changeTemplate,
-      saveTemplateByName,
-      saveTemplateDraftByName,
-      deleteTemplate,
-      deleteTemplateById,
-      distributeRows,
-      upsertTemplate,
+      templates: documentState.templates,
+      template: documentState.template,
+      setTemplate: documentState.setTemplate,
+      changeTemplate: documentState.changeTemplate,
+      saveTemplateByName: documentState.saveTemplateByName,
+      saveTemplateDraftByName: documentState.saveTemplateDraftByName,
+      deleteTemplate: documentState.deleteTemplate,
+      deleteTemplateById: documentState.deleteTemplateById,
+      distributeRows: documentState.distributeRows,
+      upsertTemplate: documentState.upsertTemplate,
     },
     setMode,
     logDebug,
@@ -112,10 +53,10 @@ export const useAppWorkspaceController = ({
     handleRowSnap,
     applyPdfDefaultFontSize,
   } = useEditorCanvasBehavior({
-    docType,
-    pdfFile,
-    settings,
-    setSettings,
+    docType: documentState.docType,
+    pdfFile: documentState.pdfFile,
+    settings: documentState.settings,
+    setSettings: documentState.setSettings,
     template: editorWorkspace.effectiveTemplate,
     isLoadedProjectActive: editorWorkspace.isLoadedProjectActive,
     createCutAt: editorWorkspace.activeCutEditor.createCutAt,
@@ -124,28 +65,7 @@ export const useAppWorkspaceController = ({
   return {
     mode,
     setMode,
-    settings,
-    setSettings,
-    numberingState,
-    setNumberingState,
-    docType,
-    pdfFile,
-    imageFiles,
-    currentImageUrl,
-    numPages,
-    currentPage,
-    scale,
-    isDragging,
-    loadPdf,
-    loadImages,
-    setNumPages,
-    setCurrentPage,
-    setScale,
-    dragHandlers,
-    templates,
-    template,
-    currentAssetHints,
-    currentProjectName,
+    ...documentState,
     ...editorWorkspace,
     handleRowSnap,
     applyPdfDefaultFontSize,

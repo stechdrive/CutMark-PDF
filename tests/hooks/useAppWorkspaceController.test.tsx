@@ -3,24 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppWorkspaceController } from '../../hooks/useAppWorkspaceController';
 import { createAppSettings, createTemplate } from '../../test/factories';
 
-const appSettingsMocks = vi.hoisted(() => ({
-  useAppSettings: vi.fn(),
-}));
-
-const resetControllerMocks = vi.hoisted(() => ({
-  useDocumentResetController: vi.fn(),
-}));
-
-const documentViewerMocks = vi.hoisted(() => ({
-  useDocumentViewer: vi.fn(),
-}));
-
-const templateMocks = vi.hoisted(() => ({
-  useTemplates: vi.fn(),
-}));
-
-const metadataMocks = vi.hoisted(() => ({
-  useCurrentDocumentMetadata: vi.fn(),
+const documentControllerMocks = vi.hoisted(() => ({
+  useAppDocumentController: vi.fn(),
 }));
 
 const editorWorkspaceMocks = vi.hoisted(() => ({
@@ -31,16 +15,8 @@ const canvasBehaviorMocks = vi.hoisted(() => ({
   useEditorCanvasBehavior: vi.fn(),
 }));
 
-vi.mock('../../hooks/useAppSettings', () => ({ useAppSettings: appSettingsMocks.useAppSettings }));
-vi.mock('../../hooks/useDocumentResetController', () => ({
-  useDocumentResetController: resetControllerMocks.useDocumentResetController,
-}));
-vi.mock('../../hooks/useDocumentViewer', () => ({
-  useDocumentViewer: documentViewerMocks.useDocumentViewer,
-}));
-vi.mock('../../hooks/useTemplates', () => ({ useTemplates: templateMocks.useTemplates }));
-vi.mock('../../hooks/useCurrentDocumentMetadata', () => ({
-  useCurrentDocumentMetadata: metadataMocks.useCurrentDocumentMetadata,
+vi.mock('../../hooks/useAppDocumentController', () => ({
+  useAppDocumentController: documentControllerMocks.useAppDocumentController,
 }));
 vi.mock('../../hooks/useEditorWorkspace', () => ({
   useEditorWorkspace: editorWorkspaceMocks.useEditorWorkspace,
@@ -51,21 +27,24 @@ vi.mock('../../hooks/useEditorCanvasBehavior', () => ({
 
 describe('useAppWorkspaceController', () => {
   beforeEach(() => {
-    appSettingsMocks.useAppSettings.mockReset();
-    resetControllerMocks.useDocumentResetController.mockReset();
-    documentViewerMocks.useDocumentViewer.mockReset();
-    templateMocks.useTemplates.mockReset();
-    metadataMocks.useCurrentDocumentMetadata.mockReset();
+    documentControllerMocks.useAppDocumentController.mockReset();
     editorWorkspaceMocks.useEditorWorkspace.mockReset();
     canvasBehaviorMocks.useEditorCanvasBehavior.mockReset();
   });
 
-  it('composes workspace state from document, template, and editor hooks', () => {
+  it('composes document state with editor and canvas behavior hooks', () => {
     const settings = createAppSettings();
-    const setSettings = vi.fn();
-    const handleDocumentReset = vi.fn();
     const setResetHandler = vi.fn();
-    const documentViewer = {
+    const template = createTemplate();
+    const documentController = {
+      settings,
+      setSettings: vi.fn(),
+      numberingState: {
+        nextNumber: settings.nextNumber,
+        branchChar: settings.branchChar,
+      },
+      setNumberingState: vi.fn(),
+      setResetHandler,
       docType: 'images' as const,
       pdfFile: null,
       imageFiles: [new File(['img'], '001.png', { type: 'image/png' })],
@@ -85,9 +64,6 @@ describe('useAppWorkspaceController', () => {
         onDragLeave: vi.fn(),
         onDrop: vi.fn(),
       },
-    };
-    const template = createTemplate();
-    const templateApi = {
       templates: [template],
       template,
       setTemplate: vi.fn(),
@@ -98,8 +74,6 @@ describe('useAppWorkspaceController', () => {
       deleteTemplateById: vi.fn(() => template),
       distributeRows: vi.fn(),
       upsertTemplate: vi.fn(),
-    };
-    const metadata = {
       currentAssetHints: [{ sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 }],
       currentProjectName: 'shots',
     };
@@ -153,32 +127,19 @@ describe('useAppWorkspaceController', () => {
       applyPdfDefaultFontSize: vi.fn(),
     };
 
-    appSettingsMocks.useAppSettings.mockReturnValue({ settings, setSettings });
-    resetControllerMocks.useDocumentResetController.mockReturnValue({
-      handleDocumentReset,
-      setResetHandler,
-    });
-    documentViewerMocks.useDocumentViewer.mockReturnValue(documentViewer);
-    templateMocks.useTemplates.mockReturnValue(templateApi);
-    metadataMocks.useCurrentDocumentMetadata.mockReturnValue(metadata);
+    documentControllerMocks.useAppDocumentController.mockReturnValue(documentController);
     editorWorkspaceMocks.useEditorWorkspace.mockReturnValue(editorWorkspace);
     canvasBehaviorMocks.useEditorCanvasBehavior.mockReturnValue(canvasBehavior);
 
     const logDebug = vi.fn();
     const { result } = renderHook(() => useAppWorkspaceController({ logDebug }));
 
-    expect(documentViewerMocks.useDocumentViewer).toHaveBeenCalledWith(handleDocumentReset);
-    expect(metadataMocks.useCurrentDocumentMetadata).toHaveBeenCalledWith({
-      docType: 'images',
-      pdfFile: null,
-      imageFiles: documentViewer.imageFiles,
-      numPages: 2,
-    });
+    expect(documentControllerMocks.useAppDocumentController).toHaveBeenCalledTimes(1);
     expect(editorWorkspaceMocks.useEditorWorkspace).toHaveBeenCalledWith(
       expect.objectContaining({
         docType: 'images',
         currentPage: 1,
-        currentAssetHints: metadata.currentAssetHints,
+        currentAssetHints: documentController.currentAssetHints,
         currentProjectName: 'shots',
         logDebug,
       })
@@ -188,7 +149,7 @@ describe('useAppWorkspaceController', () => {
       docType: 'images',
       pdfFile: null,
       settings,
-      setSettings,
+      setSettings: documentController.setSettings,
       template,
       isLoadedProjectActive: true,
       createCutAt: editorWorkspace.activeCutEditor.createCutAt,
