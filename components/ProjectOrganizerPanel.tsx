@@ -201,6 +201,7 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
                     ? 'border-sky-400 bg-sky-100/70'
                     : 'border-sky-100 bg-white/80'
                 }`}
+                onClick={() => onSelectContePage(slot.assetIndex, slot.logicalPageId)}
                 onDragOver={(event) => {
                   event.preventDefault();
                   if (!draggedLogicalPageId) return;
@@ -249,7 +250,8 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
                     <button
                       type="button"
                       disabled={!slot.logicalPageId}
-                      onClick={() => {
+                      onClick={(event) => {
+                        event.stopPropagation();
                         if (slot.logicalPageId) {
                           onSelectLogicalPage(slot.logicalPageId);
                           onSelectContePage(slot.assetIndex, slot.logicalPageId);
@@ -278,7 +280,10 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
                   <div className="relative flex shrink-0 items-center gap-1">
                     <button
                       type="button"
-                      onClick={() => onInsertBlankPageAtAsset(slot.assetIndex)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onInsertBlankPageAtAsset(slot.assetIndex);
+                      }}
                       aria-label={`コンテP${slot.contePageNumber} に空欄を挿入`}
                       className="rounded border border-sky-100 p-1.5 text-slate-600 hover:bg-sky-50"
                       title="ここに空欄ページを挿入"
@@ -333,7 +338,10 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => onSelectContePage(slot.assetIndex, slot.logicalPageId)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onSelectContePage(slot.assetIndex, slot.logicalPageId);
+                  }}
                   className="mt-2 block w-full rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-left text-xs text-slate-600 hover:border-sky-200 hover:bg-sky-50/60"
                 >
                   <div className="font-semibold text-slate-700">コンテP{slot.contePageNumber}</div>

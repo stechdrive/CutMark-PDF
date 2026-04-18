@@ -135,6 +135,12 @@ describe('ProjectOrganizerPanel', () => {
       />
     );
 
+    const cardHolder = screen.getByText('コンテP1').closest('.rounded-xl');
+    if (!cardHolder) {
+      throw new Error('Organizer card holder not found');
+    }
+
+    await user.click(cardHolder);
     await user.click(screen.getByRole('button', { name: /カット番号P2/ }));
     await user.click(screen.getByRole('button', { name: 'コンテP2 009_revised.png 保存時: 002.png' }));
     await user.click(screen.getByRole('button', { name: 'コンテP3 003.png' }));
@@ -170,6 +176,7 @@ describe('ProjectOrganizerPanel', () => {
       preventDefault: vi.fn(),
     });
 
+    expect(onSelectContePage).toHaveBeenCalledWith(0, 'page-1');
     expect(onSelectLogicalPage).toHaveBeenCalledWith('page-2');
     expect(onSelectContePage).toHaveBeenCalledWith(1, 'page-2');
     expect(onSelectContePage).toHaveBeenCalledWith(2, null);
