@@ -158,3 +158,55 @@ export const createLegacyStateFromProjectDocument = (
     branchChar: project.numbering.branchChar,
   },
 });
+
+export const createLegacyStateFromBoundProjectDocument = (
+  project: ProjectDocument,
+  bindings: Record<string, number | null>
+): LegacyProjectState => ({
+  cuts: project.logicalPages
+    .flatMap((page) => {
+      const pageIndex = bindings[page.id];
+      if (pageIndex == null || pageIndex < 0) return [];
+      return page.cuts.map((cut) => ({
+        id: cut.id,
+        pageIndex,
+        x: cut.x,
+        y: cut.y,
+        label: cut.label,
+        isBranch: cut.isBranch,
+      }));
+    })
+    .sort((left, right) => {
+      if (left.pageIndex !== right.pageIndex) {
+        return left.pageIndex - right.pageIndex;
+      }
+      if (left.y !== right.y) {
+        return left.y - right.y;
+      }
+      return left.x - right.x;
+    }),
+  settings: {
+    fontSize: project.style.fontSize,
+    useWhiteBackground: project.style.useWhiteBackground,
+    backgroundPadding: project.style.backgroundPadding,
+    nextNumber: project.numbering.nextNumber,
+    branchChar: project.numbering.branchChar,
+    autoIncrement: project.numbering.autoIncrement,
+    minDigits: project.numbering.minDigits,
+    textOutlineWidth: project.style.textOutlineWidth,
+    enableClickSnapToRows: project.style.enableClickSnapToRows,
+  },
+  template: {
+    id: project.template.id,
+    name: project.template.name,
+    rowCount: project.template.rowCount,
+    xPosition: project.template.xPosition,
+    rowPositions: [...project.template.rowPositions],
+  },
+  logicalPageCount: project.logicalPages.length,
+  projectName: project.meta.name,
+  numberingState: {
+    nextNumber: project.numbering.nextNumber,
+    branchChar: project.numbering.branchChar,
+  },
+});

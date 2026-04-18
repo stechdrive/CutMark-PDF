@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createAppSettings, createCut, createTemplate } from '../../test/factories';
 import {
   createAssetHintsFromCurrentDocument,
+  createLegacyStateFromBoundProjectDocument,
   createLegacyStateFromProjectDocument,
   createProjectDocumentFromLegacySnapshot,
 } from '../../adapters/legacyProjectAdapter';
@@ -58,6 +59,30 @@ describe('adapters/legacyProjectAdapter', () => {
     expect(legacy.settings.nextNumber).toBe(12);
     expect(legacy.settings.minDigits).toBe(4);
     expect(legacy.template.name).toBe('Custom');
+  });
+
+  it('restores legacy editor state from a manually bound project order', () => {
+    const project = createProjectDocumentFromLegacySnapshot({
+      cuts: [
+        createCut({ id: 'cut-1', pageIndex: 0, label: '010', y: 0.2 }),
+        createCut({ id: 'cut-2', pageIndex: 1, label: '011', y: 0.1 }),
+      ],
+      settings: createAppSettings(),
+      template: createTemplate(),
+      pageCount: 2,
+      projectName: 'Episode 03',
+    });
+
+    const legacy = createLegacyStateFromBoundProjectDocument(project, {
+      'page-1': 1,
+      'page-2': 0,
+    });
+
+    expect(legacy.projectName).toBe('Episode 03');
+    expect(legacy.cuts.map((cut) => `${cut.id}:${cut.pageIndex}`)).toEqual([
+      'cut-2:0',
+      'cut-1:1',
+    ]);
   });
 
   it('derives current asset hints from PDF and image sessions', () => {

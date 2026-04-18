@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { SidebarProjectPanel } from '../../components/SidebarProjectPanel';
 import { ProjectAssetComparisonSummary } from '../../application/projectComparison';
@@ -47,7 +48,21 @@ describe('SidebarProjectPanel', () => {
         projectName="catalog-revision"
         savedAt="2026-04-18T01:23:45.000Z"
         comparison={createComparisonSummary()}
+        bindings={{
+          'page-1': 0,
+          'page-2': 1,
+          'page-3': 2,
+        }}
+        assignedCount={3}
+        currentAssets={[
+          { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+          { sourceKind: 'image', sourceLabel: '009_revised.png', pageNumber: 2 },
+          { sourceKind: 'image', sourceLabel: '003.png', pageNumber: 3 },
+        ]}
         canApplyProject={true}
+        canResetBindings={true}
+        onBindingChange={vi.fn()}
+        onResetBindings={vi.fn()}
         onApplyProject={vi.fn()}
       />
     );
@@ -56,12 +71,52 @@ describe('SidebarProjectPanel', () => {
     expect(screen.getByText('catalog-revision')).toBeInTheDocument();
     expect(screen.getByText('ページ数一致')).toBeInTheDocument();
     expect(screen.getByText('差分のあるページ')).toBeInTheDocument();
-    expect(screen.getByText('保存時: 002.png')).toBeInTheDocument();
-    expect(screen.getByText('現在: 009_revised.png')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '現在の素材へページ順で適用' })).toBeInTheDocument();
+    expect(screen.getAllByText('保存時: 002.png').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('割当中: 009_revised.png').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '現在の素材へ割当どおりに適用' })).toBeEnabled();
+    expect(screen.getByRole('combobox', { name: '論理ページ 2 の割当' })).toBeInTheDocument();
   });
 
-  it('hides the apply action until assets are loaded', () => {
+  it('lets the user change a logical page assignment and reset suggestions', async () => {
+    const user = userEvent.setup();
+    const onBindingChange = vi.fn();
+    const onResetBindings = vi.fn();
+
+    render(
+      <SidebarProjectPanel
+        projectName="catalog-revision"
+        savedAt="2026-04-18T01:23:45.000Z"
+        comparison={createComparisonSummary()}
+        bindings={{
+          'page-1': 0,
+          'page-2': 1,
+          'page-3': 2,
+        }}
+        assignedCount={3}
+        currentAssets={[
+          { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+          { sourceKind: 'image', sourceLabel: '009_revised.png', pageNumber: 2 },
+          { sourceKind: 'image', sourceLabel: '003.png', pageNumber: 3 },
+        ]}
+        canApplyProject={true}
+        canResetBindings={true}
+        onBindingChange={onBindingChange}
+        onResetBindings={onResetBindings}
+        onApplyProject={vi.fn()}
+      />
+    );
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: '論理ページ 2 の割当' }),
+      '0'
+    );
+    await user.click(screen.getByRole('button', { name: '自動候補に戻す' }));
+
+    expect(onBindingChange).toHaveBeenCalledWith('page-2', 0);
+    expect(onResetBindings).toHaveBeenCalled();
+  });
+
+  it('disables apply until every logical page is assigned', () => {
     const onApplyProject = vi.fn();
 
     render(
@@ -84,13 +139,19 @@ describe('SidebarProjectPanel', () => {
             },
           ],
         })}
+        bindings={{ 'page-1': null }}
+        assignedCount={0}
+        currentAssets={[]}
         canApplyProject={false}
+        canResetBindings={false}
+        onBindingChange={vi.fn()}
+        onResetBindings={vi.fn()}
         onApplyProject={onApplyProject}
       />
     );
 
     expect(screen.getByText('素材未読込')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: '現在の素材へページ順で適用' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '現在の素材へ割当どおりに適用' })).toBeDisabled();
     expect(onApplyProject).not.toHaveBeenCalled();
   });
 });

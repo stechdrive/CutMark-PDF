@@ -7,6 +7,7 @@ import { saveMarkedPdf, saveImagesAsPdf } from './services/pdfService';
 import { exportImagesAsZip } from './services/imageExportService';
 import {
   createAssetHintsFromCurrentDocument,
+  createLegacyStateFromBoundProjectDocument,
   createLegacyStateFromProjectDocument,
   createProjectDocumentFromLegacySnapshot,
 } from './adapters/legacyProjectAdapter';
@@ -15,6 +16,13 @@ import {
   loadProjectDocumentFromFile,
 } from './repositories/projectRepository';
 import { ProjectDocument } from './domain/project';
+import {
+  countAssignedProjectAssetBindings,
+  createSuggestedProjectAssetBindings,
+  hasCompleteProjectAssetBindings,
+  ProjectAssetBindings,
+  reassignProjectAssetBinding,
+} from './application/projectBindings';
 import { summarizeProjectAssetComparison } from './application/projectComparison';
 
 // Hooks
@@ -140,6 +148,7 @@ export default function App() {
   const [mode, setMode] = useState<'edit' | 'template'>('edit');
   const [isExporting, setIsExporting] = useState(false);
   const [loadedProject, setLoadedProject] = useState<ProjectDocument | null>(null);
+  const [projectBindings, setProjectBindings] = useState<ProjectAssetBindings>({});
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
   const [debugCopyStatus, setDebugCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
@@ -237,8 +246,28 @@ export default function App() {
     return summarizeProjectAssetComparison(loadedProject, currentAssetHints);
   }, [currentAssetHints, loadedProject]);
 
-  const canApplyLoadedProject =
-    !!docType && !!projectComparison?.canApplyByPageCount;
+  useEffect(() => {
+    if (!loadedProject) {
+      setProjectBindings({});
+      return;
+    }
+
+    setProjectBindings(
+      createSuggestedProjectAssetBindings(loadedProject, currentAssetHints)
+    );
+  }, [currentAssetHints, loadedProject]);
+
+  const assignedProjectBindingCount = useMemo(() => {
+    if (!loadedProject) return 0;
+    return countAssignedProjectAssetBindings(loadedProject, projectBindings);
+  }, [loadedProject, projectBindings]);
+
+  const canApplyLoadedProject = useMemo(() => {
+    if (!docType || !loadedProject || currentAssetHints.length < 1) {
+      return false;
+    }
+    return hasCompleteProjectAssetBindings(loadedProject, projectBindings);
+  }, [currentAssetHints.length, docType, loadedProject, projectBindings]);
 
   // --- Logic Orchestration ---
   
@@ -366,9 +395,12 @@ export default function App() {
 
   const applyLoadedProjectToCurrentDocument = useCallback((
     project: ProjectDocument,
-    sourceFile: ReturnType<typeof toFileInfo> | null = null
+    sourceFile: ReturnType<typeof toFileInfo> | null = null,
+    bindings?: ProjectAssetBindings
   ) => {
-    const legacy = createLegacyStateFromProjectDocument(project);
+    const legacy = bindings
+      ? createLegacyStateFromBoundProjectDocument(project, bindings)
+      : createLegacyStateFromProjectDocument(project);
     setSettings(legacy.settings);
     upsertTemplate(legacy.template);
     replaceCutsState(legacy.cuts, legacy.numberingState);
@@ -379,17 +411,33 @@ export default function App() {
       projectName: legacy.projectName,
       logicalPages: legacy.logicalPageCount,
       cutCount: legacy.cuts.length,
+      assignedPages: bindings
+        ? Object.values(bindings).filter((pageIndex) => pageIndex != null).length
+        : legacy.logicalPageCount,
       sourceFile,
     }));
   }, [logDebug, replaceCutsState, setCurrentPage, setSettings, upsertTemplate]);
+
+  const handleProjectBindingChange = useCallback((logicalPageId: string, nextAssetIndex: number | null) => {
+    setProjectBindings((prev) =>
+      reassignProjectAssetBinding(prev, logicalPageId, nextAssetIndex)
+    );
+  }, []);
+
+  const handleResetProjectBindings = useCallback(() => {
+    if (!loadedProject) return;
+    setProjectBindings(
+      createSuggestedProjectAssetBindings(loadedProject, currentAssetHints)
+    );
+  }, [currentAssetHints, loadedProject]);
 
   const handleApplyLoadedProject = useCallback(() => {
     if (!loadedProject || !canApplyLoadedProject) {
       return;
     }
 
-    applyLoadedProjectToCurrentDocument(loadedProject);
-  }, [applyLoadedProjectToCurrentDocument, canApplyLoadedProject, loadedProject]);
+    applyLoadedProjectToCurrentDocument(loadedProject, null, projectBindings);
+  }, [applyLoadedProjectToCurrentDocument, canApplyLoadedProject, loadedProject, projectBindings]);
 
   const handleSaveProject = useCallback(() => {
     if (!docType) {
@@ -434,8 +482,10 @@ export default function App() {
 
       const project = await loadProjectDocumentFromFile(file);
       const fileInfo = toFileInfo(file);
+      const suggestedBindings = createSuggestedProjectAssetBindings(project, currentAssetHints);
 
       setLoadedProject(project);
+      setProjectBindings(suggestedBindings);
       logDebug('info', 'プロジェクト読込完了', () => ({
         projectName: project.meta.name,
         logicalPages: project.logicalPages.length,
@@ -461,7 +511,7 @@ export default function App() {
         return;
       }
 
-      applyLoadedProjectToCurrentDocument(project, fileInfo);
+      applyLoadedProjectToCurrentDocument(project, fileInfo, suggestedBindings);
     } catch (error) {
       alert('プロジェクト読込中にエラーが発生しました');
       logDebug('error', 'プロジェクト読込失敗', () => ({
@@ -471,7 +521,7 @@ export default function App() {
     } finally {
       e.target.value = '';
     }
-  }, [applyLoadedProjectToCurrentDocument, docType, logDebug, numPages]);
+  }, [applyLoadedProjectToCurrentDocument, currentAssetHints, docType, logDebug, numPages]);
 
   // Export PDF
   const handleExportPdf = async () => {
@@ -746,7 +796,13 @@ export default function App() {
                 projectName={loadedProject.meta.name}
                 savedAt={loadedProject.meta.savedAt}
                 comparison={projectComparison}
+                bindings={projectBindings}
+                assignedCount={assignedProjectBindingCount}
+                currentAssets={currentAssetHints}
                 canApplyProject={canApplyLoadedProject}
+                canResetBindings={currentAssetHints.length > 0}
+                onBindingChange={handleProjectBindingChange}
+                onResetBindings={handleResetProjectBindings}
                 onApplyProject={handleApplyLoadedProject}
               />
             ) : undefined

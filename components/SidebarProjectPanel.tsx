@@ -3,13 +3,20 @@ import {
   ProjectAssetComparisonRow,
   ProjectAssetComparisonSummary,
 } from '../application/projectComparison';
+import { ProjectAssetBindings } from '../application/projectBindings';
 import { AssetHint } from '../domain/project';
 
 interface SidebarProjectPanelProps {
   projectName: string;
   savedAt: string;
   comparison: ProjectAssetComparisonSummary;
+  bindings: ProjectAssetBindings;
+  assignedCount: number;
+  currentAssets: Array<AssetHint | null | undefined>;
   canApplyProject: boolean;
+  canResetBindings: boolean;
+  onBindingChange: (logicalPageId: string, nextAssetIndex: number | null) => void;
+  onResetBindings: () => void;
   onApplyProject: () => void;
 }
 
@@ -33,10 +40,21 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
   projectName,
   savedAt,
   comparison,
+  bindings,
+  assignedCount,
+  currentAssets,
   canApplyProject,
+  canResetBindings,
+  onBindingChange,
+  onResetBindings,
   onApplyProject,
 }) => {
   const unresolvedRows = comparison.rows.filter((row) => row.status !== 'matched').slice(0, 5);
+  const getAssignedAsset = (logicalPageId: string) => {
+    const assetIndex = bindings[logicalPageId];
+    if (assetIndex == null) return null;
+    return currentAssets[assetIndex] ?? null;
+  };
   const statusLabel =
     comparison.currentAssetCount < 1
       ? '素材未読込'
@@ -75,8 +93,10 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
           <div className="mt-1 text-base font-bold text-slate-900">{comparison.currentAssetCount}</div>
         </div>
         <div className="rounded-lg bg-white/80 p-2">
-          <div className="text-slate-500">自動一致</div>
-          <div className="mt-1 text-base font-bold text-slate-900">{comparison.matchedPageCount}</div>
+          <div className="text-slate-500">割当済み</div>
+          <div className="mt-1 text-base font-bold text-slate-900">
+            {assignedCount}/{comparison.logicalPageCount}
+          </div>
         </div>
       </div>
 
@@ -84,7 +104,7 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
         {comparison.currentAssetCount < 1 && '次にPDFまたは画像を読み込むと、保存時の論理ページと現在の素材を比較できます。'}
         {comparison.currentAssetCount > 0 && comparison.canApplyByPageCount && (
           <>
-            ページ数が一致しているので、いまはページ順で適用できます。
+            ページ数が一致しています。必要なら下で割当を入れ替えてから適用できます。
             {comparison.needsReviewCount > 0 &&
               ` ただし ${comparison.needsReviewCount} ページは素材名が変わっているため要確認です。`}
           </>
@@ -94,19 +114,72 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
             素材のページ数に差分があります。
             {comparison.missingAssetCount > 0 && ` ${comparison.missingAssetCount} ページ分の素材が不足しています。`}
             {comparison.extraAssetCount > 0 && ` 現在の素材に ${comparison.extraAssetCount} ページ分の余剰があります。`}
+            {comparison.currentAssetCount >= comparison.logicalPageCount &&
+              ' すべての論理ページをどこへ載せるか決めれば、現行UIへ反映できます。'}
           </>
         )}
       </div>
 
-      {canApplyProject && (
-        <button
-          type="button"
-          onClick={onApplyProject}
-          className="w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500"
-        >
-          現在の素材へページ順で適用
-        </button>
+      {comparison.currentAssetCount > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-xs font-semibold text-slate-700">論理ページの割当</div>
+            {canResetBindings && (
+              <button
+                type="button"
+                onClick={onResetBindings}
+                className="text-[11px] font-medium text-sky-700 hover:text-sky-800"
+              >
+                自動候補に戻す
+              </button>
+            )}
+          </div>
+          <div className="space-y-2">
+            {comparison.rows.map((row) => (
+              <div key={row.logicalPageId} className="rounded-lg border border-sky-100 bg-white/80 p-2 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-slate-800">論理P{row.pageNumber}</span>
+                  <span className="text-slate-500">{formatRowStatus(row)}</span>
+                </div>
+                <div className="mt-1 text-slate-600">保存時: {formatAssetLabel(row.expectedAsset)}</div>
+                <div className="text-slate-600">割当中: {formatAssetLabel(getAssignedAsset(row.logicalPageId))}</div>
+                <label className="mt-2 block text-slate-500" htmlFor={`binding-${row.logicalPageId}`}>
+                  現在の素材ページ
+                </label>
+                <select
+                  id={`binding-${row.logicalPageId}`}
+                  aria-label={`論理ページ ${row.pageNumber} の割当`}
+                  value={bindings[row.logicalPageId] ?? ''}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    onBindingChange(
+                      row.logicalPageId,
+                      value === '' ? null : Number(value)
+                    );
+                  }}
+                  className="mt-1 w-full rounded-md border border-sky-100 bg-white px-2 py-1.5 text-xs text-slate-700"
+                >
+                  <option value="">未割当</option>
+                  {currentAssets.map((asset, index) => (
+                    <option key={`${row.logicalPageId}-asset-${index}`} value={index}>
+                      {`現在P${index + 1}: ${formatAssetLabel(asset ?? null)}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
+
+      <button
+        type="button"
+        onClick={onApplyProject}
+        disabled={!canApplyProject}
+        className="w-full rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+      >
+        現在の素材へ割当どおりに適用
+      </button>
 
       {(unresolvedRows.length > 0 || comparison.extraAssetCount > 0) && (
         <div className="space-y-2">
@@ -119,7 +192,7 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
                   <span className="text-slate-500">{formatRowStatus(row)}</span>
                 </div>
                 <div className="mt-1 text-slate-600">保存時: {formatAssetLabel(row.expectedAsset)}</div>
-                <div className="text-slate-600">現在: {formatAssetLabel(row.currentAsset)}</div>
+                <div className="text-slate-600">割当中: {formatAssetLabel(getAssignedAsset(row.logicalPageId))}</div>
               </div>
             ))}
             {comparison.extraAssetCount > 0 && (
