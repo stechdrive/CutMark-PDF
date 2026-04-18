@@ -9,7 +9,6 @@ import {
   createAppSettingsFromProjectDocument,
   createAssetHintsFromCurrentDocument,
   createLegacyCutsFromProjectDocument,
-  createProjectDocumentFromLegacySnapshot,
   createTemplateFromProjectDocument,
 } from './adapters/legacyProjectAdapter';
 import {
@@ -24,7 +23,6 @@ import {
 } from './domain/project';
 import {
   applyBoundAssetHintsToProject,
-  createSequentialProjectAssetBindings,
   createSuggestedProjectAssetBindings,
   ProjectAssetBindings,
 } from './application/projectBindings';
@@ -32,7 +30,8 @@ import { summarizeProjectAssetComparison } from './application/projectComparison
 
 // Hooks
 import { useDocumentViewer } from './hooks/useDocumentViewer';
-import { useCuts } from './hooks/useCuts';
+import { useLegacyCutEditor } from './hooks/useLegacyCutEditor';
+import { useLegacyProjectProjection } from './hooks/useLegacyProjectProjection';
 import { useTemplates } from './hooks/useTemplates';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -145,18 +144,30 @@ export default function App() {
     branchChar: settings.branchChar,
   }), [settings.nextNumber, settings.branchChar]);
 
-  const {
-    cuts, selectedCutId, historyIndex, historyLength,
-    setSelectedCutId, addCut, updateCutPosition, handleCutDragEnd, 
-    deleteCut, setNumberingStateWithHistory, renumberFromCut, undo, redo, resetCuts
-  } = useCuts({ numberingState, setNumberingState });
+  const resetLegacyCutEditorRef = useRef<() => void>(() => {});
+  const handleDocumentReset = useCallback(() => {
+    resetLegacyCutEditorRef.current();
+  }, []);
 
   const {
     docType, pdfFile, imageFiles, currentImageUrl,
     numPages, currentPage, scale, isDragging,
     loadPdf, loadImages,
     setNumPages, setCurrentPage, setScale, dragHandlers
-  } = useDocumentViewer(resetCuts); // Pass resetCuts as callback
+  } = useDocumentViewer(handleDocumentReset);
+
+  const legacyCutEditor = useLegacyCutEditor({
+    currentPage,
+    settings,
+    numberingState,
+    setNumberingState,
+    getNextLabel,
+    getNextNumberingState,
+  });
+
+  useEffect(() => {
+    resetLegacyCutEditorRef.current = legacyCutEditor.resetCuts;
+  }, [legacyCutEditor.resetCuts]);
 
   const {
     templates, template, setTemplate, changeTemplate,
@@ -359,8 +370,8 @@ export default function App() {
       }), { pushHistory: true });
       return;
     }
-    setNumberingStateWithHistory(next);
-  }, [loadedProject, setNumberingStateWithHistory, updateProjectSettings]);
+    legacyCutEditor.setNumberingStateWithHistory(next);
+  }, [legacyCutEditor, loadedProject, updateProjectSettings]);
   const handleTemplateChange = useCallback((id: string) => {
     if (!loadedProject) {
       changeTemplate(id);
@@ -443,37 +454,19 @@ export default function App() {
     }
     return undefined;
   }, [docType, imageFiles, pdfFile]);
-  const legacyProject = useMemo(() => {
-    if (!docType) return null;
-
-    return createProjectDocumentFromLegacySnapshot({
-      cuts,
-      settings,
-      template,
-      pageCount: Math.max(numPages, 1),
-      assetHints: currentAssetHints,
-      projectName: currentProjectName,
-    });
-  }, [currentAssetHints, currentProjectName, cuts, docType, numPages, settings, template]);
+  const legacyProjectProjection = useLegacyProjectProjection({
+    docType,
+    cuts: legacyCutEditor.cuts,
+    settings,
+    template,
+    numPages,
+    currentPage,
+    currentAssetHints,
+    currentProjectName,
+  });
+  const legacyProject = legacyProjectProjection.project;
   const activeCutEditor = useActiveCutEditor({
-    legacy: {
-      currentPage,
-      settings,
-      selectedCutId,
-      historyIndex,
-      historyLength,
-      getNextLabel,
-      getNextNumberingState,
-      setSelectedCutId,
-      addCut,
-      updateCutPosition,
-      handleCutDragEnd,
-      deleteCut,
-      setNumberingStateWithHistory,
-      renumberFromCut,
-      undo,
-      redo,
-    },
+    legacy: legacyCutEditor.cutEditorApi,
     project: {
       project: loadedProject,
       settings: effectiveSettings,
@@ -555,17 +548,15 @@ export default function App() {
     () =>
       loadedProject
         ? projectBindings
-        : legacyProject
-          ? createSequentialProjectAssetBindings(legacyProject, currentAssetHints.length)
-          : {},
-    [currentAssetHints.length, legacyProject, loadedProject, projectBindings]
+        : legacyProjectProjection.bindings,
+    [legacyProjectProjection.bindings, loadedProject, projectBindings]
   );
   const previewLogicalPage = useMemo(
     () =>
       loadedProject
         ? selectedLogicalPage
-        : legacyProject?.logicalPages[currentPage - 1] ?? null,
-    [currentPage, legacyProject, loadedProject, selectedLogicalPage]
+        : legacyProjectProjection.previewLogicalPage,
+    [legacyProjectProjection.previewLogicalPage, loadedProject, selectedLogicalPage]
   );
   const previewCuts = useMemo(
     () =>
