@@ -445,11 +445,11 @@ describe('DocumentPreview', () => {
 
     expect(
       screen.getByText((content) =>
-        content.includes('または「読み込み」から PDF / 連番画像 / プロジェクトJSON を選んでください')
+        content.includes('または「読み込み」から PDF / 連番画像 / プロジェクトファイル を選んでください')
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByText('プロジェクトJSONも、PDF や連番画像とまとめてドロップできます')
+      screen.getByText('プロジェクトファイルも、PDF や連番画像とまとめてドロップできます')
     ).toBeInTheDocument();
   });
 });

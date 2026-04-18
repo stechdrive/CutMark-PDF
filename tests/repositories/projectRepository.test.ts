@@ -51,7 +51,7 @@ describe('repositories/projectRepository', () => {
   });
 
   it('loads a project document from a file object', async () => {
-    const file = new File([serializeProjectDocument(project)], 'episode.cutmark.json', {
+    const file = new File([serializeProjectDocument(project)], 'episode.cutmark', {
       type: 'application/json',
     });
 

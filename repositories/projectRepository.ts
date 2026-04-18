@@ -1,6 +1,6 @@
 import { ProjectDocument } from '../domain/project';
 
-export const PROJECT_FILE_EXTENSION = '.cutmark.json';
+export const PROJECT_FILE_EXTENSION = '.cutmark';
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;

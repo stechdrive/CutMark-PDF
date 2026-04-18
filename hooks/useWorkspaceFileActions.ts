@@ -76,7 +76,11 @@ const isDirectoryEntry = (entry: FileSystemEntry): entry is FileSystemDirectoryE
 
 const isProjectFile = (file: File) => {
   const lowerName = file.name.toLowerCase();
-  return file.type === 'application/json' || lowerName.endsWith('.json');
+  return (
+    file.type === 'application/json' ||
+    lowerName.endsWith('.cutmark') ||
+    lowerName.endsWith('.json')
+  );
 };
 
 const isPdfFile = (file: File) => {
@@ -136,7 +140,7 @@ export const createWorkspaceImportPlan = ({
   const supportedFileCount = projectFiles.length + pdfFiles.length + imageFiles.length;
   if (supportedFileCount === 0) {
     throw new WorkspaceImportValidationError(
-      '読み込めるファイルが見つかりませんでした。PDF、プロジェクトJSON、JPG/PNG を選んでください。'
+      '読み込めるファイルが見つかりませんでした。PDF、プロジェクトファイル、JPG/PNG を選んでください。'
     );
   }
 

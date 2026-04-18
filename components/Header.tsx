@@ -67,14 +67,14 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => importInputRef.current?.click()}
             disabled={isExporting}
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            title="PDF、連番画像、プロジェクトJSONを読み込む"
+            title="PDF、連番画像、プロジェクトファイルを読み込む"
           >
             <Upload size={16} /> 読み込み
           </button>
           <input
             ref={importInputRef}
             type="file"
-            accept=".pdf,.json,.cutmark.json,.jpg,.jpeg,.png,image/*,application/json"
+            accept=".pdf,.cutmark,.json,.jpg,.jpeg,.png,image/*,application/json"
             multiple
             className="hidden"
             onChange={onImportFileChange}

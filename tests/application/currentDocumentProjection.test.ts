@@ -63,5 +63,13 @@ describe('application/currentDocumentProjection', () => {
         ],
       })
     ).toBe('shots');
+
+    expect(
+      deriveCurrentProjectName({
+        docType: 'images',
+        pdfFile: null,
+        imageFiles: [new File(['img'], '001.png', { type: 'image/png' })],
+      })
+    ).toBe('001');
   });
 });

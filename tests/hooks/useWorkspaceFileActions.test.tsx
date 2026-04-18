@@ -72,7 +72,7 @@ describe('useWorkspaceFileActions', () => {
 
   it('classifies project, pdf, image, and unsupported files', () => {
     const files = createFileList([
-      new File(['{}'], 'project.cutmark.json', { type: 'application/json' }),
+      new File(['{}'], 'project.cutmark', { type: 'application/json' }),
       new File(['pdf'], 'sample.pdf', { type: 'application/pdf' }),
       new File(['img'], '001.png', { type: 'image/png' }),
       new File(['txt'], 'memo.txt', { type: 'text/plain' }),
@@ -113,7 +113,7 @@ describe('useWorkspaceFileActions', () => {
     const options = createOptions();
     const imageA = new File(['img-a'], '002.png', { type: 'image/png' });
     const imageB = new File(['img-b'], '001.png', { type: 'image/png' });
-    const projectFile = new File(['{}'], 'shots.cutmark.json', { type: 'application/json' });
+    const projectFile = new File(['{}'], 'shots.cutmark', { type: 'application/json' });
     const event = {
       target: {
         files: createFileList([projectFile, imageA, imageB]),
@@ -145,7 +145,7 @@ describe('useWorkspaceFileActions', () => {
   it('loads a pdf and project file from one selection', async () => {
     const options = createOptions();
     const pdfFile = new File(['pdf'], 'sample.pdf', { type: 'application/pdf' });
-    const projectFile = new File(['{}'], 'sample.cutmark.json', { type: 'application/json' });
+    const projectFile = new File(['{}'], 'sample.cutmark', { type: 'application/json' });
     const event = {
       target: {
         files: createFileList([projectFile, pdfFile]),
@@ -181,7 +181,7 @@ describe('useWorkspaceFileActions', () => {
   it('accepts the same combined import patterns from drag and drop', async () => {
     const options = createOptions();
     const imageFile = new File(['img'], '001.png', { type: 'image/png' });
-    const projectFile = new File(['{}'], 'sample.cutmark.json', { type: 'application/json' });
+    const projectFile = new File(['{}'], 'sample.cutmark', { type: 'application/json' });
     const event = {
       dataTransfer: {
         types: ['Files'],

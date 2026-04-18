@@ -54,7 +54,11 @@ export const deriveCurrentProjectName = ({
     return pdfFile?.name;
   }
   if (docType === 'images') {
-    return imageFiles[0]?.webkitRelativePath.split('/')[0] || imageFiles[0]?.name;
+    const folderName = imageFiles[0]?.webkitRelativePath?.split('/')[0];
+    if (folderName) return folderName;
+
+    const firstFileName = imageFiles[0]?.name;
+    return firstFileName?.replace(/\.[^.]+$/, '') || firstFileName;
   }
   return undefined;
 };
