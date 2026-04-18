@@ -34,7 +34,9 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html'],
       include: [
+        'application/**/*.ts',
         'components/**/*.tsx',
+        'domain/**/*.ts',
         'hooks/**/*.ts',
         'hooks/**/*.tsx',
         'services/**/*.ts',
