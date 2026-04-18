@@ -84,6 +84,8 @@ describe('useAppPresentationController', () => {
       templates: [template],
       isLoadedProjectActive: true,
       selectedLogicalPageId: 'page-1',
+      selectedLogicalPageNumber: 1,
+      selectedAssetIndex: null,
       effectiveSettings: settings,
       effectiveTemplate: template,
       setEffectiveSettings: vi.fn(),
@@ -101,6 +103,7 @@ describe('useAppPresentationController', () => {
       effectiveExportCuts: [],
       effectiveExportSettings: settings,
       canApplyLoadedProject: true,
+      projectStatusMessage: '論理P1 は未割当です。割当を決めると対応する素材ページを表示します。',
       loadedProjectManager: {
         onProjectLoaded: vi.fn(),
         handleSaveProject: vi.fn(),
@@ -195,6 +198,10 @@ describe('useAppPresentationController', () => {
         }),
         preview: expect.objectContaining({
           currentImageUrl: 'blob:image',
+          projectNotice: {
+            title: '論理P1 は未割当です',
+            message: '論理P1 は未割当です。割当を決めると対応する素材ページを表示します。',
+          },
           onPdfPageLoadSuccess: workspace.applyPdfDefaultFontSize,
         }),
         sidebar: expect.objectContaining({

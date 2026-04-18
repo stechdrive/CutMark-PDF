@@ -98,6 +98,10 @@ describe('useAppShellProps', () => {
           onTemplateInteractionStart: vi.fn(),
           onTemplateInteractionEnd: vi.fn(),
           settings,
+          projectNotice: {
+            title: '論理P2 は未割当です',
+            message: '右パネルで現在の素材ページを割り当てると、プレビューが同期します。',
+          },
           onContentClick: vi.fn(),
           onPdfPageLoadSuccess: vi.fn(),
           logDebug,
@@ -141,6 +145,10 @@ describe('useAppShellProps', () => {
     );
 
     expect(result.current.documentPreviewProps.setTemplate).toBe(setTemplateLive);
+    expect(result.current.documentPreviewProps.projectNotice).toEqual({
+      title: '論理P2 は未割当です',
+      message: '右パネルで現在の素材ページを割り当てると、プレビューが同期します。',
+    });
     expect(result.current.sidebarProps.setLiveSettings).toBe(setSettingsLive);
     expect(result.current.exportOverlayProps).toEqual({ isExporting: false });
 
@@ -207,6 +215,7 @@ describe('useAppShellProps', () => {
           setTemplate,
           setTemplateLive: vi.fn(),
           settings: createAppSettings(),
+          projectNotice: null,
           onContentClick: vi.fn(),
           logDebug: vi.fn(),
           isLoadedProjectActive: false,

@@ -29,6 +29,8 @@ type AppPresentationWorkspace = Pick<
   | 'templates'
   | 'isLoadedProjectActive'
   | 'selectedLogicalPageId'
+  | 'selectedLogicalPageNumber'
+  | 'selectedAssetIndex'
   | 'effectiveSettings'
   | 'effectiveTemplate'
   | 'setEffectiveSettings'
@@ -46,6 +48,7 @@ type AppPresentationWorkspace = Pick<
   | 'effectiveExportCuts'
   | 'effectiveExportSettings'
   | 'canApplyLoadedProject'
+  | 'projectStatusMessage'
   | 'loadedProjectManager'
   | 'activeCutEditor'
   | 'handleRowSnap'
@@ -74,6 +77,20 @@ export const useAppPresentationController = ({
   const activeHistoryLength = workspace.activeCutEditor.historyLength;
   const handleUndoAction = workspace.activeCutEditor.undo;
   const handleRedoAction = workspace.activeCutEditor.redo;
+  const projectPreviewNotice =
+    workspace.isLoadedProjectActive &&
+    workspace.selectedLogicalPageId &&
+    workspace.selectedAssetIndex == null
+      ? {
+          title:
+            workspace.selectedLogicalPageNumber != null
+              ? `論理P${workspace.selectedLogicalPageNumber} は未割当です`
+              : '未割当の論理ページを編集中',
+          message:
+            workspace.projectStatusMessage ??
+            '右パネルで現在の素材ページを割り当てると、プレビューが同期します。背景の素材表示は参照用です。',
+        }
+      : null;
 
   const {
     debugOpen,
@@ -186,6 +203,7 @@ export const useAppPresentationController = ({
       onTemplateInteractionStart: workspace.handleProjectDraftInteractionStart,
       onTemplateInteractionEnd: workspace.handleProjectDraftInteractionEnd,
       settings: workspace.effectiveSettings,
+      projectNotice: projectPreviewNotice,
       onContentClick: workspace.activeCutEditor.createCutAt,
       onPdfPageLoadSuccess: workspace.applyPdfDefaultFontSize,
       logDebug,

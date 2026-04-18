@@ -58,6 +58,8 @@ export const useEditorWorkspace = ({
     resetCurrentProject: sessions.currentProjectSession.resetProject,
     isLoadedProjectActive: sessions.isLoadedProjectActive,
     selectedLogicalPageId: sessions.loadedProjectSession.workspaceSession.selectedLogicalPageId,
+    selectedLogicalPageNumber: sessions.loadedProjectSession.workspaceSession.selectedLogicalPageNumber,
+    selectedAssetIndex: sessions.loadedProjectSession.workspaceSession.selectedAssetIndex,
     effectiveSettings: workspaceState.effectiveSettings,
     effectiveTemplate: workspaceState.effectiveTemplate,
     setEffectiveSettings: workspaceState.setEffectiveSettings,
@@ -75,6 +77,7 @@ export const useEditorWorkspace = ({
     effectiveExportCuts: workspaceState.workspace.effectiveExportCuts,
     effectiveExportSettings: workspaceState.workspace.effectiveExportSettings,
     canApplyLoadedProject: workspaceState.workspace.canApplyLoadedProject,
+    projectStatusMessage: workspaceState.workspace.projectStatusMessage,
     loadedProjectManager: controls.loadedProjectManager,
     activeCutEditor: controls.activeCutEditor,
   };

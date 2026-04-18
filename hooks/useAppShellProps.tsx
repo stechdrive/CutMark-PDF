@@ -52,6 +52,7 @@ interface UseAppShellPropsOptions {
     onTemplateInteractionStart?: () => void;
     onTemplateInteractionEnd?: () => void;
     settings: ComponentProps<typeof DocumentPreview>['settings'];
+    projectNotice?: ComponentProps<typeof DocumentPreview>['projectNotice'];
     onContentClick: (x: number, y: number) => void;
     onPdfPageLoadSuccess?: ComponentProps<typeof DocumentPreview>['onPdfPageLoadSuccess'];
     logDebug: (level: 'info' | 'warn' | 'error', message: string, data?: unknown | (() => unknown)) => void;
@@ -152,6 +153,7 @@ export const useAppShellProps = ({
     onTemplateInteractionStart: preview.isLoadedProjectActive ? preview.onTemplateInteractionStart : undefined,
     onTemplateInteractionEnd: preview.isLoadedProjectActive ? preview.onTemplateInteractionEnd : undefined,
     settings: preview.settings,
+    projectNotice: preview.projectNotice,
     onContentClick: preview.onContentClick,
     onPdfLoadSuccess: (pages) => preview.logDebug('info', 'PDF読み込み成功', () => ({ numPages: pages })),
     onPdfLoadError: (error) => preview.logDebug('error', 'PDF読み込み失敗', () => ({ error: normalizeError(error) })),

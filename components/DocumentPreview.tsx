@@ -45,6 +45,10 @@ interface DocumentPreviewProps {
   onTemplateInteractionStart?: () => void;
   onTemplateInteractionEnd?: () => void;
   settings: AppSettings;
+  projectNotice?: {
+    title: string;
+    message: string;
+  } | null;
   
   // Events
   onContentClick: (x: number, y: number) => void;
@@ -81,6 +85,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   onTemplateInteractionStart,
   onTemplateInteractionEnd,
   settings,
+  projectNotice,
   onContentClick,
   onPdfLoadSuccess,
   onPdfLoadError,
@@ -253,6 +258,15 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
         </div>
       ) : (
         <>
+          {projectNotice && (
+            <div className="pointer-events-none absolute top-4 left-1/2 z-30 w-full max-w-xl -translate-x-1/2 px-4">
+              <div className="rounded-xl border border-amber-200 bg-amber-50/95 px-4 py-3 text-center shadow-lg backdrop-blur">
+                <div className="text-sm font-semibold text-amber-900">{projectNotice.title}</div>
+                <div className="mt-1 text-xs leading-5 text-amber-800">{projectNotice.message}</div>
+              </div>
+            </div>
+          )}
+
           {/* Document Wrapper */}
           <div
             className="relative shadow-lg transition-transform duration-200 ease-out border border-gray-300 bg-white"
