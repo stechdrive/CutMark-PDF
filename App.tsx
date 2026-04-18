@@ -2,13 +2,12 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { pdfjs } from 'react-pdf';
 
-import { AppSettings, Cut, NumberingState, Template } from './types';
+import { AppSettings, NumberingState, Template } from './types';
 import { saveMarkedPdf, saveImagesAsPdf } from './services/pdfService';
 import { exportImagesAsZip } from './services/imageExportService';
 import {
   createAppSettingsFromProjectDocument,
   createAssetHintsFromCurrentDocument,
-  createLegacyCutsFromProjectDocument,
   createTemplateFromProjectDocument,
 } from './adapters/legacyProjectAdapter';
 import {
@@ -17,16 +16,11 @@ import {
 } from './repositories/projectRepository';
 import {
   ProjectDocument,
-  toNumberingPolicy,
-  toStyleSettings,
-  toTemplateSnapshot,
 } from './domain/project';
 import {
-  applyBoundAssetHintsToProject,
   createSuggestedProjectAssetBindings,
   ProjectAssetBindings,
 } from './application/projectBindings';
-import { summarizeProjectAssetComparison } from './application/projectComparison';
 
 // Hooks
 import { useDocumentViewer } from './hooks/useDocumentViewer';
@@ -37,6 +31,7 @@ import { useAppSettings } from './hooks/useAppSettings';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useProjectEditor } from './hooks/useProjectEditor';
 import { useActiveCutEditor } from './hooks/useActiveCutEditor';
+import { useProjectWorkspace } from './hooks/useProjectWorkspace';
 
 // Components
 import { Header } from './components/Header';
@@ -68,15 +63,6 @@ const FONT_SIZE_MAX = 72;
 
 const countProjectCuts = (project: ProjectDocument) =>
   project.logicalPages.reduce((count, page) => count + page.cuts.length, 0);
-
-const toCutLike = (pageIndex: number, cut: ProjectDocument['logicalPages'][number]['cuts'][number]): Cut => ({
-  id: cut.id,
-  pageIndex,
-  x: cut.x,
-  y: cut.y,
-  label: cut.label,
-  isBranch: cut.isBranch,
-});
 
 const toFileInfo = (file: File | null) => {
   if (!file) return null;
@@ -265,26 +251,7 @@ export default function App() {
   const canRedoProjectDraft = projectEditor.canRedo;
   const projectDraftHistoryIndex = projectEditor.historyIndex;
   const projectDraftHistoryLength = projectEditor.historyLength;
-  const selectedLogicalPage = projectEditor.selectedLogicalPage;
   const selectedLogicalPageId = projectEditor.selectedLogicalPageId;
-  const selectedLogicalPageNumber = projectEditor.selectedLogicalPageNumber;
-  const selectedLogicalPageAssetIndex = projectEditor.selectedAssetIndex;
-
-  const projectComparison = useMemo(() => {
-    if (!loadedProject) return null;
-    return summarizeProjectAssetComparison(loadedProject, currentAssetHints);
-  }, [currentAssetHints, loadedProject]);
-
-  useEffect(() => {
-    if (!selectedLogicalPageId) return;
-    const assetIndex = projectBindings[selectedLogicalPageId];
-    if (assetIndex == null) return;
-    if (assetIndex + 1 !== currentPage) {
-      setCurrentPage(assetIndex + 1);
-    }
-  }, [currentPage, projectBindings, selectedLogicalPageId, setCurrentPage]);
-  const assignedProjectBindingCount = projectEditor.assignedCount;
-  const canApplyLoadedProject = !!docType && projectEditor.canApply;
   const {
     loadProject: loadProjectIntoEditor,
     replaceProject: replaceEditorProject,
@@ -464,6 +431,38 @@ export default function App() {
     currentAssetHints,
     currentProjectName,
   });
+  const workspace = useProjectWorkspace({
+    docType,
+    currentPage,
+    setCurrentPage,
+    currentAssetHints,
+    effectiveSettings,
+    effectiveTemplate,
+    fallbackSettings: settings,
+    projectEditor: {
+      project: projectEditor.project,
+      bindings: projectEditor.bindings,
+      canApply: projectEditor.canApply,
+      assignedCount: projectEditor.assignedCount,
+      selectedLogicalPage: projectEditor.selectedLogicalPage,
+      selectedLogicalPageId: projectEditor.selectedLogicalPageId,
+      selectedLogicalPageNumber: projectEditor.selectedLogicalPageNumber,
+      selectedAssetIndex: projectEditor.selectedAssetIndex,
+    },
+    legacyProjection: legacyProjectProjection,
+  });
+  const {
+    projectComparison,
+    assignedProjectBindingCount,
+    canApplyLoadedProject,
+    projectStatusMessage,
+    resolveProjectDocumentForCurrentState,
+    activeProject,
+    activeProjectBindings,
+    previewCuts,
+    effectiveExportCuts,
+    effectiveExportSettings,
+  } = workspace;
   const legacyProject = legacyProjectProjection.project;
   const activeCutEditor = useActiveCutEditor({
     legacy: legacyCutEditor.cutEditorApi,
@@ -494,93 +493,6 @@ export default function App() {
   const activeHistoryLength = activeCutEditor.historyLength;
   const handleUndoAction = activeCutEditor.undo;
   const handleRedoAction = activeCutEditor.redo;
-
-  const projectStatusMessage = useMemo(() => {
-    if (!loadedProject) return null;
-    if (!selectedLogicalPage) {
-      return '論理ページを選ぶと、割当先の素材ページへプレビューを合わせます。';
-    }
-    if (selectedLogicalPageAssetIndex == null) {
-      return `論理P${selectedLogicalPageNumber ?? '?'} は未割当です。割当を決めると対応する素材ページを表示します。`;
-    }
-    return `論理P${selectedLogicalPageNumber ?? '?'} を現在P${selectedLogicalPageAssetIndex + 1} に割り当てています。`;
-  }, [
-    loadedProject,
-    selectedLogicalPage,
-    selectedLogicalPageAssetIndex,
-    selectedLogicalPageNumber,
-  ]);
-
-  const resolveProjectDocumentForCurrentState = useCallback((
-    project: ProjectDocument,
-    bindings: ProjectAssetBindings,
-    options: { touchSavedAt?: boolean } = {}
-  ) => {
-    const projectWithBoundHints = applyBoundAssetHintsToProject(
-      project,
-      bindings,
-      currentAssetHints
-    );
-
-    return {
-      ...projectWithBoundHints,
-      meta: {
-        ...projectWithBoundHints.meta,
-        savedAt: options.touchSavedAt
-          ? new Date().toISOString()
-          : projectWithBoundHints.meta.savedAt,
-      },
-      numbering: toNumberingPolicy(effectiveSettings),
-      style: toStyleSettings(effectiveSettings),
-      template: toTemplateSnapshot(effectiveTemplate),
-    };
-  }, [currentAssetHints, effectiveSettings, effectiveTemplate]);
-
-  const resolvedLoadedProject = useMemo(
-    () =>
-      loadedProject
-        ? resolveProjectDocumentForCurrentState(loadedProject, projectBindings)
-        : null,
-    [loadedProject, projectBindings, resolveProjectDocumentForCurrentState]
-  );
-  const activeProject = resolvedLoadedProject ?? legacyProject;
-  const activeProjectBindings = useMemo(
-    () =>
-      loadedProject
-        ? projectBindings
-        : legacyProjectProjection.bindings,
-    [legacyProjectProjection.bindings, loadedProject, projectBindings]
-  );
-  const previewLogicalPage = useMemo(
-    () =>
-      loadedProject
-        ? selectedLogicalPage
-        : legacyProjectProjection.previewLogicalPage,
-    [legacyProjectProjection.previewLogicalPage, loadedProject, selectedLogicalPage]
-  );
-  const previewCuts = useMemo(
-    () =>
-      previewLogicalPage
-        ? previewLogicalPage.cuts.map((cut) => toCutLike(currentPage - 1, cut))
-        : [],
-    [currentPage, previewLogicalPage]
-  );
-
-  const effectiveExportCuts = useMemo(
-    () =>
-      activeProject
-        ? createLegacyCutsFromProjectDocument(activeProject, activeProjectBindings)
-        : [],
-    [activeProject, activeProjectBindings]
-  );
-
-  const effectiveExportSettings = useMemo(
-    () =>
-      activeProject
-        ? createAppSettingsFromProjectDocument(activeProject)
-        : settings,
-    [activeProject, settings]
-  );
 
   // Row Snap (Keyboard 1-9 or Button)
   const handleRowSnap = (rowIndex: number) => {
