@@ -25,7 +25,7 @@ interface LoadedProjectDraftApi {
   commitTransaction: () => void;
 }
 
-interface UseLoadedProjectSessionResult {
+export interface UseLoadedProjectSessionResult {
   project: ProjectDocument | null;
   bindings: ProjectAssetBindings;
   workspaceSession: LoadedProjectWorkspaceSession;

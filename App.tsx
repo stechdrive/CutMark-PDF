@@ -23,6 +23,7 @@ import { useProjectWorkspace } from './hooks/useProjectWorkspace';
 import { useWorkspacePresentation } from './hooks/useWorkspacePresentation';
 import { useProjectLifecycle } from './hooks/useProjectLifecycle';
 import { useLoadedProjectSession } from './hooks/useLoadedProjectSession';
+import { useLoadedProjectPanel } from './hooks/useLoadedProjectPanel';
 
 // Components
 import { Header } from './components/Header';
@@ -307,7 +308,6 @@ export default function App() {
   });
   const {
     projectComparison,
-    assignedProjectBindingCount,
     canApplyLoadedProject,
     projectStatusMessage,
     resolveProjectDocumentForCurrentState,
@@ -447,31 +447,14 @@ export default function App() {
     setMode,
     logDebug,
   });
-
-  const handleProjectBindingChange = useCallback((logicalPageId: string, nextAssetIndex: number | null) => {
-    loadedProjectSession.assignAsset(logicalPageId, nextAssetIndex);
-  }, [loadedProjectSession]);
-
-  const handleResetProjectBindings = useCallback(() => {
-    if (!loadedProject) return;
-    loadedProjectSession.resetBindings();
-  }, [loadedProject, loadedProjectSession]);
-
-  const handleSelectLogicalPage = useCallback((logicalPageId: string) => {
-    loadedProjectSession.selectLogicalPage(logicalPageId);
-  }, [loadedProjectSession]);
-
-  const handleInsertLogicalPageAfter = useCallback((logicalPageId: string) => {
-    loadedProjectSession.insertPageAfter(logicalPageId);
-  }, [loadedProjectSession]);
-
-  const handleRemoveLogicalPage = useCallback((logicalPageId: string) => {
-    loadedProjectSession.removePage(logicalPageId);
-  }, [loadedProjectSession]);
-
-  const handleMoveLogicalPage = useCallback((logicalPageId: string, direction: -1 | 1) => {
-    loadedProjectSession.movePage(logicalPageId, direction);
-  }, [loadedProjectSession]);
+  const { projectPanelProps } = useLoadedProjectPanel({
+    loadedProjectSession,
+    comparison: projectComparison,
+    statusMessage: projectStatusMessage,
+    currentAssets: currentAssetHints,
+    canApplyProject: canApplyLoadedProject,
+    onApplyProject: handleApplyLoadedProject,
+  });
 
   // Export PDF
   const handleExportPdf = async () => {
@@ -761,30 +744,8 @@ export default function App() {
           pdfFile={pdfFile || (imageFiles.length > 0 ? imageFiles[0] : null)}
           selectedCutId={effectiveSelectedCutId}
           projectPanel={
-            loadedProject && projectComparison ? (
-              <SidebarProjectPanel
-                projectName={loadedProject.meta.name}
-                savedAt={loadedProject.meta.savedAt}
-                selectedLogicalPageId={selectedLogicalPageId}
-                statusMessage={projectStatusMessage}
-                comparison={projectComparison}
-                bindings={projectBindings}
-                assignedCount={assignedProjectBindingCount}
-                currentAssets={currentAssetHints}
-                canApplyProject={canApplyLoadedProject}
-                canResetBindings={currentAssetHints.length > 0}
-                canUndoDraft={loadedProjectSession.projectCutEditorApi.canUndo}
-                canRedoDraft={loadedProjectSession.projectCutEditorApi.canRedo}
-                onSelectLogicalPage={handleSelectLogicalPage}
-                onBindingChange={handleProjectBindingChange}
-                onInsertLogicalPageAfter={handleInsertLogicalPageAfter}
-                onRemoveLogicalPage={handleRemoveLogicalPage}
-                onMoveLogicalPage={handleMoveLogicalPage}
-                onResetBindings={handleResetProjectBindings}
-                onUndoDraft={loadedProjectSession.undoDraft}
-                onRedoDraft={loadedProjectSession.redoDraft}
-                onApplyProject={handleApplyLoadedProject}
-              />
+            projectPanelProps ? (
+              <SidebarProjectPanel {...projectPanelProps} />
             ) : undefined
           }
           templates={templates}

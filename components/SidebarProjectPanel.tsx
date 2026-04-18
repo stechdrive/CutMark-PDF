@@ -6,7 +6,7 @@ import {
 import { ProjectAssetBindings } from '../application/projectBindings';
 import { AssetHint } from '../domain/project';
 
-interface SidebarProjectPanelProps {
+export interface SidebarProjectPanelProps {
   projectName: string;
   savedAt: string;
   selectedLogicalPageId: string | null;
