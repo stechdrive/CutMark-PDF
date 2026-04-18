@@ -5,11 +5,7 @@ import { useEditorWorkspace } from '../../hooks/useEditorWorkspace';
 import { createAppSettings, createTemplate } from '../../test/factories';
 
 const currentSessionMocks = vi.hoisted(() => ({
-  useCurrentProjectSession: vi.fn(),
-}));
-
-const loadedSessionMocks = vi.hoisted(() => ({
-  useLoadedProjectSession: vi.fn(),
+  useEditorSessions: vi.fn(),
 }));
 
 const presentationMocks = vi.hoisted(() => ({
@@ -28,12 +24,8 @@ const cutEditorMocks = vi.hoisted(() => ({
   useActiveCutEditor: vi.fn(),
 }));
 
-vi.mock('../../hooks/useCurrentProjectSession', () => ({
-  useCurrentProjectSession: currentSessionMocks.useCurrentProjectSession,
-}));
-
-vi.mock('../../hooks/useLoadedProjectSession', () => ({
-  useLoadedProjectSession: loadedSessionMocks.useLoadedProjectSession,
+vi.mock('../../hooks/useEditorSessions', () => ({
+  useEditorSessions: currentSessionMocks.useEditorSessions,
 }));
 
 vi.mock('../../hooks/useWorkspacePresentation', () => ({
@@ -109,8 +101,7 @@ const createOptions = () => {
 
 describe('useEditorWorkspace', () => {
   beforeEach(() => {
-    currentSessionMocks.useCurrentProjectSession.mockReset();
-    loadedSessionMocks.useLoadedProjectSession.mockReset();
+    currentSessionMocks.useEditorSessions.mockReset();
     presentationMocks.useWorkspacePresentation.mockReset();
     workspaceMocks.useProjectWorkspace.mockReset();
     managerMocks.useLoadedProjectManager.mockReset();
@@ -201,8 +192,12 @@ describe('useEditorWorkspace', () => {
       redo: vi.fn(),
     };
 
-    currentSessionMocks.useCurrentProjectSession.mockReturnValue(currentProjectSession);
-    loadedSessionMocks.useLoadedProjectSession.mockReturnValue(loadedProjectSession);
+    currentSessionMocks.useEditorSessions.mockReturnValue({
+      currentProjectSession,
+      loadedProjectSession,
+      loadedProject,
+      isLoadedProjectActive: true,
+    });
     presentationMocks.useWorkspacePresentation.mockReturnValue(presentation);
     workspaceMocks.useProjectWorkspace.mockReturnValue(workspace);
     managerMocks.useLoadedProjectManager.mockReturnValue(loadedProjectManager);
@@ -210,7 +205,7 @@ describe('useEditorWorkspace', () => {
 
     const { result } = renderHook(() => useEditorWorkspace(options));
 
-    expect(currentSessionMocks.useCurrentProjectSession).toHaveBeenCalledWith({
+    expect(currentSessionMocks.useEditorSessions).toHaveBeenCalledWith({
       docType: 'images',
       currentPage: 1,
       numPages: 1,
@@ -221,10 +216,6 @@ describe('useEditorWorkspace', () => {
       setNumberingState: options.setNumberingState,
       template: options.templateApi.template,
     });
-    expect(loadedSessionMocks.useLoadedProjectSession).toHaveBeenCalledWith(
-      options.currentAssetHints,
-      options.settings
-    );
     expect(presentationMocks.useWorkspacePresentation).toHaveBeenCalledWith({
       loadedProject,
       settings: options.settings,
@@ -342,8 +333,12 @@ describe('useEditorWorkspace', () => {
       effectiveExportSettings: options.settings,
     };
 
-    currentSessionMocks.useCurrentProjectSession.mockReturnValue(currentProjectSession);
-    loadedSessionMocks.useLoadedProjectSession.mockReturnValue(loadedProjectSession);
+    currentSessionMocks.useEditorSessions.mockReturnValue({
+      currentProjectSession,
+      loadedProjectSession,
+      loadedProject: null,
+      isLoadedProjectActive: false,
+    });
     presentationMocks.useWorkspacePresentation.mockReturnValue(presentation);
     workspaceMocks.useProjectWorkspace.mockReturnValue(workspace);
     managerMocks.useLoadedProjectManager.mockReturnValue({

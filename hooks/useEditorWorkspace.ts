@@ -3,9 +3,8 @@ import { ProjectAssetBindings } from '../application/projectBindings';
 import { AssetHint, TemplateSnapshot } from '../domain/project';
 import { AppSettings, DocType, NumberingState, Template } from '../types';
 import { useActiveCutEditor } from './useActiveCutEditor';
-import { useCurrentProjectSession } from './useCurrentProjectSession';
 import { useLoadedProjectManager } from './useLoadedProjectManager';
-import { useLoadedProjectSession } from './useLoadedProjectSession';
+import { useEditorSessions } from './useEditorSessions';
 import { useProjectWorkspace } from './useProjectWorkspace';
 import { useWorkspacePresentation } from './useWorkspacePresentation';
 
@@ -55,7 +54,12 @@ export const useEditorWorkspace = ({
   setMode,
   logDebug,
 }: UseEditorWorkspaceOptions) => {
-  const currentProjectSession = useCurrentProjectSession({
+  const {
+    currentProjectSession,
+    loadedProjectSession,
+    loadedProject,
+    isLoadedProjectActive,
+  } = useEditorSessions({
     docType,
     currentPage,
     numPages,
@@ -66,10 +70,6 @@ export const useEditorWorkspace = ({
     setNumberingState,
     template: templateApi.template,
   });
-
-  const loadedProjectSession = useLoadedProjectSession(currentAssetHints, settings);
-  const loadedProject = loadedProjectSession.project;
-  const isLoadedProjectActive = !!loadedProject;
 
   const {
     effectiveSettings,
