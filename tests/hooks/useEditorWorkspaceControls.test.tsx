@@ -69,6 +69,7 @@ describe('useEditorWorkspaceControls', () => {
     };
     const loadedProjectManager = {
       projectPanelProps: null,
+      loadProjectFile: vi.fn(),
       handleSaveProject: vi.fn(),
       onProjectLoaded: vi.fn(),
     };

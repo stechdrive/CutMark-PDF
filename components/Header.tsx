@@ -1,14 +1,13 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Upload, Download, RotateCcw, RotateCw, FolderOpen, ChevronDown, Save } from 'lucide-react';
+import { Upload, RotateCcw, RotateCw, ChevronDown, Save } from 'lucide-react';
 import { DocType } from '../types';
 
 interface HeaderProps {
   docType: DocType | null;
-  onPdfFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onFolderChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onProjectFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSaveProject: () => void;
+  onImportFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  canExportProject: boolean;
+  onExportProject: () => void;
   onExportPdf: () => void;
   onExportImages: () => void;
   isExporting: boolean;
@@ -24,10 +23,9 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({
   docType,
-  onPdfFileChange,
-  onFolderChange,
-  onProjectFileChange,
-  onSaveProject,
+  onImportFileChange,
+  canExportProject,
+  onExportProject,
   onExportPdf,
   onExportImages,
   isExporting,
@@ -40,17 +38,20 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenDebug,
   showDebug = false,
 }) => {
-  const pdfInputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
-  const projectInputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const logoUrl = `${import.meta.env.BASE_URL}favicon.svg`;
 
   useEffect(() => {
-    if (!folderInputRef.current) return;
-    folderInputRef.current.setAttribute('webkitdirectory', '');
-    folderInputRef.current.setAttribute('directory', '');
-  }, []);
+    if (!showExportMenu) return;
+
+    const handleWindowClick = () => setShowExportMenu(false);
+    window.addEventListener('click', handleWindowClick);
+
+    return () => {
+      window.removeEventListener('click', handleWindowClick);
+    };
+  }, [showExportMenu]);
 
   return (
     <div className="bg-slate-800 text-white p-3 flex items-center justify-between shadow-md z-50">
@@ -63,59 +64,21 @@ export const Header: React.FC<HeaderProps> = ({
         
         <div className="flex gap-2">
           <button
-            onClick={() => pdfInputRef.current?.click()}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
-            title="PDFファイルを開く"
-          >
-            <Upload size={16} /> PDF
-          </button>
-          <input
-            ref={pdfInputRef}
-            type="file"
-            accept=".pdf"
-            className="hidden"
-            onChange={onPdfFileChange}
-          />
-
-          <button
-            onClick={() => folderInputRef.current?.click()}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
-            title="連番画像の入ったフォルダを開く"
-          >
-            <FolderOpen size={16} /> フォルダ
-          </button>
-          <input
-            ref={folderInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={onFolderChange}
-          />
-
-          <button
-            onClick={() => projectInputRef.current?.click()}
+            onClick={() => importInputRef.current?.click()}
             disabled={isExporting}
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            title="保存済みプロジェクトを読み込む"
+            title="PDF、連番画像、プロジェクトJSONを読み込む"
           >
-            <Upload size={16} /> 読込
+            <Upload size={16} /> 読み込み
           </button>
           <input
-            ref={projectInputRef}
+            ref={importInputRef}
             type="file"
-            accept=".json,.cutmark.json,application/json"
+            accept=".pdf,.json,.cutmark.json,.jpg,.jpeg,.png,image/*,application/json"
+            multiple
             className="hidden"
-            onChange={onProjectFileChange}
+            onChange={onImportFileChange}
           />
-
-          <button
-            onClick={onSaveProject}
-            disabled={!docType || isExporting}
-            className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            title={docType ? '現在の採番作業をプロジェクトとして保存する' : '先にPDFまたは画像を読み込んでください'}
-          >
-            <Save size={16} /> プロジェクト保存
-          </button>
         </div>
 
         {docType && (
@@ -165,43 +128,59 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         <div className="relative">
-            <button
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                disabled={!docType || isExporting}
-                className="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 rounded font-medium text-sm transition-colors shadow-sm"
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowExportMenu((current) => !current);
+            }}
+            disabled={(!docType && !canExportProject) || isExporting}
+            className="flex items-center gap-2 px-4 py-1.5 bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 rounded font-medium text-sm transition-colors shadow-sm"
+            title={
+              docType || canExportProject
+                ? 'PDF、連番画像、プロジェクトファイルを書き出す'
+                : '先にPDF、画像、またはプロジェクトを読み込んでください'
+            }
+          >
+            <Save size={16} /> 保存 <ChevronDown size={14} />
+          </button>
+
+          {showExportMenu && (
+            <div
+              className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-20 text-gray-800"
+              onClick={(e) => e.stopPropagation()}
             >
-                <Download size={16} /> 保存 <ChevronDown size={14} />
-            </button>
-            
-            {showExportMenu && (
-                <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 text-gray-800">
-                        <button
-                            onClick={() => { setShowExportMenu(false); onExportPdf(); }}
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                        >
-                            PDFとして書き出し
-                        </button>
-                        {docType === 'images' ? (
-                          <button
-                              onClick={() => { setShowExportMenu(false); onExportImages(); }}
-                              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                          >
-                              連番画像(ZIP)として書き出し
-                          </button>
-                        ) : (
-                          <button
-                              disabled
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-400 cursor-not-allowed"
-                              title="連番画像モードでのみ利用可能です"
-                          >
-                              連番画像(ZIP)として書き出し
-                          </button>
-                        )}
-                    </div>
-                </>
-            )}
+              <button
+                onClick={() => { setShowExportMenu(false); onExportPdf(); }}
+                disabled={!docType}
+                className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+              >
+                PDFとして書き出し
+              </button>
+              {docType === 'images' ? (
+                <button
+                  onClick={() => { setShowExportMenu(false); onExportImages(); }}
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                >
+                  連番画像(ZIP)として書き出し
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-400 cursor-not-allowed"
+                  title="連番画像の書き出しは画像読み込み時のみ利用できます"
+                >
+                  連番画像(ZIP)として書き出し
+                </button>
+              )}
+              <button
+                onClick={() => { setShowExportMenu(false); onExportProject(); }}
+                disabled={!canExportProject}
+                className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+              >
+                プロジェクトファイルとして保存
+              </button>
+            </div>
+          )}
         </div>
         {showDebug && onOpenDebug && (
           <button

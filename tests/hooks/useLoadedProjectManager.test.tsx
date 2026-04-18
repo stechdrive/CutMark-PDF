@@ -94,6 +94,7 @@ describe('useLoadedProjectManager', () => {
     const loadedProjectSession = createLoadedProjectSession();
     const handleApplyLoadedProject = vi.fn();
     const handleSaveProject = vi.fn();
+    const loadProjectFile = vi.fn();
     const onProjectLoaded = vi.fn();
     const projectPanelProps = {
       projectName: 'Episode 01',
@@ -102,6 +103,7 @@ describe('useLoadedProjectManager', () => {
     lifecycleMocks.useProjectLifecycle.mockReturnValue({
       handleApplyLoadedProject,
       handleSaveProject,
+      loadProjectFile,
       onProjectLoaded,
     });
     panelMocks.useLoadedProjectPanel.mockReturnValue({
@@ -176,6 +178,7 @@ describe('useLoadedProjectManager', () => {
     expect(result.current).toEqual({
       projectPanelProps,
       handleSaveProject,
+      loadProjectFile,
       onProjectLoaded,
     });
   });

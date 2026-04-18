@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   ProjectAssetComparisonRow,
   ProjectAssetComparisonSummary,
@@ -69,12 +69,21 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
   onRedoDraft,
   onApplyProject,
 }) => {
+  const logicalPageRowRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const unresolvedRows = comparison.rows.filter((row) => row.status !== 'matched').slice(0, 5);
   const getAssignedAsset = (logicalPageId: string) => {
     const assetIndex = bindings[logicalPageId];
     if (assetIndex == null) return null;
     return currentAssets[assetIndex] ?? null;
   };
+
+  useEffect(() => {
+    if (!selectedLogicalPageId) return;
+    logicalPageRowRefs.current[selectedLogicalPageId]?.scrollIntoView({
+      block: 'nearest',
+    });
+  }, [selectedLogicalPageId]);
+
   const statusLabel =
     comparison.currentAssetCount < 1
       ? '素材未読込'
@@ -186,6 +195,9 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
             {comparison.rows.map((row) => (
               <div
                 key={row.logicalPageId}
+                ref={(element) => {
+                  logicalPageRowRefs.current[row.logicalPageId] = element;
+                }}
                 className={`rounded-lg border p-2 text-xs transition-colors ${
                   row.logicalPageId === selectedLogicalPageId
                     ? 'border-sky-400 bg-sky-100/70'

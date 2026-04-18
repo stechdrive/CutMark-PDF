@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { createProjectDocument } from '../../domain/project';
@@ -29,6 +29,7 @@ describe('useProjectWorkspace', () => {
         docType: 'images',
         currentPage,
         setCurrentPage,
+        setLoadedLogicalPageSelection: undefined,
         currentAssetHints: [
           { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
           { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
@@ -99,6 +100,7 @@ describe('useProjectWorkspace', () => {
         docType: 'images',
         currentPage,
         setCurrentPage,
+        setLoadedLogicalPageSelection: undefined,
         currentAssetHints: [{ sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 }],
         effectiveSettings: settings,
         effectiveTemplate: template,
@@ -139,5 +141,153 @@ describe('useProjectWorkspace', () => {
         label: '001',
       }),
     ]);
+  });
+
+  it('syncs the selected logical page to the current preview page while browsing assets', async () => {
+    const loadedProject = createProjectDocument({
+      settings,
+      template,
+      logicalPages: [
+        { id: 'page-1', cuts: [], expectedAssetHint: null },
+        { id: 'page-2', cuts: [], expectedAssetHint: null },
+      ],
+    });
+
+    const { result } = renderHook(() => {
+      const [currentPage, setCurrentPage] = useState(2);
+      const [selectedLogicalPageId, setSelectedLogicalPageId] = useState<string | null>(null);
+      const selectedLogicalPage =
+        loadedProject.logicalPages.find((page) => page.id === selectedLogicalPageId) ?? null;
+
+      const workspace = useProjectWorkspace({
+        docType: 'images',
+        currentPage,
+        setCurrentPage,
+        setLoadedLogicalPageSelection: setSelectedLogicalPageId,
+        currentAssetHints: [
+          { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+          { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+        ],
+        effectiveSettings: settings,
+        effectiveTemplate: template,
+        fallbackSettings: settings,
+        loadedSession: {
+          project: loadedProject,
+          bindings: {
+            'page-1': 0,
+            'page-2': 1,
+          },
+          canApply: true,
+          assignedCount: 2,
+          selectedLogicalPage,
+          selectedLogicalPageId,
+          selectedLogicalPageNumber:
+            selectedLogicalPageId === 'page-1' ? 1 : selectedLogicalPageId === 'page-2' ? 2 : null,
+          selectedAssetIndex:
+            selectedLogicalPageId === 'page-1' ? 0 : selectedLogicalPageId === 'page-2' ? 1 : null,
+        },
+        currentSession: {
+          project: null,
+          bindings: {},
+          selectedLogicalPage: null,
+          selectedLogicalPageId: null,
+          selectedLogicalPageNumber: null,
+          selectedAssetIndex: null,
+        },
+      });
+
+      return {
+        currentPage,
+        selectedLogicalPageId,
+        setCurrentPage,
+        ...workspace,
+      };
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedLogicalPageId).toBe('page-2');
+    });
+
+    act(() => {
+      result.current.setCurrentPage(1);
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedLogicalPageId).toBe('page-1');
+    });
+  });
+
+  it('keeps an explicitly selected unassigned logical page while the preview page stays the same', async () => {
+    const loadedProject = createProjectDocument({
+      settings,
+      template,
+      logicalPages: [
+        { id: 'page-1', cuts: [], expectedAssetHint: null },
+        { id: 'page-2', cuts: [], expectedAssetHint: null },
+      ],
+    });
+
+    const { result } = renderHook(() => {
+      const [currentPage, setCurrentPage] = useState(1);
+      const [selectedLogicalPageId, setSelectedLogicalPageId] = useState<string | null>(null);
+      const selectedLogicalPage =
+        loadedProject.logicalPages.find((page) => page.id === selectedLogicalPageId) ?? null;
+
+      useProjectWorkspace({
+        docType: 'images',
+        currentPage,
+        setCurrentPage,
+        setLoadedLogicalPageSelection: setSelectedLogicalPageId,
+        currentAssetHints: [
+          { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+          { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+        ],
+        effectiveSettings: settings,
+        effectiveTemplate: template,
+        fallbackSettings: settings,
+        loadedSession: {
+          project: loadedProject,
+          bindings: {
+            'page-1': 0,
+            'page-2': null,
+          },
+          canApply: false,
+          assignedCount: 1,
+          selectedLogicalPage,
+          selectedLogicalPageId,
+          selectedLogicalPageNumber:
+            selectedLogicalPageId === 'page-1' ? 1 : selectedLogicalPageId === 'page-2' ? 2 : null,
+          selectedAssetIndex:
+            selectedLogicalPageId === 'page-1' ? 0 : null,
+        },
+        currentSession: {
+          project: null,
+          bindings: {},
+          selectedLogicalPage: null,
+          selectedLogicalPageId: null,
+          selectedLogicalPageNumber: null,
+          selectedAssetIndex: null,
+        },
+      });
+
+      return {
+        currentPage,
+        selectedLogicalPageId,
+        setSelectedLogicalPageId,
+      };
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedLogicalPageId).toBe('page-1');
+    });
+
+    act(() => {
+      result.current.setSelectedLogicalPageId('page-2');
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedLogicalPageId).toBe('page-2');
+    });
+    expect(result.current.currentPage).toBe(1);
   });
 });

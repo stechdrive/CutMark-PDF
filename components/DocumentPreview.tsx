@@ -11,6 +11,9 @@ import {
   isClickSnapCandidate,
 } from '../utils/documentPreviewMath';
 
+const WHEEL_PAGE_THRESHOLD = 60;
+const WHEEL_RESET_MS = 160;
+
 interface DocumentPreviewProps {
   docType: DocType | null;
   pdfFile: File | null;
@@ -97,7 +100,16 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   const viewportRef = useRef<HTMLDivElement>(null); // Scrollable container
   const containerRef = useRef<HTMLDivElement>(null); // Content wrapper
   const autoFitDone = useRef<boolean>(false); // Track if we've fitted the current doc
+  const wheelDeltaRef = useRef(0);
+  const wheelResetTimeoutRef = useRef<number | null>(null);
+  const middlePanRef = useRef<{
+    startX: number;
+    startY: number;
+    scrollLeft: number;
+    scrollTop: number;
+  } | null>(null);
   const [isSnapCandidate, setIsSnapCandidate] = useState(false);
+  const [isMiddlePanning, setIsMiddlePanning] = useState(false);
   const showSnapCandidate = settings.enableClickSnapToRows && isSnapCandidate;
 
   // Image sizing state
@@ -122,6 +134,92 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
         autoFitDone.current = false;
     }
   }, [currentPage, docType]);
+
+  useEffect(() => {
+    return () => {
+      if (wheelResetTimeoutRef.current != null) {
+        window.clearTimeout(wheelResetTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMiddlePanning) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!viewportRef.current || !middlePanRef.current) return;
+      const deltaX = event.clientX - middlePanRef.current.startX;
+      const deltaY = event.clientY - middlePanRef.current.startY;
+      viewportRef.current.scrollLeft = middlePanRef.current.scrollLeft - deltaX;
+      viewportRef.current.scrollTop = middlePanRef.current.scrollTop - deltaY;
+    };
+
+    const stopMiddlePan = () => {
+      middlePanRef.current = null;
+      setIsMiddlePanning(false);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', stopMiddlePan);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', stopMiddlePan);
+    };
+  }, [isMiddlePanning]);
+
+  const changePageBy = (direction: -1 | 1) => {
+    if (numPages < 2) return;
+    const nextPage = Math.max(1, Math.min(numPages, currentPage + direction));
+    if (nextPage !== currentPage) {
+      setCurrentPage(nextPage);
+    }
+  };
+
+  const handleViewportWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (!docType || numPages < 2 || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) {
+      return;
+    }
+
+    e.preventDefault();
+    wheelDeltaRef.current += e.deltaY;
+
+    if (wheelResetTimeoutRef.current != null) {
+      window.clearTimeout(wheelResetTimeoutRef.current);
+    }
+
+    wheelResetTimeoutRef.current = window.setTimeout(() => {
+      wheelDeltaRef.current = 0;
+      wheelResetTimeoutRef.current = null;
+    }, WHEEL_RESET_MS);
+
+    if (Math.abs(wheelDeltaRef.current) < WHEEL_PAGE_THRESHOLD) {
+      return;
+    }
+
+    const direction = wheelDeltaRef.current > 0 ? 1 : -1;
+    wheelDeltaRef.current = 0;
+    changePageBy(direction);
+  };
+
+  const handleViewportMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 1 || !viewportRef.current) return;
+
+    e.preventDefault();
+    middlePanRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollLeft: viewportRef.current.scrollLeft,
+      scrollTop: viewportRef.current.scrollTop,
+    };
+    setIsMiddlePanning(true);
+  };
+
+  const handleViewportAuxClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button === 1) {
+      e.preventDefault();
+    }
+  };
 
 
   const handlePageClick = (e: React.MouseEvent) => {
@@ -222,12 +320,17 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       className={`flex-1 relative overflow-auto flex flex-col items-center p-4 transition-colors ${
         isDragging
           ? 'bg-blue-100 border-4 border-blue-400 border-dashed'
-          : 'bg-gray-200'
+          : isMiddlePanning
+            ? 'bg-gray-200 cursor-grabbing'
+            : 'bg-gray-200'
       }`}
       onDragEnter={dragHandlers.onDragEnter}
       onDragOver={dragHandlers.onDragOver}
       onDragLeave={dragHandlers.onDragLeave}
       onDrop={onFileDropped}
+      onWheel={handleViewportWheel}
+      onMouseDown={handleViewportMouseDown}
+      onAuxClick={handleViewportAuxClick}
       onClick={() => setSelectedCutId(null)}
     >
       {!docType ? (
@@ -248,7 +351,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               : (
                 <>
                   ファイル/フォルダをドラッグ＆ドロップ<br />
-                  または「PDFを開く」「フォルダを開く」から読み込んでください
+                  または「読み込み」から PDF / プロジェクト / 画像を選んでください
                 </>
               )}
           </p>
@@ -427,7 +530,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               </button>
             </div>
             <span className="text-[10px] font-medium text-slate-500 bg-white/80 px-2 py-0.5 rounded border border-gray-200 shadow-sm backdrop-blur">
-              ← → / Enter でページ移動
+              ホイールでページ移動 / 中ドラッグでパン
             </span>
           </div>
         </>

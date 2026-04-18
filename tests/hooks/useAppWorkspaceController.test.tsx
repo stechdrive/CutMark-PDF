@@ -83,6 +83,7 @@ describe('useAppWorkspaceController', () => {
       effectiveExportSettings: { nextNumber: 10 },
       canApplyLoadedProject: true,
       loadedProjectManager: {
+        loadProjectFile: vi.fn(),
         onProjectLoaded: vi.fn(),
         handleSaveProject: vi.fn(),
         projectPanelProps: null,

@@ -105,6 +105,7 @@ describe('useAppPresentationController', () => {
       canApplyLoadedProject: true,
       projectStatusMessage: '論理P1 は未割当です。割当を決めると対応する素材ページを表示します。',
       loadedProjectManager: {
+        loadProjectFile: vi.fn(),
         onProjectLoaded: vi.fn(),
         handleSaveProject: vi.fn(),
         projectPanelProps: null,
@@ -138,8 +139,7 @@ describe('useAppPresentationController', () => {
       handleCopyDebugReport: vi.fn(),
     };
     const fileActions = {
-      onPdfLoaded: vi.fn(),
-      onFolderLoaded: vi.fn(),
+      onImportFilesSelected: vi.fn(),
       onFileDropped: vi.fn(),
       handleExportPdf: vi.fn(),
       handleExportImages: vi.fn(),
@@ -179,6 +179,7 @@ describe('useAppPresentationController', () => {
         docType: 'images',
         imageFiles: workspace.imageFiles,
         isLoadedProjectActive: true,
+        loadProjectFile: workspace.loadedProjectManager.loadProjectFile,
         setIsExporting: expect.any(Function),
       })
     );
@@ -193,8 +194,9 @@ describe('useAppPresentationController', () => {
       expect.objectContaining({
         header: expect.objectContaining({
           docType: 'images',
-          onPdfFileChange: fileActions.onPdfLoaded,
-          onProjectFileChange: workspace.loadedProjectManager.onProjectLoaded,
+          onImportFileChange: fileActions.onImportFilesSelected,
+          canExportProject: true,
+          onExportProject: workspace.loadedProjectManager.handleSaveProject,
         }),
         preview: expect.objectContaining({
           currentImageUrl: 'blob:image',

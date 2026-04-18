@@ -130,8 +130,7 @@ export const useAppPresentationController = ({
   });
 
   const {
-    onPdfLoaded,
-    onFolderLoaded,
+    onImportFilesSelected,
     onFileDropped,
     handleExportPdf,
     handleExportImages,
@@ -145,6 +144,7 @@ export const useAppPresentationController = ({
     canApplyLoadedProject: workspace.canApplyLoadedProject,
     loadPdf: workspace.loadPdf,
     loadImages: workspace.loadImages,
+    loadProjectFile: workspace.loadedProjectManager.loadProjectFile,
     onDrop: workspace.dragHandlers.onDrop,
     setIsExporting,
     logDebug,
@@ -168,10 +168,9 @@ export const useAppPresentationController = ({
       canRedo: canRedoHistory,
       onUndo: handleUndoAction,
       onRedo: handleRedoAction,
-      onPdfFileChange: onPdfLoaded,
-      onFolderChange: onFolderLoaded,
-      onProjectFileChange: workspace.loadedProjectManager.onProjectLoaded,
-      onSaveProject: workspace.loadedProjectManager.handleSaveProject,
+      onImportFileChange: onImportFilesSelected,
+      canExportProject: !!workspace.activeProject,
+      onExportProject: workspace.loadedProjectManager.handleSaveProject,
       onExportPdf: handleExportPdf,
       onExportImages: handleExportImages,
       onOpenDebug: openDebug,

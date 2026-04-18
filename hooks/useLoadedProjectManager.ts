@@ -46,6 +46,7 @@ export const useLoadedProjectManager = ({
   const {
     handleApplyLoadedProject,
     handleSaveProject,
+    loadProjectFile,
     onProjectLoaded,
   } = useProjectLifecycle({
     docType,
@@ -76,6 +77,7 @@ export const useLoadedProjectManager = ({
   return {
     projectPanelProps,
     handleSaveProject,
+    loadProjectFile,
     onProjectLoaded,
   };
 };

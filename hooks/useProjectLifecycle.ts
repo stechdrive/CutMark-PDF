@@ -36,6 +36,12 @@ interface UseProjectLifecycleOptions {
   logDebug: (level: 'info' | 'warn' | 'error', message: string, data?: DebugLogData) => void;
 }
 
+export interface ProjectImportContext {
+  docType: 'pdf' | 'images';
+  numPages: number;
+  currentAssetHints: Parameters<typeof createSuggestedProjectAssetBindings>[1];
+}
+
 const countProjectCuts = (project: ProjectDocument) =>
   project.logicalPages.reduce((count, page) => count + page.cuts.length, 0);
 
@@ -109,8 +115,8 @@ export const useProjectLifecycle = ({
     const projectSource = loadedProject ? loadedProject : currentProject;
     const bindingsForSave = loadedProject ? projectBindings : currentProjectBindings;
 
-    if (!docType || !projectSource) {
-      alert('先にPDFまたは画像を読み込んでください');
+    if (!projectSource) {
+      alert('保存できるプロジェクトがありません');
       return;
     }
 
@@ -134,7 +140,6 @@ export const useProjectLifecycle = ({
   }, [
     currentProject,
     currentProjectBindings,
-    docType,
     loadedProject,
     loadProjectIntoEditor,
     logDebug,
@@ -143,15 +148,17 @@ export const useProjectLifecycle = ({
     resolveProjectDocumentForCurrentState,
   ]);
 
-  const onProjectLoaded = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-
+  const loadProjectFile = useCallback(async (
+    file: File,
+    importContext?: ProjectImportContext
+  ) => {
     try {
-      if (!file) return;
-
       const project = await loadProjectDocumentFromFile(file);
       const fileInfo = toFileInfo(file);
-      const suggestedBindings = createSuggestedProjectAssetBindings(project, currentAssetHints);
+      const activeDocType = importContext?.docType ?? docType;
+      const activeNumPages = importContext?.numPages ?? numPages;
+      const activeAssetHints = importContext?.currentAssetHints ?? currentAssetHints;
+      const suggestedBindings = createSuggestedProjectAssetBindings(project, activeAssetHints);
 
       loadProjectIntoEditor(project);
       upsertTemplate(createTemplateFromProjectDocument(project));
@@ -161,20 +168,20 @@ export const useProjectLifecycle = ({
         file: fileInfo,
       }));
 
-      if (!docType || numPages < 1) {
+      if (!activeDocType || activeNumPages < 1) {
         alert('プロジェクトを読み込みました。次にPDFまたは画像を読み込むと比較できます。');
         return;
       }
 
-      if (project.logicalPages.length !== numPages) {
+      if (project.logicalPages.length !== activeNumPages) {
         alert(
-          `このプロジェクトは ${project.logicalPages.length} ページですが、現在の素材は ${numPages} ページです。\n` +
+          `このプロジェクトは ${project.logicalPages.length} ページですが、現在の素材は ${activeNumPages} ページです。\n` +
           '論理ページの割当と増減は右パネルで調整できます。'
         );
         logDebug('warn', 'プロジェクト読込保留', () => ({
           reason: 'page-count-mismatch',
           projectPages: project.logicalPages.length,
-          currentPages: numPages,
+          currentPages: activeNumPages,
           file: fileInfo,
         }));
         return;
@@ -187,8 +194,6 @@ export const useProjectLifecycle = ({
         error: normalizeError(error),
         file: toFileInfo(file ?? null),
       }));
-    } finally {
-      e.target.value = '';
     }
   }, [
     applyLoadedProjectToCurrentDocument,
@@ -200,10 +205,22 @@ export const useProjectLifecycle = ({
     upsertTemplate,
   ]);
 
+  const onProjectLoaded = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    try {
+      if (!file) return;
+      await loadProjectFile(file);
+    } finally {
+      e.target.value = '';
+    }
+  }, [loadProjectFile]);
+
   return {
     applyLoadedProjectToCurrentDocument,
     handleApplyLoadedProject,
     handleSaveProject,
+    loadProjectFile,
     onProjectLoaded,
   };
 };

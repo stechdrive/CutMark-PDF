@@ -47,6 +47,7 @@ describe('useEditorWorkspaceState', () => {
       },
     };
     const loadedProjectSession = {
+      selectLogicalPage: vi.fn(),
       projectDraftApi: {
         updateSettings: vi.fn(),
         updateTemplate: vi.fn(),
@@ -145,6 +146,7 @@ describe('useEditorWorkspaceState', () => {
       docType: 'images',
       currentPage: 1,
       setCurrentPage,
+      setLoadedLogicalPageSelection: loadedProjectSession.selectLogicalPage,
       currentAssetHints,
       effectiveSettings: presentation.effectiveSettings,
       effectiveTemplate: presentation.effectiveTemplate,

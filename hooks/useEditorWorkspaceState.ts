@@ -55,6 +55,7 @@ export const useEditorWorkspaceState = ({
     docType,
     currentPage,
     setCurrentPage,
+    setLoadedLogicalPageSelection: loadedProjectSession.selectLogicalPage,
     currentAssetHints,
     effectiveSettings: presentation.effectiveSettings,
     effectiveTemplate: presentation.effectiveTemplate,

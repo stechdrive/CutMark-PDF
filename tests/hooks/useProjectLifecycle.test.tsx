@@ -83,6 +83,45 @@ describe('useProjectLifecycle', () => {
     );
   });
 
+  it('saves a loaded project even when no asset document is open', () => {
+    const loadedProject = createProject('Loaded');
+    const resolvedProject = {
+      ...loadedProject,
+      meta: {
+        ...loadedProject.meta,
+        savedAt: '2026-04-18T01:23:45.000Z',
+      },
+    };
+
+    const replaceEditorProject = vi.fn();
+
+    const { result } = renderHook(() =>
+      useProjectLifecycle({
+        docType: null,
+        numPages: 0,
+        currentAssetHints: [],
+        loadedProject,
+        projectBindings: { 'page-1': null },
+        currentProject: null,
+        currentProjectBindings: {},
+        canApplyLoadedProject: false,
+        resolveProjectDocumentForCurrentState: vi.fn(() => resolvedProject),
+        loadProjectIntoEditor: vi.fn(),
+        replaceEditorProject,
+        upsertTemplate: vi.fn(),
+        setMode: vi.fn(),
+        logDebug: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.handleSaveProject();
+    });
+
+    expect(replaceEditorProject).toHaveBeenCalledWith(resolvedProject, { 'page-1': null });
+    expect(repositoryMocks.downloadProjectDocument).toHaveBeenCalledWith(resolvedProject);
+  });
+
   it('loads a project file and applies it immediately when page counts match', async () => {
     const project = createProject('Loaded');
     repositoryMocks.loadProjectDocumentFromFile.mockResolvedValue(project);
@@ -128,5 +167,50 @@ describe('useProjectLifecycle', () => {
     expect(setMode).toHaveBeenCalledWith('edit');
     expect(alertSpy).not.toHaveBeenCalled();
     expect(event.target.value).toBe('');
+  });
+
+  it('loads a project file against an explicit import context', async () => {
+    const project = createProject('Loaded');
+    repositoryMocks.loadProjectDocumentFromFile.mockResolvedValue(project);
+
+    const loadProjectIntoEditor = vi.fn();
+    const upsertTemplate = vi.fn();
+    const setMode = vi.fn();
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    const { result } = renderHook(() =>
+      useProjectLifecycle({
+        docType: null,
+        numPages: 0,
+        currentAssetHints: [],
+        loadedProject: null,
+        projectBindings: {},
+        currentProject: null,
+        currentProjectBindings: {},
+        canApplyLoadedProject: false,
+        resolveProjectDocumentForCurrentState: vi.fn((value) => value),
+        loadProjectIntoEditor,
+        replaceEditorProject: vi.fn(),
+        upsertTemplate,
+        setMode,
+        logDebug: vi.fn(),
+      })
+    );
+
+    await act(async () => {
+      await result.current.loadProjectFile(
+        new File(['{}'], 'loaded.cutmark.json', { type: 'application/json' }),
+        {
+          docType: 'images',
+          numPages: 1,
+          currentAssetHints: [{ sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 }],
+        }
+      );
+    });
+
+    expect(loadProjectIntoEditor).toHaveBeenCalledWith(project);
+    expect(upsertTemplate).toHaveBeenCalled();
+    expect(setMode).toHaveBeenCalledWith('edit');
+    expect(alertSpy).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,11 @@
 import type { ChangeEvent } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useWorkspaceFileActions, filterRootImageFiles } from '../../hooks/useWorkspaceFileActions';
+import {
+  classifyImportFiles,
+  createWorkspaceImportPlan,
+  useWorkspaceFileActions,
+} from '../../hooks/useWorkspaceFileActions';
 import { createAppSettings } from '../../test/factories';
 
 const pdfServiceMocks = vi.hoisted(() => ({
@@ -13,6 +17,10 @@ const imageExportServiceMocks = vi.hoisted(() => ({
   exportImagesAsZip: vi.fn(),
 }));
 
+const pdfLibMocks = vi.hoisted(() => ({
+  load: vi.fn(),
+}));
+
 vi.mock('../../services/pdfService', () => ({
   saveMarkedPdf: pdfServiceMocks.saveMarkedPdf,
   saveImagesAsPdf: pdfServiceMocks.saveImagesAsPdf,
@@ -22,13 +30,11 @@ vi.mock('../../services/imageExportService', () => ({
   exportImagesAsZip: imageExportServiceMocks.exportImagesAsZip,
 }));
 
-const setWebkitRelativePath = (file: File, value: string) => {
-  Object.defineProperty(file, 'webkitRelativePath', {
-    configurable: true,
-    value,
-  });
-  return file;
-};
+vi.mock('pdf-lib', () => ({
+  PDFDocument: {
+    load: pdfLibMocks.load,
+  },
+}));
 
 const createFileList = (files: File[]) =>
   ({
@@ -47,6 +53,7 @@ const createOptions = () => ({
   canApplyLoadedProject: true,
   loadPdf: vi.fn(),
   loadImages: vi.fn(),
+  loadProjectFile: vi.fn().mockResolvedValue(undefined),
   onDrop: vi.fn(),
   setIsExporting: vi.fn(),
   logDebug: vi.fn(),
@@ -57,41 +64,115 @@ describe('useWorkspaceFileActions', () => {
     pdfServiceMocks.saveMarkedPdf.mockReset();
     pdfServiceMocks.saveImagesAsPdf.mockReset();
     imageExportServiceMocks.exportImagesAsZip.mockReset();
+    pdfLibMocks.load.mockReset();
     vi.restoreAllMocks();
   });
 
-  it('filters folder input down to root-level JPG/PNG files', () => {
-    const rootImage = setWebkitRelativePath(
-      new File(['1'], '001.png', { type: 'image/png' }),
-      'folder/001.png'
-    );
-    const nestedImage = setWebkitRelativePath(
-      new File(['2'], '002.jpg', { type: 'image/jpeg' }),
-      'folder/nested/002.jpg'
-    );
-    const textFile = setWebkitRelativePath(
-      new File(['3'], 'memo.txt', { type: 'text/plain' }),
-      'folder/memo.txt'
-    );
+  it('classifies project, pdf, image, and unsupported files', () => {
+    const files = createFileList([
+      new File(['{}'], 'project.cutmark.json', { type: 'application/json' }),
+      new File(['pdf'], 'sample.pdf', { type: 'application/pdf' }),
+      new File(['img'], '001.png', { type: 'image/png' }),
+      new File(['txt'], 'memo.txt', { type: 'text/plain' }),
+    ]);
 
-    expect(filterRootImageFiles(createFileList([rootImage, nestedImage, textFile]))).toEqual([rootImage]);
+    expect(classifyImportFiles(files)).toEqual({
+      projectFiles: [files[0]],
+      pdfFiles: [files[1]],
+      imageFiles: [files[2]],
+      unsupportedFiles: [files[3]],
+    });
+  });
 
+  it('rejects ambiguous import selections', () => {
+    expect(() =>
+      createWorkspaceImportPlan({
+        projectFiles: [
+          new File(['{}'], 'a.cutmark.json', { type: 'application/json' }),
+          new File(['{}'], 'b.cutmark.json', { type: 'application/json' }),
+        ],
+        pdfFiles: [],
+        imageFiles: [],
+        unsupportedFiles: [],
+      })
+    ).toThrow('プロジェクトファイルは1つだけ選んでください。');
+
+    expect(() =>
+      createWorkspaceImportPlan({
+        projectFiles: [],
+        pdfFiles: [new File(['pdf'], 'sample.pdf', { type: 'application/pdf' })],
+        imageFiles: [new File(['img'], '001.png', { type: 'image/png' })],
+        unsupportedFiles: [],
+      })
+    ).toThrow('素材は PDF 1つ か 連番画像(JPG/PNG) のどちらか一方だけを選んでください。');
+  });
+
+  it('loads images and a project file from one selection', async () => {
     const options = createOptions();
+    const imageA = new File(['img-a'], '002.png', { type: 'image/png' });
+    const imageB = new File(['img-b'], '001.png', { type: 'image/png' });
+    const projectFile = new File(['{}'], 'shots.cutmark.json', { type: 'application/json' });
+    const event = {
+      target: {
+        files: createFileList([projectFile, imageA, imageB]),
+        value: 'selected',
+      },
+    } as unknown as ChangeEvent<HTMLInputElement>;
+
     const { result } = renderHook(() => useWorkspaceFileActions(options));
 
-    act(() => {
-      result.current.onFolderLoaded({
-        target: {
-          files: createFileList([rootImage, nestedImage, textFile]),
-        },
-      } as ChangeEvent<HTMLInputElement>);
+    await act(async () => {
+      await result.current.onImportFilesSelected(event);
     });
 
-    expect(options.loadImages).toHaveBeenCalledWith([rootImage]);
-    expect(options.logDebug).toHaveBeenCalledWith(
-      'info',
-      'フォルダ読み込み開始',
-      expect.any(Function)
+    expect(options.loadImages).toHaveBeenCalledWith([imageB, imageA]);
+    expect(options.loadProjectFile).toHaveBeenCalledWith(
+      projectFile,
+      expect.objectContaining({
+        docType: 'images',
+        numPages: 2,
+        currentAssetHints: [
+          { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+          { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+        ],
+      })
+    );
+    expect(event.target.value).toBe('');
+  });
+
+  it('loads a pdf and project file from one selection', async () => {
+    const options = createOptions();
+    const pdfFile = new File(['pdf'], 'sample.pdf', { type: 'application/pdf' });
+    const projectFile = new File(['{}'], 'sample.cutmark.json', { type: 'application/json' });
+    const event = {
+      target: {
+        files: createFileList([projectFile, pdfFile]),
+        value: 'selected',
+      },
+    } as unknown as ChangeEvent<HTMLInputElement>;
+
+    pdfLibMocks.load.mockResolvedValue({
+      getPageCount: () => 3,
+    });
+
+    const { result } = renderHook(() => useWorkspaceFileActions(options));
+
+    await act(async () => {
+      await result.current.onImportFilesSelected(event);
+    });
+
+    expect(options.loadPdf).toHaveBeenCalledWith(pdfFile);
+    expect(options.loadProjectFile).toHaveBeenCalledWith(
+      projectFile,
+      expect.objectContaining({
+        docType: 'pdf',
+        numPages: 3,
+        currentAssetHints: [
+          { sourceKind: 'pdf-page', sourceLabel: 'sample.pdf', pageNumber: 1 },
+          { sourceKind: 'pdf-page', sourceLabel: 'sample.pdf', pageNumber: 2 },
+          { sourceKind: 'pdf-page', sourceLabel: 'sample.pdf', pageNumber: 3 },
+        ],
+      })
     );
   });
 

@@ -92,6 +92,7 @@ describe('useAppEditorController', () => {
       effectiveExportSettings: settings,
       canApplyLoadedProject: true,
       loadedProjectManager: {
+        loadProjectFile: vi.fn(),
         onProjectLoaded: vi.fn(),
         handleSaveProject: vi.fn(),
         projectPanelProps: null,

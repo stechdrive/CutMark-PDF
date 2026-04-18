@@ -1,5 +1,5 @@
 import type React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { DocumentPreview } from '../../components/DocumentPreview';
 import { createAppSettings, createTemplate } from '../../test/factories';
@@ -10,6 +10,91 @@ vi.mock('react-pdf', () => ({
 }));
 
 describe('DocumentPreview', () => {
+  it('uses wheel input to change pages inside the preview viewport', () => {
+    const setCurrentPage = vi.fn();
+    const { container } = render(
+      <DocumentPreview
+        docType="images"
+        pdfFile={null}
+        currentImageUrl="blob:image"
+        numPages={3}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={setCurrentPage}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={createTemplate()}
+        setTemplate={vi.fn()}
+        settings={createAppSettings()}
+        onContentClick={vi.fn()}
+      />
+    );
+
+    fireEvent.wheel(container.firstChild as HTMLElement, { deltaY: 120 });
+
+    expect(setCurrentPage).toHaveBeenCalledWith(2);
+  });
+
+  it('uses middle-button drag to pan the preview viewport', () => {
+    const { container } = render(
+      <DocumentPreview
+        docType="images"
+        pdfFile={null}
+        currentImageUrl="blob:image"
+        numPages={3}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={vi.fn()}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={createTemplate()}
+        setTemplate={vi.fn()}
+        settings={createAppSettings()}
+        onContentClick={vi.fn()}
+      />
+    );
+
+    const viewport = container.firstChild as HTMLElement;
+    viewport.scrollLeft = 120;
+    viewport.scrollTop = 90;
+
+    fireEvent.mouseDown(viewport, { button: 1, clientX: 100, clientY: 100 });
+    fireEvent.mouseMove(window, { clientX: 130, clientY: 150 });
+
+    expect(viewport.scrollLeft).toBe(90);
+    expect(viewport.scrollTop).toBe(40);
+
+    fireEvent.mouseUp(window);
+  });
+
   it('shows a project notice while editing an unassigned logical page', () => {
     render(
       <DocumentPreview

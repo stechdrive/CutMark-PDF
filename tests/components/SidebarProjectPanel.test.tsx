@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidebarProjectPanel } from '../../components/SidebarProjectPanel';
 import { ProjectAssetComparisonSummary } from '../../application/projectComparison';
 
@@ -42,6 +42,10 @@ const createComparisonSummary = (
 });
 
 describe('SidebarProjectPanel', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
   it('shows loaded project summary and unresolved pages', () => {
     render(
       <SidebarProjectPanel
@@ -86,6 +90,7 @@ describe('SidebarProjectPanel', () => {
     expect(screen.getAllByText('割当中: 009_revised.png').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: '現在の素材へ割当どおりに適用' })).toBeEnabled();
     expect(screen.getByRole('combobox', { name: '論理ページ 2 の割当' })).toBeInTheDocument();
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
 
   it('lets the user change a logical page assignment and reset suggestions', async () => {

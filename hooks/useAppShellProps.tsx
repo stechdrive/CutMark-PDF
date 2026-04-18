@@ -17,10 +17,9 @@ interface UseAppShellPropsOptions {
     canRedo: boolean;
     onUndo: () => void;
     onRedo: () => void;
-    onPdfFileChange: ComponentProps<typeof Header>['onPdfFileChange'];
-    onFolderChange: ComponentProps<typeof Header>['onFolderChange'];
-    onProjectFileChange: ComponentProps<typeof Header>['onProjectFileChange'];
-    onSaveProject: () => void;
+    onImportFileChange: ComponentProps<typeof Header>['onImportFileChange'];
+    canExportProject: boolean;
+    onExportProject: () => void;
     onExportPdf: () => void;
     onExportImages: () => void;
     onOpenDebug: () => void;
@@ -111,10 +110,9 @@ export const useAppShellProps = ({
 
   const headerProps: ComponentProps<typeof Header> = {
     docType: header.docType,
-    onPdfFileChange: header.onPdfFileChange,
-    onFolderChange: header.onFolderChange,
-    onProjectFileChange: header.onProjectFileChange,
-    onSaveProject: header.onSaveProject,
+    onImportFileChange: header.onImportFileChange,
+    canExportProject: header.canExportProject,
+    onExportProject: header.onExportProject,
     onExportPdf: header.onExportPdf,
     onExportImages: header.onExportImages,
     isExporting: header.isExporting,

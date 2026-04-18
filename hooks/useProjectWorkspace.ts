@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useCallback, useEffect, useMemo } from 'react';
+import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useRef } from 'react';
 import { createCutsFromProjectDocument } from '../application/projectProjection';
 import { createAppSettingsFromProjectDocument } from '../application/projectPresentation';
 import {
@@ -20,6 +20,7 @@ interface UseProjectWorkspaceOptions {
   docType: DocType | null;
   currentPage: number;
   setCurrentPage: Dispatch<SetStateAction<number>>;
+  setLoadedLogicalPageSelection?: (logicalPageId: string | null) => void;
   currentAssetHints: Array<AssetHint | null | undefined>;
   effectiveSettings: AppSettings;
   effectiveTemplate: Template;
@@ -47,6 +48,7 @@ export const useProjectWorkspace = ({
   docType,
   currentPage,
   setCurrentPage,
+  setLoadedLogicalPageSelection,
   currentAssetHints,
   effectiveSettings,
   effectiveTemplate,
@@ -54,6 +56,8 @@ export const useProjectWorkspace = ({
   loadedSession,
   currentSession,
 }: UseProjectWorkspaceOptions) => {
+  const lastCurrentPageRef = useRef<number | null>(null);
+  const lastSelectedLogicalPageIdRef = useRef<string | null>(null);
   const loadedProject = loadedSession.project;
   const projectBindings = loadedSession.bindings;
 
@@ -63,17 +67,49 @@ export const useProjectWorkspace = ({
   }, [currentAssetHints, loadedProject]);
 
   useEffect(() => {
-    if (!loadedSession.selectedLogicalPageId) return;
-    const assetIndex = projectBindings[loadedSession.selectedLogicalPageId];
-    if (assetIndex == null) return;
-    if (assetIndex + 1 !== currentPage) {
-      setCurrentPage(assetIndex + 1);
+    if (!loadedProject) return;
+
+    const currentAssetIndex = currentPage - 1;
+    if (currentAssetIndex < 0) return;
+    const selectedLogicalPageId = loadedSession.selectedLogicalPageId;
+    const selectedAssetIndex =
+      selectedLogicalPageId != null ? projectBindings[selectedLogicalPageId] ?? null : null;
+    const matchedLogicalPageId =
+      loadedProject.logicalPages.find((page) => projectBindings[page.id] === currentAssetIndex)?.id ?? null;
+    const previousCurrentPage = lastCurrentPageRef.current;
+    const previousSelectedLogicalPageId = lastSelectedLogicalPageIdRef.current;
+    const isInitialSync =
+      previousCurrentPage === null && previousSelectedLogicalPageId === null;
+    const currentPageChanged =
+      previousCurrentPage !== null && previousCurrentPage !== currentPage;
+    const selectedLogicalPageChanged =
+      previousSelectedLogicalPageId !== selectedLogicalPageId;
+
+    if (isInitialSync) {
+      if (selectedLogicalPageId && selectedAssetIndex != null && selectedAssetIndex + 1 !== currentPage) {
+        setCurrentPage(selectedAssetIndex + 1);
+      } else if (!selectedLogicalPageId && matchedLogicalPageId !== null && setLoadedLogicalPageSelection) {
+        setLoadedLogicalPageSelection(matchedLogicalPageId);
+      }
+    } else if (currentPageChanged && !selectedLogicalPageChanged) {
+      if (setLoadedLogicalPageSelection && matchedLogicalPageId !== selectedLogicalPageId) {
+        setLoadedLogicalPageSelection(matchedLogicalPageId);
+      }
+    } else if (selectedLogicalPageChanged && !currentPageChanged) {
+      if (selectedLogicalPageId && selectedAssetIndex != null && selectedAssetIndex + 1 !== currentPage) {
+        setCurrentPage(selectedAssetIndex + 1);
+      }
     }
+
+    lastCurrentPageRef.current = currentPage;
+    lastSelectedLogicalPageIdRef.current = selectedLogicalPageId;
   }, [
     currentPage,
+    loadedProject,
     loadedSession.selectedLogicalPageId,
     projectBindings,
     setCurrentPage,
+    setLoadedLogicalPageSelection,
   ]);
 
   const assignedProjectBindingCount = loadedSession.assignedCount;
