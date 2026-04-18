@@ -2,11 +2,10 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { pdfjs } from 'react-pdf';
 
-import { AppSettings, NumberingState, Template } from './types';
+import { NumberingState } from './types';
 import { saveMarkedPdf, saveImagesAsPdf } from './services/pdfService';
 import { exportImagesAsZip } from './services/imageExportService';
 import {
-  createAppSettingsFromProjectDocument,
   createAssetHintsFromCurrentDocument,
   createTemplateFromProjectDocument,
 } from './adapters/legacyProjectAdapter';
@@ -32,6 +31,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useProjectEditor } from './hooks/useProjectEditor';
 import { useActiveCutEditor } from './hooks/useActiveCutEditor';
 import { useProjectWorkspace } from './hooks/useProjectWorkspace';
+import { useWorkspacePresentation } from './hooks/useWorkspacePresentation';
 
 // Components
 import { Header } from './components/Header';
@@ -285,133 +285,43 @@ export default function App() {
     }
     pdfAutoFontSizeRef.current = null;
   }, [docType, loadedProject, settings.fontSize, setSettings]);
-
-  const effectiveSettings = useMemo(
-    () =>
-      loadedProject
-        ? createAppSettingsFromProjectDocument(loadedProject)
-        : settings,
-    [loadedProject, settings]
-  );
-  const effectiveTemplate = useMemo(
-    () =>
-      loadedProject
-        ? createTemplateFromProjectDocument(loadedProject)
-        : template,
-    [loadedProject, template]
-  );
-  const setEffectiveSettings = useCallback((next: React.SetStateAction<AppSettings>) => {
-    if (loadedProject) {
-      updateProjectSettings(next, { pushHistory: true });
-      return;
-    }
-    setSettings(next);
-  }, [loadedProject, setSettings, updateProjectSettings]);
-  const setEffectiveSettingsLive = useCallback((next: React.SetStateAction<AppSettings>) => {
-    if (loadedProject) {
-      updateProjectSettings(next, { pushHistory: false });
-      return;
-    }
-    setSettings(next);
-  }, [loadedProject, setSettings, updateProjectSettings]);
-  const setEffectiveTemplate = useCallback((next: React.SetStateAction<Template>) => {
-    if (loadedProject) {
-      updateProjectTemplate(next, { pushHistory: true });
-      return;
-    }
-    setTemplate(next);
-  }, [loadedProject, setTemplate, updateProjectTemplate]);
-  const setEffectiveTemplateLive = useCallback((next: React.SetStateAction<Template>) => {
-    if (loadedProject) {
-      updateProjectTemplate(next, { pushHistory: false });
-      return;
-    }
-    setTemplate(next);
-  }, [loadedProject, setTemplate, updateProjectTemplate]);
-  const setEffectiveNumberingState = useCallback((next: NumberingState) => {
-    if (loadedProject) {
-      updateProjectSettings((current) => ({
-        ...current,
-        nextNumber: next.nextNumber,
-        branchChar: next.branchChar,
-      }), { pushHistory: true });
-      return;
-    }
-    legacyCutEditor.setNumberingStateWithHistory(next);
-  }, [legacyCutEditor, loadedProject, updateProjectSettings]);
-  const handleTemplateChange = useCallback((id: string) => {
-    if (!loadedProject) {
-      changeTemplate(id);
-      return;
-    }
-
-    const nextTemplate = templates.find((item) => item.id === id);
-    if (!nextTemplate) return;
-    updateProjectTemplate(nextTemplate, { pushHistory: true });
-  }, [changeTemplate, loadedProject, templates, updateProjectTemplate]);
-  const handleSaveTemplate = useCallback((name: string) => {
-    if (!loadedProject) {
-      saveTemplateByName(name);
-      return;
-    }
-
-    const savedTemplate = saveTemplateDraftByName(effectiveTemplate, name);
-    if (savedTemplate) {
-      updateProjectTemplate(savedTemplate, { pushHistory: true });
-    }
-  }, [
+  const {
+    effectiveSettings,
     effectiveTemplate,
+    setEffectiveSettings,
+    setEffectiveSettingsLive,
+    setEffectiveTemplate,
+    setEffectiveTemplateLive,
+    setEffectiveNumberingState,
+    handleTemplateChange,
+    handleSaveTemplate,
+    handleDeleteTemplate,
+    handleDistributeRows,
+    handleProjectDraftInteractionStart,
+    handleProjectDraftInteractionEnd,
+  } = useWorkspacePresentation({
     loadedProject,
-    saveTemplateByName,
-    saveTemplateDraftByName,
-    updateProjectTemplate,
-  ]);
-  const handleDeleteTemplate = useCallback(() => {
-    if (!loadedProject) {
-      deleteTemplate();
-      return;
-    }
-
-    const nextTemplate = deleteTemplateById(effectiveTemplate.id);
-    if (nextTemplate) {
-      updateProjectTemplate(nextTemplate, { pushHistory: true });
-    }
-  }, [deleteTemplate, deleteTemplateById, effectiveTemplate.id, loadedProject, updateProjectTemplate]);
-  const handleDistributeRows = useCallback(() => {
-    if (!loadedProject) {
-      distributeRows();
-      return;
-    }
-
-    setEffectiveTemplate((current) => {
-      if (current.rowCount <= 2) return current;
-
-      const newPositions = [...current.rowPositions];
-      const first = newPositions[0];
-      const last = newPositions[current.rowCount - 1];
-      if (typeof first !== 'number' || typeof last !== 'number') {
-        return current;
-      }
-
-      const step = (last - first) / (current.rowCount - 1);
-      for (let i = 1; i < current.rowCount - 1; i++) {
-        newPositions[i] = first + (step * i);
-      }
-
-      return {
-        ...current,
-        rowPositions: newPositions,
-      };
-    });
-  }, [distributeRows, loadedProject, setEffectiveTemplate]);
-  const handleProjectDraftInteractionStart = useCallback(() => {
-    if (!loadedProject) return;
-    beginProjectDraftTransaction();
-  }, [beginProjectDraftTransaction, loadedProject]);
-  const handleProjectDraftInteractionEnd = useCallback(() => {
-    if (!loadedProject) return;
-    commitProjectDraftTransaction();
-  }, [commitProjectDraftTransaction, loadedProject]);
+    settings,
+    setSettings,
+    setLegacyNumberingStateWithHistory: legacyCutEditor.setNumberingStateWithHistory,
+    templateApi: {
+      templates,
+      template,
+      setTemplate,
+      changeTemplate,
+      saveTemplateByName,
+      saveTemplateDraftByName,
+      deleteTemplate,
+      deleteTemplateById,
+      distributeRows,
+    },
+    projectDraftApi: {
+      updateSettings: updateProjectSettings,
+      updateTemplate: updateProjectTemplate,
+      beginTransaction: beginProjectDraftTransaction,
+      commitTransaction: commitProjectDraftTransaction,
+    },
+  });
   const currentProjectName = useMemo(() => {
     if (docType === 'pdf') {
       return pdfFile?.name;
