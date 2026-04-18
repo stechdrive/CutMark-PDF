@@ -64,6 +64,14 @@ export const createSuggestedProjectAssetBindings = (
   return bindings;
 };
 
+export const createSequentialProjectAssetBindings = (
+  project: ProjectDocument,
+  assetCount: number
+): ProjectAssetBindings =>
+  Object.fromEntries(
+    project.logicalPages.map((page, index) => [page.id, index < assetCount ? index : null])
+  ) as ProjectAssetBindings;
+
 export const reassignProjectAssetBinding = (
   bindings: ProjectAssetBindings,
   logicalPageId: LogicalPageId,

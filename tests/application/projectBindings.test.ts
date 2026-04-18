@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   applyBoundAssetHintsToProject,
   countAssignedProjectAssetBindings,
+  createSequentialProjectAssetBindings,
   createSuggestedProjectAssetBindings,
   hasCompleteProjectAssetBindings,
   reassignProjectAssetBinding,
@@ -75,6 +76,16 @@ describe('application/projectBindings', () => {
       'page-1': 0,
       'page-2': null,
       'page-3': 1,
+    });
+  });
+
+  it('creates sequential bindings for the current document order', () => {
+    const bindings = createSequentialProjectAssetBindings(project, 2);
+
+    expect(bindings).toEqual({
+      'page-1': 0,
+      'page-2': 1,
+      'page-3': null,
     });
   });
 

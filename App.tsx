@@ -24,6 +24,7 @@ import {
 } from './domain/project';
 import {
   applyBoundAssetHintsToProject,
+  createSequentialProjectAssetBindings,
   createSuggestedProjectAssetBindings,
   ProjectAssetBindings,
 } from './application/projectBindings';
@@ -68,6 +69,9 @@ const DEFAULT_IMAGE_FONT_SIZE = 28;
 const IMAGE_A4_WIDTH_AT_150_DPI = 1240.5; // 8.27inch * 150dpi
 const FONT_SIZE_MIN = 12;
 const FONT_SIZE_MAX = 72;
+
+const countProjectCuts = (project: ProjectDocument) =>
+  project.logicalPages.reduce((count, page) => count + page.cuts.length, 0);
 
 const toCutLike = (pageIndex: number, cut: ProjectDocument['logicalPages'][number]['cuts'][number]): Cut => ({
   id: cut.id,
@@ -435,14 +439,28 @@ export default function App() {
     if (!loadedProject) return;
     commitProjectDraftTransaction();
   }, [commitProjectDraftTransaction, loadedProject]);
+  const currentProjectName = useMemo(() => {
+    if (docType === 'pdf') {
+      return pdfFile?.name;
+    }
+    if (docType === 'images') {
+      return imageFiles[0]?.webkitRelativePath.split('/')[0] || imageFiles[0]?.name;
+    }
+    return undefined;
+  }, [docType, imageFiles, pdfFile]);
+  const legacyProject = useMemo(() => {
+    if (!docType) return null;
+
+    return createProjectDocumentFromLegacySnapshot({
+      cuts,
+      settings,
+      template,
+      pageCount: Math.max(numPages, 1),
+      assetHints: currentAssetHints,
+      projectName: currentProjectName,
+    });
+  }, [currentAssetHints, currentProjectName, cuts, docType, numPages, settings, template]);
   const effectiveSelectedCutId = loadedProject ? projectEditor.selectedCutId : selectedCutId;
-  const previewCuts = useMemo(
-    () =>
-      loadedProject && selectedLogicalPage
-        ? selectedLogicalPage.cuts.map((cut) => toCutLike(currentPage - 1, cut))
-        : cuts.filter((cut) => cut.pageIndex === currentPage - 1),
-    [currentPage, cuts, loadedProject, selectedLogicalPage]
-  );
 
   const projectStatusMessage = useMemo(() => {
     if (!loadedProject) return null;
@@ -492,21 +510,45 @@ export default function App() {
         : null,
     [loadedProject, projectBindings, resolveProjectDocumentForCurrentState]
   );
+  const activeProject = resolvedLoadedProject ?? legacyProject;
+  const activeProjectBindings = useMemo(
+    () =>
+      loadedProject
+        ? projectBindings
+        : legacyProject
+          ? createSequentialProjectAssetBindings(legacyProject, currentAssetHints.length)
+          : {},
+    [currentAssetHints.length, legacyProject, loadedProject, projectBindings]
+  );
+  const previewLogicalPage = useMemo(
+    () =>
+      loadedProject
+        ? selectedLogicalPage
+        : legacyProject?.logicalPages[currentPage - 1] ?? null,
+    [currentPage, legacyProject, loadedProject, selectedLogicalPage]
+  );
+  const previewCuts = useMemo(
+    () =>
+      previewLogicalPage
+        ? previewLogicalPage.cuts.map((cut) => toCutLike(currentPage - 1, cut))
+        : [],
+    [currentPage, previewLogicalPage]
+  );
 
   const effectiveExportCuts = useMemo(
     () =>
-      resolvedLoadedProject
-        ? createLegacyCutsFromProjectDocument(resolvedLoadedProject, projectBindings)
-        : cuts,
-    [cuts, projectBindings, resolvedLoadedProject]
+      activeProject
+        ? createLegacyCutsFromProjectDocument(activeProject, activeProjectBindings)
+        : [],
+    [activeProject, activeProjectBindings]
   );
 
   const effectiveExportSettings = useMemo(
     () =>
-      resolvedLoadedProject
-        ? createAppSettingsFromProjectDocument(resolvedLoadedProject)
+      activeProject
+        ? createAppSettingsFromProjectDocument(activeProject)
         : settings,
-    [resolvedLoadedProject, settings]
+    [activeProject, settings]
   );
 
   // --- Logic Orchestration ---
@@ -774,66 +816,39 @@ export default function App() {
   }, [applyLoadedProjectToCurrentDocument, canApplyLoadedProject, loadedProject, projectBindings]);
 
   const handleSaveProject = useCallback(() => {
-    if (!docType) {
+    const projectSource = loadedProject ? loadedProject : legacyProject;
+    const bindingsForSave = loadedProject ? projectBindings : activeProjectBindings;
+
+    if (!docType || !projectSource) {
       alert('先にPDFまたは画像を読み込んでください');
       return;
     }
 
+    const project = resolveProjectDocumentForCurrentState(
+      projectSource,
+      bindingsForSave,
+      { touchSavedAt: true }
+    );
+
     if (loadedProject) {
-      const project = resolveProjectDocumentForCurrentState(
-        loadedProject,
-        projectBindings,
-        { touchSavedAt: true }
-      );
       replaceEditorProject(project, projectBindings);
-      downloadProjectDocument(project);
-      logDebug('info', 'プロジェクト保存', () => ({
-        projectName: project.meta.name,
-        logicalPages: project.logicalPages.length,
-        cutCount: project.logicalPages.reduce((count, page) => count + page.cuts.length, 0),
-      }));
-      return;
+    } else {
+      loadProjectIntoEditor(project);
     }
-
-    const pageCount = Math.max(numPages, 1);
-    const assetHints = createAssetHintsFromCurrentDocument({
-      docType,
-      pdfFile,
-      imageFiles,
-      pageCount,
-    });
-
-    const project = createProjectDocumentFromLegacySnapshot({
-      cuts,
-      settings,
-      template,
-      pageCount,
-      assetHints,
-      projectName:
-        docType === 'pdf'
-          ? pdfFile?.name
-          : imageFiles[0]?.webkitRelativePath.split('/')[0] || imageFiles[0]?.name,
-    });
-
-    loadProjectIntoEditor(project);
     downloadProjectDocument(project);
     logDebug('info', 'プロジェクト保存', () => ({
       projectName: project.meta.name,
       logicalPages: project.logicalPages.length,
-      cutCount: cuts.length,
+      cutCount: countProjectCuts(project),
     }));
   }, [
-    cuts,
+    activeProjectBindings,
     docType,
-    imageFiles,
+    legacyProject,
     loadedProject,
     logDebug,
-    numPages,
-    pdfFile,
     projectBindings,
     resolveProjectDocumentForCurrentState,
-    settings,
-    template,
     loadProjectIntoEditor,
     replaceEditorProject,
   ]);
@@ -1012,7 +1027,7 @@ export default function App() {
       `isExporting: ${isExporting}`,
       `currentPage: ${currentPage} / ${numPages}`,
       `scale: ${scale}`,
-      `cuts: total=${loadedProject ? loadedProject.logicalPages.reduce((count, page) => count + page.cuts.length, 0) : cuts.length}, currentPage=${previewCuts.length}`,
+      `cuts: total=${activeProject ? countProjectCuts(activeProject) : 0}, currentPage=${previewCuts.length}`,
       `selectedCutId: ${effectiveSelectedCutId ?? 'none'}`,
       '',
       '[PDF File]',
@@ -1057,7 +1072,7 @@ export default function App() {
     currentPage,
     numPages,
     scale,
-    cuts.length,
+    activeProject,
     effectiveSelectedCutId,
     loadedProject,
     pdfFile,
