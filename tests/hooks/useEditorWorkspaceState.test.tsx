@@ -36,7 +36,7 @@ describe('useEditorWorkspaceState', () => {
       logicalPages: [],
     });
     const currentProjectSession = {
-      setNumberingStateWithHistory: vi.fn(),
+      setProjectNumberingState: vi.fn(),
       workspaceSession: {
         project: null,
         bindings: {},
@@ -127,7 +127,7 @@ describe('useEditorWorkspaceState', () => {
       loadedProject,
       settings,
       setSettings,
-      setCurrentNumberingStateWithHistory: currentProjectSession.setNumberingStateWithHistory,
+      setCurrentNumberingStateWithHistory: currentProjectSession.setProjectNumberingState,
       templateApi: {
         templates: templateApi.templates,
         template: templateApi.template,

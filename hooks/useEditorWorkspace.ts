@@ -55,7 +55,7 @@ export const useEditorWorkspace = ({
   });
 
   return {
-    resetCurrentProject: sessions.currentProjectSession.resetCuts,
+    resetCurrentProject: sessions.currentProjectSession.resetProject,
     isLoadedProjectActive: sessions.isLoadedProjectActive,
     selectedLogicalPageId: sessions.loadedProjectSession.workspaceSession.selectedLogicalPageId,
     effectiveSettings: workspaceState.effectiveSettings,

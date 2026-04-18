@@ -36,7 +36,7 @@ export const useEditorWorkspaceState = ({
     loadedProject,
     settings,
     setSettings,
-    setCurrentNumberingStateWithHistory: currentProjectSession.setNumberingStateWithHistory,
+    setCurrentNumberingStateWithHistory: currentProjectSession.setProjectNumberingState,
     templateApi: {
       templates: templateApi.templates,
       template: templateApi.template,

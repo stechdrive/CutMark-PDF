@@ -243,41 +243,10 @@ export const useCurrentProjectSession = ({
     }
   }, [numberingState, rawHistory.present, requestNumberingSync]);
 
-  const resetCuts = useCallback(() => {
+  const resetProject = useCallback(() => {
     setRawHistory(createHistoryState({ project: null, selectedCutId: null }));
     dragBaseRef.current = null;
   }, []);
-
-  const replaceCutsState = useCallback((nextCuts: Cut[], nextNumbering: NumberingState) => {
-    const project = createCurrentProjectDocument({
-      docType,
-      numPages,
-      currentAssetHints,
-      currentProjectName,
-      settings: {
-        ...settings,
-        nextNumber: nextNumbering.nextNumber,
-        branchChar: nextNumbering.branchChar,
-      },
-      template,
-      cuts: nextCuts,
-    });
-
-    setRawHistory(createHistoryState(withSelectedCut(project, null)));
-    dragBaseRef.current = null;
-    if (!isSameNumberingState(numberingState, nextNumbering)) {
-      requestNumberingSync(nextNumbering);
-    }
-  }, [
-    currentAssetHints,
-    currentProjectName,
-    docType,
-    numPages,
-    numberingState,
-    requestNumberingSync,
-    settings,
-    template,
-  ]);
 
   const addCut = useCallback((newCut: Cut, nextNumbering?: NumberingState) => {
     pushPresent((current) => {
@@ -398,7 +367,7 @@ export const useCurrentProjectSession = ({
     });
   }, [pushPresent]);
 
-  const setNumberingStateWithHistory = useCallback((nextNumbering: NumberingState) => {
+  const setProjectNumberingState = useCallback((nextNumbering: NumberingState) => {
     const currentProject = rawHistoryRef.current?.present.project ?? rawHistory.present.project;
     const currentNumbering = currentProject?.numbering ?? numberingState;
     if (isSameNumberingState(currentNumbering, nextNumbering)) {
@@ -555,7 +524,7 @@ export const useCurrentProjectSession = ({
     updateCutPosition,
     commitCutDrag: handleCutDragEnd,
     deleteCut,
-    setNumberingState: setNumberingStateWithHistory,
+    setNumberingState: setProjectNumberingState,
     renumberFromCut: (cutId, numbering) => {
       renumberFromCut(
         cutId,
@@ -581,12 +550,11 @@ export const useCurrentProjectSession = ({
     updateCutPosition,
     handleCutDragEnd,
     deleteCut,
-    setNumberingStateWithHistory,
+    setProjectNumberingState,
     renumberFromCut,
     undo,
     redo,
-    resetCuts,
-    replaceCutsState,
+    resetProject,
     project,
     bindings,
     previewLogicalPage,

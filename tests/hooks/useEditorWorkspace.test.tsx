@@ -68,7 +68,7 @@ describe('useEditorWorkspace', () => {
     const options = createOptions();
     const currentProjectSession = {
       project: { id: 'current-project' },
-      resetCuts: vi.fn(),
+      resetProject: vi.fn(),
       projectCutEditorApi: { id: 'current-editor' },
     };
     const loadedProjectSession = {
@@ -170,7 +170,7 @@ describe('useEditorWorkspace', () => {
       logDebug: options.logDebug,
     });
     expect(result.current.isLoadedProjectActive).toBe(true);
-    expect(result.current.resetCurrentProject).toBe(currentProjectSession.resetCuts);
+    expect(result.current.resetCurrentProject).toBe(currentProjectSession.resetProject);
     expect(result.current.selectedLogicalPageId).toBe('page-1');
     expect(result.current.activeProject).toBe(workspaceState.workspace.activeProject);
     expect(result.current.previewCuts).toBe(workspaceState.workspace.previewCuts);
@@ -182,7 +182,7 @@ describe('useEditorWorkspace', () => {
     const options = createOptions();
     const currentProjectSession = {
       project: { id: 'current-project' },
-      resetCuts: vi.fn(),
+      resetProject: vi.fn(),
       projectCutEditorApi: { id: 'current-editor' },
     };
     const loadedProjectSession = {
@@ -236,6 +236,6 @@ describe('useEditorWorkspace', () => {
 
     expect(result.current.isLoadedProjectActive).toBe(false);
     expect(result.current.selectedLogicalPageId).toBeNull();
-    expect(result.current.resetCurrentProject).toBe(currentProjectSession.resetCuts);
+    expect(result.current.resetCurrentProject).toBe(currentProjectSession.resetProject);
   });
 });
