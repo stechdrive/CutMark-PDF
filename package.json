@@ -2,7 +2,7 @@
   "homepage": "https://stechdrive.github.io/CutMark-PDF/",
   "name": "cutmark-pdf",
   "private": true,
-  "version": "2.4.1",
+  "version": "2.4.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -36,6 +36,7 @@
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "@vitest/coverage-v8": "^4.1.4",
+    "baseline-browser-mapping": "^2.10.20",
     "eslint": "^9.39.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",

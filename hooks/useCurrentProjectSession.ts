@@ -178,6 +178,32 @@ export const useCurrentProjectSession = ({
     rawHistoryRef.current = rawHistory;
   }, [rawHistory]);
 
+  const materializePresent = useCallback((
+    present: CurrentProjectSessionPresent
+  ): CurrentProjectSessionPresent => {
+    if (present.project) {
+      return present;
+    }
+
+    const project = createCurrentProjectDocument({
+      docType,
+      numPages,
+      currentAssetHints,
+      currentProjectName,
+      settings,
+      template,
+    });
+
+    return project ? withSelectedCut(project, present.selectedCutId) : present;
+  }, [
+    currentAssetHints,
+    currentProjectName,
+    docType,
+    numPages,
+    settings,
+    template,
+  ]);
+
   const requestNumberingSync = useCallback((next: NumberingState) => {
     setNumberingState(next);
   }, [setNumberingState]);
@@ -212,36 +238,47 @@ export const useCurrentProjectSession = ({
     updater: (current: CurrentProjectSessionPresent) => CurrentProjectSessionPresent
   ) => {
     const current = rawHistoryRef.current?.present ?? rawHistory.present;
-    const next = updater(current);
-    if (next === current) return;
+    const baseCurrent = materializePresent(current);
+    const next = updater(baseCurrent);
+    if (next === baseCurrent) return;
 
     setRawHistory((prev) => ({
       ...prev,
       present: next,
     }));
 
-    const currentNumbering = current.project?.numbering ?? numberingState;
+    const currentNumbering = baseCurrent.project?.numbering ?? numberingState;
     const nextNumbering = next.project?.numbering ?? currentNumbering;
     if (!isSameNumberingState(currentNumbering, nextNumbering)) {
       requestNumberingSync(nextNumbering);
     }
-  }, [numberingState, rawHistory.present, requestNumberingSync]);
+  }, [materializePresent, numberingState, rawHistory.present, requestNumberingSync]);
 
   const pushPresent = useCallback((
     updater: (current: CurrentProjectSessionPresent) => CurrentProjectSessionPresent
   ) => {
     const current = rawHistoryRef.current?.present ?? rawHistory.present;
-    const next = updater(current);
-    if (next === current) return;
+    const baseCurrent = materializePresent(current);
+    const next = updater(baseCurrent);
+    if (next === baseCurrent) return;
 
-    setRawHistory((prev) => pushHistoryState(prev, next, HISTORY_LIMIT));
+    setRawHistory((prev) =>
+      pushHistoryState(
+        {
+          ...prev,
+          present: materializePresent(prev.present),
+        },
+        next,
+        HISTORY_LIMIT
+      )
+    );
 
-    const currentNumbering = current.project?.numbering ?? numberingState;
+    const currentNumbering = baseCurrent.project?.numbering ?? numberingState;
     const nextNumbering = next.project?.numbering ?? currentNumbering;
     if (!isSameNumberingState(currentNumbering, nextNumbering)) {
       requestNumberingSync(nextNumbering);
     }
-  }, [numberingState, rawHistory.present, requestNumberingSync]);
+  }, [materializePresent, numberingState, rawHistory.present, requestNumberingSync]);
 
   const resetProject = useCallback(() => {
     setRawHistory(createHistoryState({ project: null, selectedCutId: null }));

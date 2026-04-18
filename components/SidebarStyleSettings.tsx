@@ -53,7 +53,7 @@ export const SidebarStyleSettings: React.FC<SidebarStyleSettingsProps> = ({
         {/* Outline Width Slider */}
         <div>
           <div className="flex justify-between text-sm mb-1 text-gray-600">
-            <span>白フチ (縁取り)</span>
+            <span>白フチ</span>
             <span>{settings.textOutlineWidth}px</span>
           </div>
           <input
@@ -79,7 +79,7 @@ export const SidebarStyleSettings: React.FC<SidebarStyleSettingsProps> = ({
 
         <div className="space-y-3">
           <label className="flex items-center justify-between cursor-pointer">
-            <span className="text-sm text-gray-600">白座布団 (背景)</span>
+            <span className="text-sm text-gray-600">白背景</span>
             <div
               className={`w-10 h-5 rounded-full p-0.5 transition-colors ${
                 settings.useWhiteBackground

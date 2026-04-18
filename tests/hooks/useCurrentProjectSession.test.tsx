@@ -31,6 +31,61 @@ const useCurrentProjectSessionHarness = (
 };
 
 describe('useCurrentProjectSession', () => {
+  it('hydrates the current project after document load so numbering can change before the first cut', () => {
+    const { result, rerender } = renderHook(
+      ({ docType }) => {
+        const [numberingState, setNumberingState] = useState<NumberingState>({
+          nextNumber: 1,
+          branchChar: null,
+        });
+
+        return useCurrentProjectSession({
+          docType,
+          currentPage: 1,
+          numPages: 2,
+          currentAssetHints: [
+            { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+            { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+          ],
+          currentProjectName: 'batch-a',
+          settings: createAppSettings({
+            nextNumber: numberingState.nextNumber,
+            branchChar: numberingState.branchChar,
+          }),
+          numberingState,
+          setNumberingState,
+          template: createTemplate(),
+        });
+      },
+      { initialProps: { docType: null as null | 'images' } }
+    );
+
+    expect(result.current.project).toBeNull();
+
+    rerender({ docType: 'images' });
+
+    expect(result.current.project?.numbering).toMatchObject({
+      nextNumber: 1,
+      branchChar: null,
+    });
+
+    act(() => {
+      result.current.projectCutEditorApi.setNumberingState({
+        nextNumber: 12,
+        branchChar: 'A',
+      });
+    });
+
+    expect(result.current.project?.numbering).toMatchObject({
+      nextNumber: 12,
+      branchChar: 'A',
+    });
+    expect(result.current.projectCutEditorApi.settings).toMatchObject({
+      nextNumber: 12,
+      branchChar: 'A',
+    });
+  });
+
   it('exposes the current document as a projected project session', () => {
     const { result } = renderHook(() =>
       useCurrentProjectSessionHarness(2, { nextNumber: 5, branchChar: null })
