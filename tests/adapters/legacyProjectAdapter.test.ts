@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { createAppSettings, createCut, createTemplate } from '../../test/factories';
 import {
   createAppSettingsFromProjectDocument,
-  createAssetHintsFromCurrentDocument,
   createLegacyCutsFromProjectDocument,
   createTemplateFromProjectDocument,
   createProjectDocumentFromLegacySnapshot,
@@ -75,34 +74,5 @@ describe('adapters/legacyProjectAdapter', () => {
       name: 'Custom',
       rowCount: 3,
     });
-  });
-
-  it('derives current asset hints from PDF and image sessions', () => {
-    const pdfHints = createAssetHintsFromCurrentDocument({
-      docType: 'pdf',
-      pdfFile: new File(['pdf'], 'board.pdf', { type: 'application/pdf' }),
-      imageFiles: [],
-      pageCount: 2,
-    });
-
-    expect(pdfHints).toEqual([
-      { sourceKind: 'pdf-page', sourceLabel: 'board.pdf', pageNumber: 1 },
-      { sourceKind: 'pdf-page', sourceLabel: 'board.pdf', pageNumber: 2 },
-    ]);
-
-    const imageHints = createAssetHintsFromCurrentDocument({
-      docType: 'images',
-      pdfFile: null,
-      imageFiles: [
-        new File(['1'], '001.png', { type: 'image/png' }),
-        new File(['2'], '002.png', { type: 'image/png' }),
-      ],
-      pageCount: 2,
-    });
-
-    expect(imageHints).toEqual([
-      { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
-      { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
-    ]);
   });
 });

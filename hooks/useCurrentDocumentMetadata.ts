@@ -1,5 +1,8 @@
 import { useMemo } from 'react';
-import { createAssetHintsFromCurrentDocument } from '../adapters/legacyProjectAdapter';
+import {
+  createAssetHintsFromCurrentDocument,
+  deriveCurrentProjectName,
+} from '../application/currentDocumentProjection';
 import { AssetHint } from '../domain/project';
 import { DocType } from '../types';
 
@@ -35,15 +38,15 @@ export const useCurrentDocumentMetadata = ({
     });
   }, [docType, imageFiles, numPages, pdfFile]);
 
-  const currentProjectName = useMemo(() => {
-    if (docType === 'pdf') {
-      return pdfFile?.name;
-    }
-    if (docType === 'images') {
-      return imageFiles[0]?.webkitRelativePath.split('/')[0] || imageFiles[0]?.name;
-    }
-    return undefined;
-  }, [docType, imageFiles, pdfFile]);
+  const currentProjectName = useMemo(
+    () =>
+      deriveCurrentProjectName({
+        docType,
+        pdfFile,
+        imageFiles,
+      }),
+    [docType, imageFiles, pdfFile]
+  );
 
   return {
     currentAssetHints,

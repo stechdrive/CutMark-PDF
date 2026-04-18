@@ -1,4 +1,4 @@
-import { AppSettings, Cut, DocType, Template } from '../types';
+import { AppSettings, Cut, Template } from '../types';
 import { AssetHint, ProjectDocument } from '../domain/project';
 import {
   createCutsFromProjectDocument,
@@ -14,50 +14,6 @@ interface LegacySnapshotOptions {
   projectName?: string;
   savedAt?: string;
 }
-
-interface CurrentDocumentHintOptions {
-  docType: DocType | null;
-  pdfFile: File | null;
-  imageFiles: File[];
-  pageCount: number;
-}
-
-export const createAssetHintsFromCurrentDocument = ({
-  docType,
-  pdfFile,
-  imageFiles,
-  pageCount,
-}: CurrentDocumentHintOptions): AssetHint[] => {
-  if (docType === 'pdf' && pdfFile) {
-    return Array.from({ length: pageCount }, (_, index) => ({
-      sourceKind: 'pdf-page',
-      sourceLabel: pdfFile.name,
-      pageNumber: index + 1,
-    }));
-  }
-
-  if (docType === 'images') {
-    return Array.from({ length: pageCount }, (_, index) => {
-      const image = imageFiles[index];
-      return image
-        ? {
-            sourceKind: 'image',
-            sourceLabel: image.name,
-            pageNumber: index + 1,
-          }
-        : {
-            sourceKind: 'image',
-            sourceLabel: `image-${index + 1}`,
-            pageNumber: index + 1,
-          };
-    });
-  }
-
-  return Array.from({ length: pageCount }, () => ({
-    sourceKind: 'image',
-    sourceLabel: '',
-  }));
-};
 
 export const createProjectDocumentFromLegacySnapshot = ({
   cuts,
