@@ -30,12 +30,14 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         {
-          src: pdfjsCMapsDir,
-          dest: '',
+          src: normalizePath(path.join(pdfjsCMapsDir, '*')),
+          dest: 'cmaps',
+          rename: { stripBase: true },
         },
         {
-          src: pdfjsStandardFontsDir,
-          dest: '',
+          src: normalizePath(path.join(pdfjsStandardFontsDir, '*')),
+          dest: 'standard_fonts',
+          rename: { stripBase: true },
         },
       ],
     }),
