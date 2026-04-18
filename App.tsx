@@ -21,9 +21,8 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useActiveCutEditor } from './hooks/useActiveCutEditor';
 import { useProjectWorkspace } from './hooks/useProjectWorkspace';
 import { useWorkspacePresentation } from './hooks/useWorkspacePresentation';
-import { useProjectLifecycle } from './hooks/useProjectLifecycle';
 import { useLoadedProjectSession } from './hooks/useLoadedProjectSession';
-import { useLoadedProjectPanel } from './hooks/useLoadedProjectPanel';
+import { useLoadedProjectManager } from './hooks/useLoadedProjectManager';
 
 // Components
 import { Header } from './components/Header';
@@ -251,7 +250,6 @@ export default function App() {
 
   const loadedProjectSession = useLoadedProjectSession(currentAssetHints, settings);
   const loadedProject = loadedProjectSession.project;
-  const projectBindings = loadedProjectSession.bindings;
   const selectedLogicalPageId = loadedProjectSession.workspaceSession.selectedLogicalPageId;
   useEffect(() => {
     if (loadedProject) return;
@@ -318,6 +316,21 @@ export default function App() {
     effectiveExportSettings,
   } = workspace;
   const currentProject = currentProjectSession.project;
+  const loadedProjectManager = useLoadedProjectManager({
+    loadedProjectSession,
+    docType,
+    numPages,
+    currentAssetHints,
+    currentProject,
+    currentProjectBindings: activeProjectBindings,
+    comparison: projectComparison,
+    statusMessage: projectStatusMessage,
+    canApplyLoadedProject,
+    resolveProjectDocumentForCurrentState,
+    upsertTemplate,
+    setMode,
+    logDebug,
+  });
   const activeCutEditor = useActiveCutEditor({
     editor: loadedProject
       ? loadedProjectSession.projectCutEditorApi
@@ -426,35 +439,6 @@ export default function App() {
     dragHandlers.onDrop(e);
     // onLoadComplete callback in hook handles resetCuts
   };
-
-  const {
-    handleApplyLoadedProject,
-    handleSaveProject,
-    onProjectLoaded,
-  } = useProjectLifecycle({
-    docType,
-    numPages,
-    currentAssetHints,
-    loadedProject,
-    projectBindings,
-    currentProject,
-    currentProjectBindings: activeProjectBindings,
-    canApplyLoadedProject,
-    resolveProjectDocumentForCurrentState,
-    loadProjectIntoEditor: loadedProjectSession.loadProject,
-    replaceEditorProject: loadedProjectSession.replaceProject,
-    upsertTemplate,
-    setMode,
-    logDebug,
-  });
-  const { projectPanelProps } = useLoadedProjectPanel({
-    loadedProjectSession,
-    comparison: projectComparison,
-    statusMessage: projectStatusMessage,
-    currentAssets: currentAssetHints,
-    canApplyProject: canApplyLoadedProject,
-    onApplyProject: handleApplyLoadedProject,
-  });
 
   // Export PDF
   const handleExportPdf = async () => {
@@ -678,8 +662,8 @@ export default function App() {
         docType={docType}
         onPdfFileChange={onPdfLoaded}
         onFolderChange={onFolderLoaded}
-        onProjectFileChange={onProjectLoaded}
-        onSaveProject={handleSaveProject}
+        onProjectFileChange={loadedProjectManager.onProjectLoaded}
+        onSaveProject={loadedProjectManager.handleSaveProject}
         onExportPdf={handleExportPdf}
         onExportImages={handleExportImages}
         isExporting={isExporting}
@@ -744,8 +728,8 @@ export default function App() {
           pdfFile={pdfFile || (imageFiles.length > 0 ? imageFiles[0] : null)}
           selectedCutId={effectiveSelectedCutId}
           projectPanel={
-            projectPanelProps ? (
-              <SidebarProjectPanel {...projectPanelProps} />
+            loadedProjectManager.projectPanelProps ? (
+              <SidebarProjectPanel {...loadedProjectManager.projectPanelProps} />
             ) : undefined
           }
           templates={templates}
