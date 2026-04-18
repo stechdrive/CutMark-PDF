@@ -2,73 +2,62 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createProjectDocument } from '../../domain/project';
 import { useActiveCutEditor } from '../../hooks/useActiveCutEditor';
+import { LogicalCutEditorApi } from '../../hooks/logicalCutEditorApi';
 import { createAppSettings, createTemplate } from '../../test/factories';
 
-const createLegacyApi = (overrides: Partial<Parameters<typeof useActiveCutEditor>[0]['legacy']> = {}) => ({
-  currentPage: 3,
+const createEditorApi = (
+  overrides: Partial<LogicalCutEditorApi> = {}
+): LogicalCutEditorApi => ({
+  project: createProjectDocument({
+    settings: createAppSettings({
+      nextNumber: 5,
+      branchChar: null,
+      minDigits: 3,
+      autoIncrement: true,
+    }),
+    template: createTemplate(),
+    logicalPages: [{ id: 'page-3', cuts: [] }],
+  }),
   settings: createAppSettings({
     nextNumber: 5,
     branchChar: null,
     minDigits: 3,
     autoIncrement: true,
   }),
-  selectedCutId: 'legacy-cut',
+  selectedLogicalPageId: 'page-3',
+  selectedCutId: 'cut-1',
+  canUndo: true,
+  canRedo: false,
   historyIndex: 0,
   historyLength: 1,
-  getNextLabel: vi.fn(() => '005'),
-  getNextNumberingState: vi.fn(() => ({ nextNumber: 6, branchChar: null })),
-  setSelectedCutId: vi.fn(),
-  addCut: vi.fn(),
+  addCutToSelectedPage: vi.fn(),
+  selectCut: vi.fn(),
   updateCutPosition: vi.fn(),
-  handleCutDragEnd: vi.fn(),
+  commitCutDrag: vi.fn(),
   deleteCut: vi.fn(),
-  setNumberingStateWithHistory: vi.fn(),
+  setNumberingState: vi.fn(),
   renumberFromCut: vi.fn(),
   undo: vi.fn(),
   redo: vi.fn(),
   ...overrides,
 });
 
-const createProjectApi = (overrides: Partial<Parameters<typeof useActiveCutEditor>[0]['project']> = {}) => {
-  const settings = createAppSettings({
-    nextNumber: 12,
-    branchChar: 'A',
-    minDigits: 4,
-    autoIncrement: true,
-  });
-
-  return {
-    project: createProjectDocument({
-      settings,
-      template: createTemplate(),
-      logicalPages: [{ id: 'page-1', cuts: [] }],
-    }),
-    settings,
-    selectedLogicalPageId: 'page-1',
-    selectedCutId: 'project-cut',
-    canUndo: true,
-    canRedo: false,
-    historyIndex: 2,
-    historyLength: 3,
-    addCutToSelectedPage: vi.fn(),
-    selectCut: vi.fn(),
-    updateCutPosition: vi.fn(),
-    commitCutDrag: vi.fn(),
-    deleteCut: vi.fn(),
-    setNumberingState: vi.fn(),
-    renumberFromCut: vi.fn(),
-    undo: vi.fn(),
-    redo: vi.fn(),
-    ...overrides,
-  };
-};
-
 describe('useActiveCutEditor', () => {
-  it('routes edit operations to the project editor when a project is loaded', () => {
-    const legacy = createLegacyApi();
-    const project = createProjectApi();
+  it('routes edit operations through the normalized logical cut editor contract', () => {
+    const editor = createEditorApi({
+      settings: createAppSettings({
+        nextNumber: 12,
+        branchChar: 'A',
+        minDigits: 4,
+        autoIncrement: true,
+      }),
+      selectedLogicalPageId: 'page-1',
+      selectedCutId: 'project-cut',
+      historyIndex: 2,
+      historyLength: 3,
+    });
     const { result } = renderHook(() =>
-      useActiveCutEditor({ legacy, project })
+      useActiveCutEditor({ editor })
     );
 
     expect(result.current.selectedCutId).toBe('project-cut');
@@ -89,8 +78,8 @@ describe('useActiveCutEditor', () => {
       result.current.redo();
     });
 
-    expect(project.addCutToSelectedPage).toHaveBeenCalledTimes(1);
-    expect(project.addCutToSelectedPage).toHaveBeenCalledWith(
+    expect(editor.addCutToSelectedPage).toHaveBeenCalledTimes(1);
+    expect(editor.addCutToSelectedPage).toHaveBeenCalledWith(
       expect.objectContaining({
         x: 0.3,
         y: 0.4,
@@ -102,36 +91,38 @@ describe('useActiveCutEditor', () => {
         branchChar: 'B',
       }
     );
-    expect(project.selectCut).toHaveBeenCalledWith('cut-2');
-    expect(project.deleteCut).toHaveBeenCalledWith('cut-2');
-    expect(project.updateCutPosition).toHaveBeenCalledWith('cut-2', 0.5, 0.6);
-    expect(project.commitCutDrag).toHaveBeenCalledTimes(1);
-    expect(project.setNumberingState).toHaveBeenCalledWith({
+    expect(editor.selectCut).toHaveBeenCalledWith('cut-2');
+    expect(editor.deleteCut).toHaveBeenCalledWith('cut-2');
+    expect(editor.updateCutPosition).toHaveBeenCalledWith('cut-2', 0.5, 0.6);
+    expect(editor.commitCutDrag).toHaveBeenCalledTimes(1);
+    expect(editor.setNumberingState).toHaveBeenCalledWith({
       nextNumber: 15,
       branchChar: null,
     });
-    expect(project.renumberFromCut).toHaveBeenCalledWith('cut-2', {
+    expect(editor.renumberFromCut).toHaveBeenCalledWith('cut-2', {
       nextNumber: 12,
       branchChar: 'A',
       minDigits: 4,
       autoIncrement: true,
     });
-    expect(project.undo).toHaveBeenCalledTimes(1);
-    expect(project.redo).toHaveBeenCalledTimes(1);
-    expect(legacy.addCut).not.toHaveBeenCalled();
+    expect(editor.undo).toHaveBeenCalledTimes(1);
+    expect(editor.redo).toHaveBeenCalledTimes(1);
   });
 
-  it('routes edit operations to the legacy editor when no project is loaded', () => {
-    const legacy = createLegacyApi({
+  it('does not create a cut without an active logical page', () => {
+    const editor = createEditorApi({
+      project: null,
+      selectedLogicalPageId: null,
+      canUndo: false,
+      canRedo: true,
       historyIndex: -1,
       historyLength: 2,
     });
-    const project = createProjectApi({ project: null });
     const { result } = renderHook(() =>
-      useActiveCutEditor({ legacy, project })
+      useActiveCutEditor({ editor })
     );
 
-    expect(result.current.selectedCutId).toBe('legacy-cut');
+    expect(result.current.selectedCutId).toBe('cut-1');
     expect(result.current.canUndo).toBe(false);
     expect(result.current.canRedo).toBe(true);
     expect(result.current.historyIndex).toBe(-1);
@@ -139,48 +130,8 @@ describe('useActiveCutEditor', () => {
 
     act(() => {
       result.current.createCutAt(0.1, 0.2);
-      result.current.selectCut('legacy-next');
-      result.current.deleteCut('legacy-next');
-      result.current.updateCutPosition('legacy-next', 0.7, 0.8);
-      result.current.commitCutDrag();
-      result.current.setNumberingState({ nextNumber: 9, branchChar: 'B' });
-      result.current.renumberFromSelected('legacy-next');
-      result.current.undo();
-      result.current.redo();
     });
 
-    expect(legacy.addCut).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pageIndex: 2,
-        x: 0.1,
-        y: 0.2,
-        label: '005',
-        isBranch: false,
-      }),
-      {
-        nextNumber: 6,
-        branchChar: null,
-      }
-    );
-    expect(legacy.setSelectedCutId).toHaveBeenCalledWith('legacy-next');
-    expect(legacy.deleteCut).toHaveBeenCalledWith('legacy-next');
-    expect(legacy.updateCutPosition).toHaveBeenCalledWith('legacy-next', 0.7, 0.8);
-    expect(legacy.handleCutDragEnd).toHaveBeenCalledTimes(1);
-    expect(legacy.setNumberingStateWithHistory).toHaveBeenCalledWith({
-      nextNumber: 9,
-      branchChar: 'B',
-    });
-    expect(legacy.renumberFromCut).toHaveBeenCalledWith(
-      'legacy-next',
-      {
-        nextNumber: 5,
-        branchChar: null,
-      },
-      3,
-      true
-    );
-    expect(legacy.undo).toHaveBeenCalledTimes(1);
-    expect(legacy.redo).toHaveBeenCalledTimes(1);
-    expect(project.addCutToSelectedPage).not.toHaveBeenCalled();
+    expect(editor.addCutToSelectedPage).not.toHaveBeenCalled();
   });
 });

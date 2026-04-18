@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 import { NumberingState } from '../../types';
 import { useCurrentProjectSession } from '../../hooks/useCurrentProjectSession';
-import { createAppSettings, createCut, createTemplate } from '../../test/factories';
+import { createAppSettings, createTemplate } from '../../test/factories';
 
 const useCurrentProjectSessionHarness = (
   currentPage: number,
@@ -38,8 +38,14 @@ describe('useCurrentProjectSession', () => {
     );
 
     act(() => {
-      result.current.addCut(
-        createCut({ id: 'cut-2', pageIndex: 1, label: '005' }),
+      result.current.projectCutEditorApi.addCutToSelectedPage(
+        {
+          id: 'cut-2',
+          x: 0.1,
+          y: 0.1,
+          label: '005',
+          isBranch: false,
+        },
         { nextNumber: 6, branchChar: null }
       );
     });
@@ -51,7 +57,10 @@ describe('useCurrentProjectSession', () => {
       'page-2': 1,
     });
     expect(result.current.previewLogicalPage?.id).toBe('page-2');
-    expect(result.current.cutEditorApi.historyIndex).toBe(0);
+    expect(result.current.projectCutEditorApi.selectedLogicalPageId).toBe('page-2');
+    expect(result.current.projectCutEditorApi.canUndo).toBe(true);
+    expect(result.current.projectCutEditorApi.canRedo).toBe(false);
+    expect(result.current.projectCutEditorApi.historyIndex).toBe(0);
     expect(result.current.project?.logicalPages[1].cuts[0]).toMatchObject({
       id: 'cut-2',
       label: '005',

@@ -1,206 +1,86 @@
 import { useCallback } from 'react';
 import { advanceNumberingState, buildNumberLabel } from '../domain/numbering';
-import { NumberingPolicy, ProjectDocument } from '../domain/project';
-import { AppSettings, Cut, NumberingState } from '../types';
-
-interface LegacyCutEditorApi {
-  currentPage: number;
-  settings: AppSettings;
-  selectedCutId: string | null;
-  historyIndex: number;
-  historyLength: number;
-  getNextLabel: () => string;
-  getNextNumberingState: () => NumberingState;
-  setSelectedCutId: (cutId: string | null) => void;
-  addCut: (cut: Cut, nextNumbering?: NumberingState) => void;
-  updateCutPosition: (cutId: string, x: number, y: number) => void;
-  handleCutDragEnd: () => void;
-  deleteCut: (cutId: string) => void;
-  setNumberingStateWithHistory: (next: NumberingState) => void;
-  renumberFromCut: (
-    cutId: string,
-    numbering: NumberingState,
-    minDigits: number,
-    autoIncrement: boolean
-  ) => void;
-  undo: () => void;
-  redo: () => void;
-}
-
-interface ProjectCutEditorApi {
-  project: ProjectDocument | null;
-  settings: AppSettings;
-  selectedLogicalPageId: string | null;
-  selectedCutId: string | null;
-  canUndo: boolean;
-  canRedo: boolean;
-  historyIndex: number;
-  historyLength: number;
-  addCutToSelectedPage: (
-    cut: Omit<Cut, 'pageIndex'>,
-    nextNumbering?: NumberingState
-  ) => void;
-  selectCut: (cutId: string | null) => void;
-  updateCutPosition: (cutId: string, x: number, y: number) => void;
-  commitCutDrag: () => void;
-  deleteCut: (cutId: string) => void;
-  setNumberingState: (next: NumberingState) => void;
-  renumberFromCut: (cutId: string, numbering: NumberingPolicy) => void;
-  undo: () => void;
-  redo: () => void;
-}
+import { LogicalCutEditorApi } from './logicalCutEditorApi';
+import { NumberingState } from '../types';
 
 interface UseActiveCutEditorOptions {
-  legacy: LegacyCutEditorApi;
-  project: ProjectCutEditorApi;
+  editor: LogicalCutEditorApi;
 }
 
 export const useActiveCutEditor = ({
-  legacy,
-  project,
+  editor,
 }: UseActiveCutEditorOptions) => {
-  const usingProjectEditor = !!project.project;
-
   const createCutAt = useCallback((x: number, y: number) => {
-    if (project.project) {
-      if (!project.selectedLogicalPageId) return;
+    if (!editor.project || !editor.selectedLogicalPageId) return;
 
-      const currentNumbering = {
-        nextNumber: project.settings.nextNumber,
-        branchChar: project.settings.branchChar,
-      };
-      const nextNumbering = advanceNumberingState(
-        currentNumbering,
-        project.settings.autoIncrement
-      );
+    const currentNumbering = {
+      nextNumber: editor.settings.nextNumber,
+      branchChar: editor.settings.branchChar,
+    };
+    const nextNumbering = advanceNumberingState(
+      currentNumbering,
+      editor.settings.autoIncrement
+    );
 
-      project.addCutToSelectedPage(
-        {
-          id: crypto.randomUUID(),
-          x,
-          y,
-          label: buildNumberLabel(currentNumbering, project.settings.minDigits),
-          isBranch: !!project.settings.branchChar,
-        },
-        nextNumbering
-      );
-      return;
-    }
-
-    legacy.addCut(
+    editor.addCutToSelectedPage(
       {
         id: crypto.randomUUID(),
-        pageIndex: legacy.currentPage - 1,
         x,
         y,
-        label: legacy.getNextLabel(),
-        isBranch: !!legacy.settings.branchChar,
+        label: buildNumberLabel(currentNumbering, editor.settings.minDigits),
+        isBranch: !!editor.settings.branchChar,
       },
-      legacy.getNextNumberingState()
+      nextNumbering
     );
-  }, [legacy, project]);
+  }, [editor]);
 
   const selectCut = useCallback((cutId: string | null) => {
-    if (project.project) {
-      project.selectCut(cutId);
-      return;
-    }
-
-    legacy.setSelectedCutId(cutId);
-  }, [legacy, project]);
+    editor.selectCut(cutId);
+  }, [editor]);
 
   const deleteCut = useCallback((cutId: string) => {
-    if (project.project) {
-      project.deleteCut(cutId);
-      return;
-    }
-
-    legacy.deleteCut(cutId);
-  }, [legacy, project]);
+    editor.deleteCut(cutId);
+  }, [editor]);
 
   const updateCutPosition = useCallback((cutId: string, x: number, y: number) => {
-    if (project.project) {
-      project.updateCutPosition(cutId, x, y);
-      return;
-    }
-
-    legacy.updateCutPosition(cutId, x, y);
-  }, [legacy, project]);
+    editor.updateCutPosition(cutId, x, y);
+  }, [editor]);
 
   const commitCutDrag = useCallback(() => {
-    if (project.project) {
-      project.commitCutDrag();
-      return;
-    }
-
-    legacy.handleCutDragEnd();
-  }, [legacy, project]);
+    editor.commitCutDrag();
+  }, [editor]);
 
   const renumberFromSelected = useCallback((cutId: string) => {
-    if (project.project) {
-      project.renumberFromCut(cutId, {
-        nextNumber: project.settings.nextNumber,
-        branchChar: project.settings.branchChar,
-        minDigits: project.settings.minDigits,
-        autoIncrement: project.settings.autoIncrement,
-      });
+    if (!editor.project) {
       return;
     }
 
-    legacy.renumberFromCut(
-      cutId,
-      {
-        nextNumber: legacy.settings.nextNumber,
-        branchChar: legacy.settings.branchChar,
-      },
-      legacy.settings.minDigits,
-      legacy.settings.autoIncrement
-    );
-  }, [legacy, project]);
+    editor.renumberFromCut(cutId, {
+      nextNumber: editor.settings.nextNumber,
+      branchChar: editor.settings.branchChar,
+      minDigits: editor.settings.minDigits,
+      autoIncrement: editor.settings.autoIncrement,
+    });
+  }, [editor]);
 
   const setNumberingState = useCallback((next: NumberingState) => {
-    if (project.project) {
-      project.setNumberingState(next);
-      return;
-    }
-
-    legacy.setNumberingStateWithHistory(next);
-  }, [legacy, project]);
+    editor.setNumberingState(next);
+  }, [editor]);
 
   const undo = useCallback(() => {
-    if (project.project) {
-      project.undo();
-      return;
-    }
-
-    legacy.undo();
-  }, [legacy, project]);
+    editor.undo();
+  }, [editor]);
 
   const redo = useCallback(() => {
-    if (project.project) {
-      project.redo();
-      return;
-    }
-
-    legacy.redo();
-  }, [legacy, project]);
+    editor.redo();
+  }, [editor]);
 
   return {
-    selectedCutId: usingProjectEditor
-      ? project.selectedCutId
-      : legacy.selectedCutId,
-    canUndo: usingProjectEditor
-      ? project.canUndo
-      : legacy.historyIndex > -1,
-    canRedo: usingProjectEditor
-      ? project.canRedo
-      : legacy.historyIndex < legacy.historyLength - 1,
-    historyIndex: usingProjectEditor
-      ? project.historyIndex
-      : legacy.historyIndex,
-    historyLength: usingProjectEditor
-      ? project.historyLength
-      : legacy.historyLength,
+    selectedCutId: editor.selectedCutId,
+    canUndo: editor.canUndo,
+    canRedo: editor.canRedo,
+    historyIndex: editor.historyIndex,
+    historyLength: editor.historyLength,
     createCutAt,
     selectCut,
     deleteCut,

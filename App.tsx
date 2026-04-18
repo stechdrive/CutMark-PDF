@@ -23,6 +23,7 @@ import { useActiveCutEditor } from './hooks/useActiveCutEditor';
 import { useProjectWorkspace } from './hooks/useProjectWorkspace';
 import { useWorkspacePresentation } from './hooks/useWorkspacePresentation';
 import { useProjectLifecycle } from './hooks/useProjectLifecycle';
+import { LogicalCutEditorApi } from './hooks/logicalCutEditorApi';
 
 // Components
 import { Header } from './components/Header';
@@ -365,27 +366,54 @@ export default function App() {
     effectiveExportSettings,
   } = workspace;
   const legacyProject = currentProjectSession.project;
-  const activeCutEditor = useActiveCutEditor({
-    legacy: currentProjectSession.cutEditorApi,
-    project: {
-      project: loadedProject,
-      settings: effectiveSettings,
-      selectedLogicalPageId,
-      selectedCutId: projectEditor.selectedCutId,
-      canUndo: canUndoProjectDraft,
-      canRedo: canRedoProjectDraft,
-      historyIndex: projectDraftHistoryIndex,
-      historyLength: projectDraftHistoryLength,
+  const activeLogicalCutEditor = useMemo<LogicalCutEditorApi>(
+    () =>
+      loadedProject
+        ? {
+            project: loadedProject,
+            settings: effectiveSettings,
+            selectedLogicalPageId,
+            selectedCutId: projectEditor.selectedCutId,
+            canUndo: canUndoProjectDraft,
+            canRedo: canRedoProjectDraft,
+            historyIndex: projectDraftHistoryIndex,
+            historyLength: projectDraftHistoryLength,
+            addCutToSelectedPage,
+            selectCut: selectProjectCut,
+            updateCutPosition: updateProjectCutPosition,
+            commitCutDrag,
+            deleteCut: deleteProjectCut,
+            setNumberingState: setEffectiveNumberingState,
+            renumberFromCut: (cutId, numbering) => {
+              renumberProjectFromCut(cutId, numbering);
+            },
+            undo: undoProjectDraft,
+            redo: redoProjectDraft,
+          }
+        : currentProjectSession.projectCutEditorApi,
+    [
       addCutToSelectedPage,
-      selectCut: selectProjectCut,
-      updateCutPosition: updateProjectCutPosition,
+      canRedoProjectDraft,
+      canUndoProjectDraft,
       commitCutDrag,
-      deleteCut: deleteProjectCut,
-      setNumberingState: setEffectiveNumberingState,
-      renumberFromCut: renumberProjectFromCut,
-      undo: undoProjectDraft,
-      redo: redoProjectDraft,
-    },
+      currentProjectSession.projectCutEditorApi,
+      deleteProjectCut,
+      effectiveSettings,
+      loadedProject,
+      projectDraftHistoryIndex,
+      projectDraftHistoryLength,
+      projectEditor.selectedCutId,
+      renumberProjectFromCut,
+      selectProjectCut,
+      selectedLogicalPageId,
+      setEffectiveNumberingState,
+      undoProjectDraft,
+      redoProjectDraft,
+      updateProjectCutPosition,
+    ]
+  );
+  const activeCutEditor = useActiveCutEditor({
+    editor: activeLogicalCutEditor,
   });
   const effectiveSelectedCutId = activeCutEditor.selectedCutId;
   const canUndoHistory = activeCutEditor.canUndo;
