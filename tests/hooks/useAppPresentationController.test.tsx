@@ -103,12 +103,11 @@ describe('useAppPresentationController', () => {
       effectiveExportCuts: [],
       effectiveExportSettings: settings,
       canApplyLoadedProject: true,
-      projectStatusMessage: '論理P1 は未割当です。割当を決めると対応する素材ページを表示します。',
       loadedProjectManager: {
         loadProjectFile: vi.fn(),
         onProjectLoaded: vi.fn(),
         handleSaveProject: vi.fn(),
-        projectPanelProps: null,
+        projectOrganizerProps: null,
       },
       activeCutEditor: {
         selectedCutId: 'cut-1',
@@ -203,8 +202,8 @@ describe('useAppPresentationController', () => {
         preview: expect.objectContaining({
           currentImageUrl: 'blob:image',
           projectNotice: {
-            title: '論理P1 は未割当です',
-            message: '論理P1 は未割当です。割当を決めると対応する素材ページを表示します。',
+            title: 'カット番号P1 は未配置です',
+            message: '左パネルでコンテへ割り付けると、プレビューが同期します。背景のコンテ表示は参照用です。',
           },
           onPdfPageLoadSuccess: workspace.applyPdfDefaultFontSize,
         }),

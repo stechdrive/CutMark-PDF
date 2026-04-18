@@ -275,7 +275,7 @@ describe('useWorkspaceFileActions', () => {
       await result.current.handleExportImages();
     });
 
-    expect(alertSpy).toHaveBeenCalledWith('論理ページの割当を完了してから書き出してください');
+    expect(alertSpy).toHaveBeenCalledWith('カット番号ページの割付を完了してから書き出してください');
     expect(imageExportServiceMocks.exportImagesAsZip).not.toHaveBeenCalled();
   });
 });

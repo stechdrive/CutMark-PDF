@@ -71,7 +71,7 @@ describe('useProjectWorkspace', () => {
     });
 
     expect(result.current.canApplyLoadedProject).toBe(true);
-    expect(result.current.projectStatusMessage).toContain('論理P2');
+    expect(result.current.projectStatusMessage).toContain('カット番号P2');
     expect(result.current.previewCuts).toEqual([
       expect.objectContaining({
         id: 'cut-2',

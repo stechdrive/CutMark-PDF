@@ -86,7 +86,7 @@ describe('useAppWorkspaceController', () => {
         loadProjectFile: vi.fn(),
         onProjectLoaded: vi.fn(),
         handleSaveProject: vi.fn(),
-        projectPanelProps: null,
+        projectOrganizerProps: null,
       },
       activeCutEditor: { createCutAt: vi.fn() },
       handleRowSnap: vi.fn(),

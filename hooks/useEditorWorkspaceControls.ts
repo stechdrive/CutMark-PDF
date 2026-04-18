@@ -33,8 +33,6 @@ export const useEditorWorkspaceControls = ({
     currentAssetHints,
     currentProject: sessions.currentProjectSession.project,
     currentProjectBindings: workspaceState.workspace.activeProjectBindings as ProjectAssetBindings,
-    comparison: workspaceState.workspace.projectComparison,
-    statusMessage: workspaceState.workspace.projectStatusMessage,
     canApplyLoadedProject: workspaceState.workspace.canApplyLoadedProject,
     resolveProjectDocumentForCurrentState: workspaceState.workspace.resolveProjectDocumentForCurrentState,
     upsertTemplate: templateApi.upsertTemplate,

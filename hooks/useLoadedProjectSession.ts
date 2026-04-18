@@ -43,6 +43,9 @@ export interface UseLoadedProjectSessionResult {
   insertPageAfter: (afterLogicalPageId: string | null) => void;
   removePage: (logicalPageId: string) => void;
   movePage: (logicalPageId: string, direction: -1 | 1) => void;
+  insertBlankPageAtAsset: (assetIndex: number) => void;
+  removePageFromConte: (logicalPageId: string) => void;
+  movePageToAsset: (logicalPageId: string, assetIndex: number) => void;
   undoDraft: () => void;
   redoDraft: () => void;
 }
@@ -122,6 +125,9 @@ export const useLoadedProjectSession = (
     insertPageAfter: editor.insertPageAfter,
     removePage: editor.removePage,
     movePage: editor.movePage,
+    insertBlankPageAtAsset: editor.insertBlankPageAtAsset,
+    removePageFromConte: editor.removePageFromConte,
+    movePageToAsset: editor.movePageToAsset,
     undoDraft: editor.undo,
     redoDraft: editor.redo,
   };

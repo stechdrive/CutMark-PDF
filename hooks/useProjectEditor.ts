@@ -14,6 +14,11 @@ import {
   ProjectAssetBindings,
   synchronizeProjectAssetBindings,
 } from '../application/projectBindings';
+import {
+  insertBlankLogicalPageAtConte,
+  moveLogicalPageToConte,
+  removeLogicalPageFromConte,
+} from '../application/projectOrganizer';
 import { getLogicalPageIndex, getSelectedCut, getSelectedLogicalPage } from '../application/selectors';
 import {
   AssetHint,
@@ -318,6 +323,24 @@ export const useProjectEditor = (
     );
   }, [dispatch, editorState]);
 
+  const insertBlankPageAtAsset = useCallback((assetIndex: number) => {
+    pushPresent((state) =>
+      insertBlankLogicalPageAtConte(state, currentAssets.length, assetIndex)
+    );
+  }, [currentAssets.length, pushPresent]);
+
+  const removePageFromConte = useCallback((logicalPageId: LogicalPageId) => {
+    pushPresent((state) =>
+      removeLogicalPageFromConte(state, currentAssets.length, logicalPageId)
+    );
+  }, [currentAssets.length, pushPresent]);
+
+  const movePageToAsset = useCallback((logicalPageId: LogicalPageId, assetIndex: number) => {
+    pushPresent((state) =>
+      moveLogicalPageToConte(state, currentAssets.length, logicalPageId, assetIndex)
+    );
+  }, [currentAssets.length, pushPresent]);
+
   const addCutToSelectedPage = useCallback((
     cut: Extract<EditorAction, { type: 'addCutToLogicalPage' }>['cut'],
     nextNumbering?: Pick<AppSettings, 'nextNumber' | 'branchChar'>
@@ -500,6 +523,9 @@ export const useProjectEditor = (
     insertPageAfter,
     removePage,
     movePage,
+    insertBlankPageAtAsset,
+    removePageFromConte,
+    movePageToAsset,
     addCutToSelectedPage,
     updateCutPosition,
     commitCutDrag,

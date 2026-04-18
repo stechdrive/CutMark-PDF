@@ -252,4 +252,40 @@ describe('useProjectEditor', () => {
 
     expect(result.current.project?.template.xPosition).toBe(project.template.xPosition);
   });
+
+  it('supports conte organizer insert, move, and collapse operations', () => {
+    const { result } = renderHook(() =>
+      useProjectEditor([
+        { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+        { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+      ])
+    );
+
+    act(() => {
+      result.current.loadProject(project);
+    });
+
+    act(() => {
+      result.current.insertBlankPageAtAsset(1);
+    });
+
+    const insertedPageId = result.current.selectedLogicalPageId;
+    expect(insertedPageId).not.toBeNull();
+    expect(insertedPageId ? result.current.bindings[insertedPageId] : null).toBe(1);
+    expect(result.current.canUndo).toBe(true);
+
+    act(() => {
+      result.current.movePageToAsset('page-2', 0);
+    });
+
+    expect(result.current.project?.logicalPages[0].id).toBe('page-2');
+    expect(result.current.bindings['page-2']).toBe(0);
+
+    act(() => {
+      result.current.removePageFromConte('page-2');
+    });
+
+    expect(result.current.project?.logicalPages.map((page) => page.id)).not.toContain('page-2');
+    expect(result.current.bindings[result.current.project?.logicalPages[0].id ?? '']).toBe(0);
+  });
 });

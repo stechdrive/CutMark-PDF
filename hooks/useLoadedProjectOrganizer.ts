@@ -1,52 +1,44 @@
 import { useCallback, useMemo } from 'react';
-import { ProjectAssetComparisonSummary } from '../application/projectComparison';
+import { createProjectConteOrganizerSummary } from '../application/projectOrganizer';
 import { AssetHint } from '../domain/project';
-import { SidebarProjectPanelProps } from '../components/SidebarProjectPanel';
+import { ProjectOrganizerPanelProps } from '../components/ProjectOrganizerPanel';
 import { UseLoadedProjectSessionResult } from './useLoadedProjectSession';
 
-interface UseLoadedProjectPanelOptions {
+interface UseLoadedProjectOrganizerOptions {
   loadedProjectSession: UseLoadedProjectSessionResult;
-  comparison: ProjectAssetComparisonSummary | null;
-  statusMessage: string | null;
   currentAssets: Array<AssetHint | null | undefined>;
   canApplyProject: boolean;
   onApplyProject: () => void;
 }
 
-export const useLoadedProjectPanel = ({
+export const useLoadedProjectOrganizer = ({
   loadedProjectSession,
-  comparison,
-  statusMessage,
   currentAssets,
   canApplyProject,
   onApplyProject,
-}: UseLoadedProjectPanelOptions) => {
-  const onBindingChange = useCallback((logicalPageId: string, nextAssetIndex: number | null) => {
-    loadedProjectSession.assignAsset(logicalPageId, nextAssetIndex);
-  }, [loadedProjectSession]);
-
+}: UseLoadedProjectOrganizerOptions) => {
   const onSelectLogicalPage = useCallback((logicalPageId: string) => {
     loadedProjectSession.selectLogicalPage(logicalPageId);
   }, [loadedProjectSession]);
 
-  const onInsertLogicalPageAfter = useCallback((logicalPageId: string) => {
-    loadedProjectSession.insertPageAfter(logicalPageId);
+  const onInsertBlankPageAtAsset = useCallback((assetIndex: number) => {
+    loadedProjectSession.insertBlankPageAtAsset(assetIndex);
   }, [loadedProjectSession]);
 
-  const onRemoveLogicalPage = useCallback((logicalPageId: string) => {
-    loadedProjectSession.removePage(logicalPageId);
+  const onRemoveLogicalPageFromConte = useCallback((logicalPageId: string) => {
+    loadedProjectSession.removePageFromConte(logicalPageId);
   }, [loadedProjectSession]);
 
-  const onMoveLogicalPage = useCallback((logicalPageId: string, direction: -1 | 1) => {
-    loadedProjectSession.movePage(logicalPageId, direction);
+  const onMoveLogicalPageToAsset = useCallback((logicalPageId: string, assetIndex: number) => {
+    loadedProjectSession.movePageToAsset(logicalPageId, assetIndex);
   }, [loadedProjectSession]);
 
   const onResetBindings = useCallback(() => {
     loadedProjectSession.resetBindings();
   }, [loadedProjectSession]);
 
-  const projectPanelProps = useMemo<SidebarProjectPanelProps | null>(() => {
-    if (!loadedProjectSession.project || !comparison) {
+  const projectOrganizerProps = useMemo<ProjectOrganizerPanelProps | null>(() => {
+    if (!loadedProjectSession.project) {
       return null;
     }
 
@@ -54,20 +46,20 @@ export const useLoadedProjectPanel = ({
       projectName: loadedProjectSession.project.meta.name,
       savedAt: loadedProjectSession.project.meta.savedAt,
       selectedLogicalPageId: loadedProjectSession.workspaceSession.selectedLogicalPageId,
-      statusMessage,
-      comparison,
-      bindings: loadedProjectSession.bindings,
-      assignedCount: loadedProjectSession.workspaceSession.assignedCount,
-      currentAssets,
+      organizer: createProjectConteOrganizerSummary(
+        loadedProjectSession.project.logicalPages,
+        loadedProjectSession.bindings,
+        currentAssets,
+        loadedProjectSession.workspaceSession.selectedLogicalPageId
+      ),
       canApplyProject,
       canResetBindings: currentAssets.length > 0,
       canUndoDraft: loadedProjectSession.projectCutEditorApi.canUndo,
       canRedoDraft: loadedProjectSession.projectCutEditorApi.canRedo,
       onSelectLogicalPage,
-      onBindingChange,
-      onInsertLogicalPageAfter,
-      onRemoveLogicalPage,
-      onMoveLogicalPage,
+      onInsertBlankPageAtAsset,
+      onRemoveLogicalPageFromConte,
+      onMoveLogicalPageToAsset,
       onResetBindings,
       onUndoDraft: loadedProjectSession.undoDraft,
       onRedoDraft: loadedProjectSession.redoDraft,
@@ -75,20 +67,17 @@ export const useLoadedProjectPanel = ({
     };
   }, [
     canApplyProject,
-    comparison,
     currentAssets,
     loadedProjectSession,
     onApplyProject,
-    onBindingChange,
-    onInsertLogicalPageAfter,
-    onMoveLogicalPage,
-    onRemoveLogicalPage,
+    onInsertBlankPageAtAsset,
+    onMoveLogicalPageToAsset,
+    onRemoveLogicalPageFromConte,
     onResetBindings,
     onSelectLogicalPage,
-    statusMessage,
   ]);
 
   return {
-    projectPanelProps,
+    projectOrganizerProps,
   };
 };

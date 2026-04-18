@@ -49,8 +49,6 @@ describe('useEditorWorkspaceControls', () => {
     const workspaceState = {
       workspace: {
         activeProjectBindings: { 'page-1': 0 },
-        projectComparison: { logicalPageCount: 1 },
-        projectStatusMessage: 'status',
         canApplyLoadedProject: true,
         resolveProjectDocumentForCurrentState: vi.fn((project) => project),
       },
@@ -68,7 +66,7 @@ describe('useEditorWorkspaceControls', () => {
       upsertTemplate: vi.fn(),
     };
     const loadedProjectManager = {
-      projectPanelProps: null,
+      projectOrganizerProps: null,
       loadProjectFile: vi.fn(),
       handleSaveProject: vi.fn(),
       onProjectLoaded: vi.fn(),
@@ -111,8 +109,6 @@ describe('useEditorWorkspaceControls', () => {
         loadedProjectSession: sessions.loadedProjectSession,
         currentProject,
         currentProjectBindings: workspaceState.workspace.activeProjectBindings,
-        comparison: workspaceState.workspace.projectComparison,
-        statusMessage: workspaceState.workspace.projectStatusMessage,
         canApplyLoadedProject: true,
         resolveProjectDocumentForCurrentState: workspaceState.workspace.resolveProjectDocumentForCurrentState,
         upsertTemplate: templateApi.upsertTemplate,

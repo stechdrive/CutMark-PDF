@@ -406,7 +406,7 @@ export const useWorkspaceFileActions = ({
 
   const handleExportPdf = useCallback(async () => {
     if (isLoadedProjectActive && !canApplyLoadedProject) {
-      alert('論理ページの割当を完了してから書き出してください');
+      alert('カット番号ページの割付を完了してから書き出してください');
       return;
     }
 
@@ -473,7 +473,7 @@ export const useWorkspaceFileActions = ({
     }
 
     if (isLoadedProjectActive && !canApplyLoadedProject) {
-      alert('論理ページの割当を完了してから書き出してください');
+      alert('カット番号ページの割付を完了してから書き出してください');
       return;
     }
 

@@ -492,8 +492,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
             )}
           </div>
 
-          {/* Floating Zoom Controls */}
-          <div className="fixed bottom-6 left-6 bg-white rounded-lg shadow-lg p-2 flex gap-2 z-40 border border-gray-200">
+          {/* Zoom Controls */}
+          <div className="absolute bottom-6 left-6 bg-white rounded-lg shadow-lg p-2 flex gap-2 z-40 border border-gray-200">
             <button
               onClick={() => setScale((s) => Math.max(0.1, s - 0.1))}
               className="p-2 hover:bg-gray-100 rounded"

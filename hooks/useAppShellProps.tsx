@@ -4,7 +4,7 @@ import { DocumentPreview } from '../components/DocumentPreview';
 import { Sidebar } from '../components/Sidebar';
 import { DebugModal } from '../components/DebugModal';
 import { ExportOverlay } from '../components/ExportOverlay';
-import { SidebarProjectPanel } from '../components/SidebarProjectPanel';
+import { ProjectOrganizerPanel } from '../components/ProjectOrganizerPanel';
 import { normalizeError } from '../utils/debugData';
 
 interface UseAppShellPropsOptions {
@@ -62,7 +62,7 @@ interface UseAppShellPropsOptions {
     setMode: ComponentProps<typeof Sidebar>['setMode'];
     pdfFile: File | null;
     selectedCutId: string | null;
-    projectPanelProps: ComponentProps<typeof SidebarProjectPanel> | null;
+    projectOrganizerProps: ComponentProps<typeof ProjectOrganizerPanel> | null;
     templates: ComponentProps<typeof Sidebar>['templates'];
     template: ComponentProps<typeof Sidebar>['template'];
     setTemplate: ComponentProps<typeof Sidebar>['setTemplate'];
@@ -102,10 +102,10 @@ export const useAppShellProps = ({
 }: UseAppShellPropsOptions) => {
   const projectPanel = useMemo(
     () =>
-      sidebar.projectPanelProps ? (
-        <SidebarProjectPanel {...sidebar.projectPanelProps} />
+      sidebar.projectOrganizerProps ? (
+        <ProjectOrganizerPanel {...sidebar.projectOrganizerProps} />
       ) : undefined,
-    [sidebar.projectPanelProps]
+    [sidebar.projectOrganizerProps]
   );
 
   const headerProps: ComponentProps<typeof Header> = {

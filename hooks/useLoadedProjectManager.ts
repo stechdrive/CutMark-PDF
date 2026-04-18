@@ -1,8 +1,7 @@
 import { ProjectAssetBindings } from '../application/projectBindings';
-import { ProjectAssetComparisonSummary } from '../application/projectComparison';
 import { AssetHint, ProjectDocument, TemplateSnapshot } from '../domain/project';
 import { DocType } from '../types';
-import { useLoadedProjectPanel } from './useLoadedProjectPanel';
+import { useLoadedProjectOrganizer } from './useLoadedProjectOrganizer';
 import { UseLoadedProjectSessionResult } from './useLoadedProjectSession';
 import { useProjectLifecycle } from './useProjectLifecycle';
 
@@ -15,8 +14,6 @@ interface UseLoadedProjectManagerOptions {
   currentAssetHints: Array<AssetHint | null | undefined>;
   currentProject: ProjectDocument | null;
   currentProjectBindings: ProjectAssetBindings;
-  comparison: ProjectAssetComparisonSummary | null;
-  statusMessage: string | null;
   canApplyLoadedProject: boolean;
   resolveProjectDocumentForCurrentState: (
     project: ProjectDocument,
@@ -35,8 +32,6 @@ export const useLoadedProjectManager = ({
   currentAssetHints,
   currentProject,
   currentProjectBindings,
-  comparison,
-  statusMessage,
   canApplyLoadedProject,
   resolveProjectDocumentForCurrentState,
   upsertTemplate,
@@ -65,17 +60,15 @@ export const useLoadedProjectManager = ({
     logDebug,
   });
 
-  const { projectPanelProps } = useLoadedProjectPanel({
+  const { projectOrganizerProps } = useLoadedProjectOrganizer({
     loadedProjectSession,
-    comparison,
-    statusMessage,
     currentAssets: currentAssetHints,
     canApplyProject: canApplyLoadedProject,
     onApplyProject: handleApplyLoadedProject,
   });
 
   return {
-    projectPanelProps,
+    projectOrganizerProps,
     handleSaveProject,
     loadProjectFile,
     onProjectLoaded,

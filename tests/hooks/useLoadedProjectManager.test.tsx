@@ -9,16 +9,16 @@ const lifecycleMocks = vi.hoisted(() => ({
   useProjectLifecycle: vi.fn(),
 }));
 
-const panelMocks = vi.hoisted(() => ({
-  useLoadedProjectPanel: vi.fn(),
+const organizerMocks = vi.hoisted(() => ({
+  useLoadedProjectOrganizer: vi.fn(),
 }));
 
 vi.mock('../../hooks/useProjectLifecycle', () => ({
   useProjectLifecycle: lifecycleMocks.useProjectLifecycle,
 }));
 
-vi.mock('../../hooks/useLoadedProjectPanel', () => ({
-  useLoadedProjectPanel: panelMocks.useLoadedProjectPanel,
+vi.mock('../../hooks/useLoadedProjectOrganizer', () => ({
+  useLoadedProjectOrganizer: organizerMocks.useLoadedProjectOrganizer,
 }));
 
 const project = createProjectDocument({
@@ -80,6 +80,9 @@ const createLoadedProjectSession = (): UseLoadedProjectSessionResult => ({
   insertPageAfter: vi.fn(),
   removePage: vi.fn(),
   movePage: vi.fn(),
+  insertBlankPageAtAsset: vi.fn(),
+  removePageFromConte: vi.fn(),
+  movePageToAsset: vi.fn(),
   undoDraft: vi.fn(),
   redoDraft: vi.fn(),
 });
@@ -87,16 +90,16 @@ const createLoadedProjectSession = (): UseLoadedProjectSessionResult => ({
 describe('useLoadedProjectManager', () => {
   beforeEach(() => {
     lifecycleMocks.useProjectLifecycle.mockReset();
-    panelMocks.useLoadedProjectPanel.mockReset();
+    organizerMocks.useLoadedProjectOrganizer.mockReset();
   });
 
-  it('composes lifecycle and panel hooks around the loaded project session', () => {
+  it('composes lifecycle and organizer hooks around the loaded project session', () => {
     const loadedProjectSession = createLoadedProjectSession();
     const handleApplyLoadedProject = vi.fn();
     const handleSaveProject = vi.fn();
     const loadProjectFile = vi.fn();
     const onProjectLoaded = vi.fn();
-    const projectPanelProps = {
+    const projectOrganizerProps = {
       projectName: 'Episode 01',
     };
 
@@ -106,8 +109,8 @@ describe('useLoadedProjectManager', () => {
       loadProjectFile,
       onProjectLoaded,
     });
-    panelMocks.useLoadedProjectPanel.mockReturnValue({
-      projectPanelProps,
+    organizerMocks.useLoadedProjectOrganizer.mockReturnValue({
+      projectOrganizerProps,
     });
 
     const currentProject = createProjectDocument({
@@ -116,16 +119,6 @@ describe('useLoadedProjectManager', () => {
       name: 'Current',
       logicalPages: [],
     });
-    const comparison = {
-      logicalPageCount: 1,
-      currentAssetCount: 1,
-      matchedPageCount: 1,
-      needsReviewCount: 0,
-      missingAssetCount: 0,
-      extraAssetCount: 0,
-      canApplyByPageCount: true,
-      rows: [],
-    };
     const currentAssetHints = [{ sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 }];
     const currentProjectBindings = { 'page-1': 0 };
     const resolveProjectDocumentForCurrentState = vi.fn((value) => value);
@@ -141,8 +134,6 @@ describe('useLoadedProjectManager', () => {
         currentAssetHints,
         currentProject,
         currentProjectBindings,
-        comparison,
-        statusMessage: 'ok',
         canApplyLoadedProject: true,
         resolveProjectDocumentForCurrentState,
         upsertTemplate,
@@ -167,16 +158,14 @@ describe('useLoadedProjectManager', () => {
       setMode,
       logDebug,
     });
-    expect(panelMocks.useLoadedProjectPanel).toHaveBeenCalledWith({
+    expect(organizerMocks.useLoadedProjectOrganizer).toHaveBeenCalledWith({
       loadedProjectSession,
-      comparison,
-      statusMessage: 'ok',
       currentAssets: currentAssetHints,
       canApplyProject: true,
       onApplyProject: handleApplyLoadedProject,
     });
     expect(result.current).toEqual({
-      projectPanelProps,
+      projectOrganizerProps,
       handleSaveProject,
       loadProjectFile,
       onProjectLoaded,

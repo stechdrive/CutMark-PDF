@@ -108,7 +108,7 @@ describe('useEditorWorkspace', () => {
     };
     const controls = {
       loadedProjectManager: {
-        projectPanelProps: null,
+        projectOrganizerProps: null,
         loadProjectFile: vi.fn(),
         handleSaveProject: vi.fn(),
         onProjectLoaded: vi.fn(),
@@ -224,7 +224,7 @@ describe('useEditorWorkspace', () => {
     });
     controlsMocks.useEditorWorkspaceControls.mockReturnValue({
       loadedProjectManager: {
-        projectPanelProps: null,
+        projectOrganizerProps: null,
         loadProjectFile: vi.fn(),
         handleSaveProject: vi.fn(),
         onProjectLoaded: vi.fn(),

@@ -125,16 +125,16 @@ describe('DocumentPreview', () => {
         setTemplate={vi.fn()}
         settings={createAppSettings()}
         projectNotice={{
-          title: '論理P2 は未割当です',
-          message: '右パネルで現在の素材ページを割り当てると、プレビューが同期します。',
+          title: 'カット番号P2 は未配置です',
+          message: '左パネルでコンテへ割り付けると、プレビューが同期します。背景のコンテ表示は参照用です。',
         }}
         onContentClick={vi.fn()}
       />
     );
 
-    expect(screen.getByText('論理P2 は未割当です')).toBeInTheDocument();
+    expect(screen.getByText('カット番号P2 は未配置です')).toBeInTheDocument();
     expect(
-      screen.getByText('右パネルで現在の素材ページを割り当てると、プレビューが同期します。')
+      screen.getByText('左パネルでコンテへ割り付けると、プレビューが同期します。背景のコンテ表示は参照用です。')
     ).toBeInTheDocument();
   });
 

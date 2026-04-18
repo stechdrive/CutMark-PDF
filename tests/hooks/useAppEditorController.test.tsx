@@ -95,7 +95,7 @@ describe('useAppEditorController', () => {
         loadProjectFile: vi.fn(),
         onProjectLoaded: vi.fn(),
         handleSaveProject: vi.fn(),
-        projectPanelProps: null,
+        projectOrganizerProps: null,
       },
       activeCutEditor: {
         selectedCutId: 'cut-1',

@@ -118,12 +118,12 @@ export const useProjectWorkspace = ({
   const projectStatusMessage = useMemo(() => {
     if (!loadedProject) return null;
     if (!loadedSession.selectedLogicalPage) {
-      return '論理ページを選ぶと、割当先の素材ページへプレビューを合わせます。';
+      return 'カット番号ページを選ぶと、割付先のコンテへプレビューを合わせます。';
     }
     if (loadedSession.selectedAssetIndex == null) {
-      return `論理P${loadedSession.selectedLogicalPageNumber ?? '?'} は未割当です。割当を決めると対応する素材ページを表示します。`;
+      return `カット番号P${loadedSession.selectedLogicalPageNumber ?? '?'} は未配置です。割付を決めると対応するコンテを表示します。`;
     }
-    return `論理P${loadedSession.selectedLogicalPageNumber ?? '?'} を現在P${loadedSession.selectedAssetIndex + 1} に割り当てています。`;
+    return `カット番号P${loadedSession.selectedLogicalPageNumber ?? '?'} をコンテP${loadedSession.selectedAssetIndex + 1} に割り付けています。`;
   }, [
     loadedProject,
     loadedSession.selectedAssetIndex,

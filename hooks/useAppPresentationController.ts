@@ -48,7 +48,6 @@ type AppPresentationWorkspace = Pick<
   | 'effectiveExportCuts'
   | 'effectiveExportSettings'
   | 'canApplyLoadedProject'
-  | 'projectStatusMessage'
   | 'loadedProjectManager'
   | 'activeCutEditor'
   | 'handleRowSnap'
@@ -85,11 +84,10 @@ export const useAppPresentationController = ({
       ? {
           title:
             workspace.selectedLogicalPageNumber != null
-              ? `論理P${workspace.selectedLogicalPageNumber} は未割当です`
-              : '未割当の論理ページを編集中',
+              ? `カット番号P${workspace.selectedLogicalPageNumber} は未配置です`
+              : '未配置のカット番号ページを編集中',
           message:
-            workspace.projectStatusMessage ??
-            '右パネルで現在の素材ページを割り当てると、プレビューが同期します。背景の素材表示は参照用です。',
+            '左パネルでコンテへ割り付けると、プレビューが同期します。背景のコンテ表示は参照用です。',
         }
       : null;
 
@@ -216,7 +214,7 @@ export const useAppPresentationController = ({
       setMode: workspace.setMode,
       pdfFile: workspace.pdfFile || (workspace.imageFiles.length > 0 ? workspace.imageFiles[0] : null),
       selectedCutId: effectiveSelectedCutId,
-      projectPanelProps: workspace.loadedProjectManager.projectPanelProps,
+      projectOrganizerProps: workspace.loadedProjectManager.projectOrganizerProps,
       templates: workspace.templates,
       template: workspace.effectiveTemplate,
       setTemplate: workspace.setEffectiveTemplate,

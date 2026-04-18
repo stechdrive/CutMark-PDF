@@ -1,37 +1,46 @@
 import { isValidElement } from 'react';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { SidebarProjectPanel } from '../../components/SidebarProjectPanel';
+import { ProjectOrganizerPanel } from '../../components/ProjectOrganizerPanel';
 import { useAppShellProps } from '../../hooks/useAppShellProps';
 import { createAppSettings, createTemplate } from '../../test/factories';
 
-const createProjectPanelProps = () => ({
+const createProjectOrganizerProps = () => ({
   projectName: 'Loaded project',
   savedAt: '2026-04-18T00:00:00.000Z',
   selectedLogicalPageId: 'page-1',
-  statusMessage: 'status',
-  comparison: {
+  organizer: {
     logicalPageCount: 1,
-    currentAssetCount: 1,
-    matchedPageCount: 1,
+    contePageCount: 1,
+    assignedCount: 1,
+    matchedCount: 1,
     needsReviewCount: 0,
-    missingAssetCount: 0,
-    extraAssetCount: 0,
-    canApplyByPageCount: true,
-    rows: [],
+    unassignedConteCount: 0,
+    unplacedLogicalPageCount: 0,
+    slots: [
+      {
+        assetIndex: 0,
+        contePageNumber: 1,
+        asset: { sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 },
+        logicalPageId: 'page-1',
+        logicalPageNumber: 1,
+        logicalPage: { id: 'page-1', cuts: [], expectedAssetHint: null },
+        expectedAsset: null,
+        status: 'matched' as const,
+        cutCount: 0,
+        isSelected: true,
+      },
+    ],
+    unplacedPages: [],
   },
-  bindings: { 'page-1': 0 as const },
-  assignedCount: 1,
-  currentAssets: [{ sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 }],
   canApplyProject: true,
   canResetBindings: true,
   canUndoDraft: false,
   canRedoDraft: false,
   onSelectLogicalPage: vi.fn(),
-  onBindingChange: vi.fn(),
-  onInsertLogicalPageAfter: vi.fn(),
-  onRemoveLogicalPage: vi.fn(),
-  onMoveLogicalPage: vi.fn(),
+  onInsertBlankPageAtAsset: vi.fn(),
+  onRemoveLogicalPageFromConte: vi.fn(),
+  onMoveLogicalPageToAsset: vi.fn(),
   onResetBindings: vi.fn(),
   onUndoDraft: vi.fn(),
   onRedoDraft: vi.fn(),
@@ -98,8 +107,8 @@ describe('useAppShellProps', () => {
           onTemplateInteractionEnd: vi.fn(),
           settings,
           projectNotice: {
-            title: '論理P2 は未割当です',
-            message: '右パネルで現在の素材ページを割り当てると、プレビューが同期します。',
+            title: 'カット番号P2 は未配置です',
+            message: '左パネルでコンテへ割り付けると、プレビューが同期します。',
           },
           onContentClick: vi.fn(),
           onPdfPageLoadSuccess: vi.fn(),
@@ -111,7 +120,7 @@ describe('useAppShellProps', () => {
           setMode: vi.fn(),
           pdfFile: null,
           selectedCutId: 'cut-1',
-          projectPanelProps: createProjectPanelProps(),
+          projectOrganizerProps: createProjectOrganizerProps(),
           templates: [template],
           template,
           setTemplate,
@@ -145,15 +154,15 @@ describe('useAppShellProps', () => {
 
     expect(result.current.documentPreviewProps.setTemplate).toBe(setTemplateLive);
     expect(result.current.documentPreviewProps.projectNotice).toEqual({
-      title: '論理P2 は未割当です',
-      message: '右パネルで現在の素材ページを割り当てると、プレビューが同期します。',
+      title: 'カット番号P2 は未配置です',
+      message: '左パネルでコンテへ割り付けると、プレビューが同期します。',
     });
     expect(result.current.sidebarProps.setLiveSettings).toBe(setSettingsLive);
     expect(result.current.exportOverlayProps).toEqual({ isExporting: false });
 
     expect(isValidElement(result.current.leftProjectPanel)).toBe(true);
     if (isValidElement(result.current.leftProjectPanel)) {
-      expect(result.current.leftProjectPanel.type).toBe(SidebarProjectPanel);
+      expect(result.current.leftProjectPanel.type).toBe(ProjectOrganizerPanel);
       expect(result.current.leftProjectPanel.props.projectName).toBe('Loaded project');
     }
 
@@ -223,7 +232,7 @@ describe('useAppShellProps', () => {
           setMode: vi.fn(),
           pdfFile: null,
           selectedCutId: null,
-          projectPanelProps: null,
+          projectOrganizerProps: null,
           templates: [template],
           template,
           setTemplate,
