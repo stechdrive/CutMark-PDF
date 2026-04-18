@@ -5,6 +5,15 @@ import { pdfjs } from 'react-pdf';
 import { Cut, NumberingState } from './types';
 import { saveMarkedPdf, saveImagesAsPdf } from './services/pdfService';
 import { exportImagesAsZip } from './services/imageExportService';
+import {
+  createAssetHintsFromCurrentDocument,
+  createLegacyStateFromProjectDocument,
+  createProjectDocumentFromLegacySnapshot,
+} from './adapters/legacyProjectAdapter';
+import {
+  downloadProjectDocument,
+  loadProjectDocumentFromFile,
+} from './repositories/projectRepository';
 
 // Hooks
 import { useDocumentViewer } from './hooks/useDocumentViewer';
@@ -109,7 +118,7 @@ export default function App() {
   const {
     cuts, selectedCutId, historyIndex, historyLength,
     setSelectedCutId, addCut, updateCutPosition, handleCutDragEnd, 
-    deleteCut, setNumberingStateWithHistory, renumberFromCut, undo, redo, resetCuts
+    deleteCut, setNumberingStateWithHistory, renumberFromCut, undo, redo, resetCuts, replaceCutsState
   } = useCuts({ numberingState, setNumberingState });
 
   const {
@@ -121,7 +130,7 @@ export default function App() {
 
   const {
     templates, template, setTemplate, changeTemplate,
-    saveTemplateByName, deleteTemplate, distributeRows
+    saveTemplateByName, deleteTemplate, distributeRows, upsertTemplate
   } = useTemplates();
 
   // --- UI State ---
@@ -329,6 +338,95 @@ export default function App() {
     // onLoadComplete callback in hook handles resetCuts
   };
 
+  const handleSaveProject = useCallback(() => {
+    if (!docType) {
+      alert('先にPDFまたは画像を読み込んでください');
+      return;
+    }
+
+    const pageCount = Math.max(numPages, 1);
+    const assetHints = createAssetHintsFromCurrentDocument({
+      docType,
+      pdfFile,
+      imageFiles,
+      pageCount,
+    });
+
+    const project = createProjectDocumentFromLegacySnapshot({
+      cuts,
+      settings,
+      template,
+      pageCount,
+      assetHints,
+      projectName:
+        docType === 'pdf'
+          ? pdfFile?.name
+          : imageFiles[0]?.webkitRelativePath.split('/')[0] || imageFiles[0]?.name,
+    });
+
+    downloadProjectDocument(project);
+    logDebug('info', 'プロジェクト保存', () => ({
+      projectName: project.meta.name,
+      logicalPages: project.logicalPages.length,
+      cutCount: cuts.length,
+    }));
+  }, [cuts, docType, imageFiles, logDebug, numPages, pdfFile, settings, template]);
+
+  const onProjectLoaded = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    try {
+      if (!file) return;
+
+      if (!docType || numPages < 1) {
+        alert('現段階では、先にPDFまたは画像を読み込んだ状態でプロジェクトを開いてください。');
+        logDebug('warn', 'プロジェクト読込不可', () => ({
+          reason: 'no-active-document',
+          file: toFileInfo(file),
+        }));
+        return;
+      }
+
+      const project = await loadProjectDocumentFromFile(file);
+
+      if (project.logicalPages.length !== numPages) {
+        alert(
+          `このプロジェクトは ${project.logicalPages.length} ページですが、現在の素材は ${numPages} ページです。\n` +
+          'この段階ではページ数が一致する場合のみ復元できます。'
+        );
+        logDebug('warn', 'プロジェクト読込中断', () => ({
+          reason: 'page-count-mismatch',
+          projectPages: project.logicalPages.length,
+          currentPages: numPages,
+          file: toFileInfo(file),
+        }));
+        return;
+      }
+
+      const legacy = createLegacyStateFromProjectDocument(project);
+      setSettings(legacy.settings);
+      upsertTemplate(legacy.template);
+      replaceCutsState(legacy.cuts, legacy.numberingState);
+      setCurrentPage(1);
+      setMode('edit');
+
+      logDebug('info', 'プロジェクト読込完了', () => ({
+        projectName: legacy.projectName,
+        logicalPages: legacy.logicalPageCount,
+        cutCount: legacy.cuts.length,
+        file: toFileInfo(file),
+      }));
+    } catch (error) {
+      alert('プロジェクト読込中にエラーが発生しました');
+      logDebug('error', 'プロジェクト読込失敗', () => ({
+        error: normalizeError(error),
+        file: toFileInfo(file ?? null),
+      }));
+    } finally {
+      e.target.value = '';
+    }
+  }, [docType, logDebug, numPages, replaceCutsState, setCurrentPage, setSettings, upsertTemplate]);
+
   // Export PDF
   const handleExportPdf = async () => {
     setIsExporting(true);
@@ -533,6 +631,8 @@ export default function App() {
         docType={docType}
         onPdfFileChange={onPdfLoaded}
         onFolderChange={onFolderLoaded}
+        onProjectFileChange={onProjectLoaded}
+        onSaveProject={handleSaveProject}
         onExportPdf={handleExportPdf}
         onExportImages={handleExportImages}
         isExporting={isExporting}

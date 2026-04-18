@@ -114,6 +114,20 @@ export const useTemplates = () => {
     setTemplate(t => ({ ...t, rowPositions: newPositions }));
   }, [template]);
 
+  const upsertTemplate = useCallback((incomingTemplate: Template) => {
+    setTemplates(prev => {
+      const existingById = prev.findIndex(t => t.id === incomingTemplate.id);
+      if (existingById !== -1) {
+        return prev.map((templateItem, index) =>
+          index === existingById ? incomingTemplate : templateItem
+        );
+      }
+
+      return [...prev, incomingTemplate];
+    });
+    setTemplate(incomingTemplate);
+  }, []);
+
   return {
     templates,
     template,
@@ -121,6 +135,7 @@ export const useTemplates = () => {
     changeTemplate,
     saveTemplateByName,
     deleteTemplate,
-    distributeRows
+    distributeRows,
+    upsertTemplate
   };
 };

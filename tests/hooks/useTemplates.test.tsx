@@ -119,4 +119,24 @@ describe('useTemplates', () => {
     expect(result.current.template.rowPositions[2]).toBeCloseTo(0.633333, 5);
     expect(result.current.template.rowPositions[3]).toBeCloseTo(0.9);
   });
+
+  it('upserts a loaded template and selects it', async () => {
+    const { result } = renderHook(() => useTemplates());
+    const loadedTemplate = createTemplate({
+      id: 'loaded-template',
+      name: '読込テンプレート',
+      rowCount: 4,
+      rowPositions: [0.1, 0.3, 0.5, 0.7],
+    });
+
+    act(() => {
+      result.current.upsertTemplate(loadedTemplate);
+    });
+
+    expect(result.current.template).toEqual(loadedTemplate);
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+      expect(stored).toContainEqual(loadedTemplate);
+    });
+  });
 });

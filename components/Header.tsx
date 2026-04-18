@@ -1,12 +1,14 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Upload, Download, RotateCcw, RotateCw, FolderOpen, ChevronDown } from 'lucide-react';
+import { Upload, Download, RotateCcw, RotateCw, FolderOpen, ChevronDown, Save } from 'lucide-react';
 import { DocType } from '../types';
 
 interface HeaderProps {
   docType: DocType | null;
   onPdfFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFolderChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onProjectFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSaveProject: () => void;
   onExportPdf: () => void;
   onExportImages: () => void;
   isExporting: boolean;
@@ -24,6 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   docType,
   onPdfFileChange,
   onFolderChange,
+  onProjectFileChange,
+  onSaveProject,
   onExportPdf,
   onExportImages,
   isExporting,
@@ -38,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+  const projectInputRef = useRef<HTMLInputElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const logoUrl = `${import.meta.env.BASE_URL}favicon.svg`;
 
@@ -57,35 +62,60 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="h-6 w-px bg-slate-600 mx-2" />
         
         <div className="flex gap-2">
-            <button
+          <button
             onClick={() => pdfInputRef.current?.click()}
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
             title="PDFファイルを開く"
-            >
+          >
             <Upload size={16} /> PDF
-            </button>
-            <input
+          </button>
+          <input
             ref={pdfInputRef}
             type="file"
             accept=".pdf"
             className="hidden"
             onChange={onPdfFileChange}
-            />
+          />
 
-            <button
+          <button
             onClick={() => folderInputRef.current?.click()}
             className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
             title="連番画像の入ったフォルダを開く"
-            >
+          >
             <FolderOpen size={16} /> フォルダ
-            </button>
-            <input
+          </button>
+          <input
             ref={folderInputRef}
             type="file"
             multiple
             className="hidden"
             onChange={onFolderChange}
-            />
+          />
+
+          <button
+            onClick={() => projectInputRef.current?.click()}
+            disabled={!docType || isExporting}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title={docType ? '保存済みプロジェクトを読み込む' : '先にPDFまたは画像を読み込んでください'}
+          >
+            <Upload size={16} /> 読込
+          </button>
+          <input
+            ref={projectInputRef}
+            type="file"
+            accept=".json,.cutmark.json,application/json"
+            className="hidden"
+            onChange={onProjectFileChange}
+          />
+
+          <button
+            onClick={onSaveProject}
+            disabled={!docType || isExporting}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title={docType ? '現在の採番作業をプロジェクトとして保存する' : '先にPDFまたは画像を読み込んでください'}
+          >
+            <Save size={16} /> プロジェクト保存
+          </button>
         </div>
 
         {docType && (
