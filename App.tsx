@@ -151,7 +151,7 @@ export default function App() {
   const {
     cuts, selectedCutId, historyIndex, historyLength,
     setSelectedCutId, addCut, updateCutPosition, handleCutDragEnd, 
-    deleteCut, setNumberingStateWithHistory, renumberFromCut, undo, redo, resetCuts, replaceCutsState
+    deleteCut, setNumberingStateWithHistory, renumberFromCut, undo, redo, resetCuts
   } = useCuts({ numberingState, setNumberingState });
 
   const {
@@ -726,26 +726,19 @@ export default function App() {
   ) => {
     const projectForApply =
       bindings ? resolveProjectDocumentForCurrentState(project, bindings) : project;
-    const nextCuts = createLegacyCutsFromProjectDocument(projectForApply, bindings);
-    setSettings(createAppSettingsFromProjectDocument(projectForApply));
     upsertTemplate(createTemplateFromProjectDocument(projectForApply));
-    replaceCutsState(nextCuts, {
-      nextNumber: projectForApply.numbering.nextNumber,
-      branchChar: projectForApply.numbering.branchChar,
-    });
-    setCurrentPage(1);
     setMode('edit');
 
     logDebug('info', 'プロジェクト適用完了', () => ({
       projectName: projectForApply.meta.name,
       logicalPages: projectForApply.logicalPages.length,
-      cutCount: nextCuts.length,
+      cutCount: countProjectCuts(projectForApply),
       assignedPages: bindings
         ? Object.values(bindings).filter((pageIndex) => pageIndex != null).length
         : projectForApply.logicalPages.length,
       sourceFile,
     }));
-  }, [logDebug, replaceCutsState, resolveProjectDocumentForCurrentState, setCurrentPage, setSettings, upsertTemplate]);
+  }, [logDebug, resolveProjectDocumentForCurrentState, upsertTemplate]);
 
   const handleProjectBindingChange = useCallback((logicalPageId: string, nextAssetIndex: number | null) => {
     assignProjectAsset(logicalPageId, nextAssetIndex);
@@ -864,7 +857,6 @@ export default function App() {
       const suggestedBindings = createSuggestedProjectAssetBindings(project, currentAssetHints);
 
       loadProjectIntoEditor(project);
-      setSettings(createAppSettingsFromProjectDocument(project));
       upsertTemplate(createTemplateFromProjectDocument(project));
       logDebug('info', 'プロジェクト読込完了', () => ({
         projectName: project.meta.name,
@@ -901,7 +893,7 @@ export default function App() {
     } finally {
       e.target.value = '';
     }
-  }, [applyLoadedProjectToCurrentDocument, currentAssetHints, docType, loadProjectIntoEditor, logDebug, numPages, setSettings, upsertTemplate]);
+  }, [applyLoadedProjectToCurrentDocument, currentAssetHints, docType, loadProjectIntoEditor, logDebug, numPages, upsertTemplate]);
 
   // Export PDF
   const handleExportPdf = async () => {
