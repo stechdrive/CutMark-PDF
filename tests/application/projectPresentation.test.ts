@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createAppSettings, createCut, createTemplate } from '../../test/factories';
+import { createProjectDocumentFromCuts } from '../../application/projectProjection';
 import {
   createAppSettingsFromProjectDocument,
   createTemplateFromProjectDocument,
 } from '../../application/projectPresentation';
-import { createProjectDocumentFromLegacySnapshot } from '../../adapters/legacyProjectAdapter';
 
 describe('application/projectPresentation', () => {
   it('projects app settings and template from a project document', () => {
-    const project = createProjectDocumentFromLegacySnapshot({
+    const project = createProjectDocumentFromCuts({
       cuts: [
         createCut({ id: 'cut-1', pageIndex: 0, label: '010', y: 0.2 }),
         createCut({ id: 'cut-2', pageIndex: 1, label: '011', y: 0.1 }),
