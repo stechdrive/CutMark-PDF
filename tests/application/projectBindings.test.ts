@@ -4,6 +4,7 @@ import {
   createSuggestedProjectAssetBindings,
   hasCompleteProjectAssetBindings,
   reassignProjectAssetBinding,
+  synchronizeProjectAssetBindings,
 } from '../../application/projectBindings';
 import { createProjectDocument } from '../../domain/project';
 import { createAppSettings, createTemplate } from '../../test/factories';
@@ -92,5 +93,27 @@ describe('application/projectBindings', () => {
         'page-3': 2,
       })
     ).toBe(true);
+  });
+
+  it('preserves still-valid manual bindings while filling gaps with suggestions', () => {
+    const synced = synchronizeProjectAssetBindings(
+      project,
+      [
+        { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+        { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+        { sourceKind: 'image', sourceLabel: '003.png', pageNumber: 3 },
+      ],
+      {
+        'page-1': 2,
+        'page-2': null,
+        'page-3': 1,
+      }
+    );
+
+    expect(synced).toEqual({
+      'page-1': 2,
+      'page-2': 0,
+      'page-3': 1,
+    });
   });
 });

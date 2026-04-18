@@ -16,6 +16,9 @@ interface SidebarProjectPanelProps {
   canApplyProject: boolean;
   canResetBindings: boolean;
   onBindingChange: (logicalPageId: string, nextAssetIndex: number | null) => void;
+  onInsertLogicalPageAfter: (logicalPageId: string) => void;
+  onRemoveLogicalPage: (logicalPageId: string) => void;
+  onMoveLogicalPage: (logicalPageId: string, direction: -1 | 1) => void;
   onResetBindings: () => void;
   onApplyProject: () => void;
 }
@@ -46,6 +49,9 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
   canApplyProject,
   canResetBindings,
   onBindingChange,
+  onInsertLogicalPageAfter,
+  onRemoveLogicalPage,
+  onMoveLogicalPage,
   onResetBindings,
   onApplyProject,
 }) => {
@@ -137,9 +143,50 @@ export const SidebarProjectPanel: React.FC<SidebarProjectPanelProps> = ({
           <div className="space-y-2">
             {comparison.rows.map((row) => (
               <div key={row.logicalPageId} className="rounded-lg border border-sky-100 bg-white/80 p-2 text-xs">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-start justify-between gap-2">
                   <span className="font-semibold text-slate-800">論理P{row.pageNumber}</span>
-                  <span className="text-slate-500">{formatRowStatus(row)}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-500">{formatRowStatus(row)}</span>
+                    <button
+                      type="button"
+                      onClick={() => onMoveLogicalPage(row.logicalPageId, -1)}
+                      disabled={row.pageNumber === 1}
+                      aria-label="前へ移動"
+                      className="rounded border border-sky-100 px-1.5 py-0.5 text-[11px] text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                      title="前へ移動"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onMoveLogicalPage(row.logicalPageId, 1)}
+                      disabled={row.pageNumber === comparison.logicalPageCount}
+                      aria-label="次へ移動"
+                      className="rounded border border-sky-100 px-1.5 py-0.5 text-[11px] text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+                      title="次へ移動"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onInsertLogicalPageAfter(row.logicalPageId)}
+                      aria-label="後ろに空ページを追加"
+                      className="rounded border border-sky-100 px-1.5 py-0.5 text-[11px] text-slate-600"
+                      title="後ろに空ページを追加"
+                    >
+                      +
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveLogicalPage(row.logicalPageId)}
+                      disabled={comparison.logicalPageCount <= 1}
+                      aria-label="この論理ページを削除"
+                      className="rounded border border-sky-100 px-1.5 py-0.5 text-[11px] text-rose-600 disabled:cursor-not-allowed disabled:opacity-40"
+                      title="この論理ページを削除"
+                    >
+                      削除
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-1 text-slate-600">保存時: {formatAssetLabel(row.expectedAsset)}</div>
                 <div className="text-slate-600">割当中: {formatAssetLabel(getAssignedAsset(row.logicalPageId))}</div>

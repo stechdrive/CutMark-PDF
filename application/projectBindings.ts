@@ -83,6 +83,60 @@ export const reassignProjectAssetBinding = (
   return nextBindings;
 };
 
+export const synchronizeProjectAssetBindings = (
+  project: ProjectDocument,
+  currentAssets: Array<AssetHint | null | undefined>,
+  previousBindings: ProjectAssetBindings
+): ProjectAssetBindings => {
+  const nextBindings = Object.fromEntries(
+    project.logicalPages.map((page) => [page.id, null])
+  ) as ProjectAssetBindings;
+  const usedAssetIndexes = new Set<number>();
+
+  project.logicalPages.forEach((page) => {
+    const previousAssetIndex = previousBindings[page.id];
+    if (
+      previousAssetIndex != null &&
+      previousAssetIndex >= 0 &&
+      previousAssetIndex < currentAssets.length &&
+      currentAssets[previousAssetIndex] &&
+      !usedAssetIndexes.has(previousAssetIndex)
+    ) {
+      nextBindings[page.id] = previousAssetIndex;
+      usedAssetIndexes.add(previousAssetIndex);
+    }
+  });
+
+  const suggestedBindings = createSuggestedProjectAssetBindings(project, currentAssets);
+  project.logicalPages.forEach((page) => {
+    if (nextBindings[page.id] != null) return;
+    const suggestedAssetIndex = suggestedBindings[page.id];
+    if (
+      suggestedAssetIndex != null &&
+      suggestedAssetIndex >= 0 &&
+      suggestedAssetIndex < currentAssets.length &&
+      currentAssets[suggestedAssetIndex] &&
+      !usedAssetIndexes.has(suggestedAssetIndex)
+    ) {
+      nextBindings[page.id] = suggestedAssetIndex;
+      usedAssetIndexes.add(suggestedAssetIndex);
+    }
+  });
+
+  project.logicalPages.forEach((page) => {
+    if (nextBindings[page.id] != null) return;
+    const fallbackAssetIndex = currentAssets.findIndex(
+      (asset, index) => asset && !usedAssetIndexes.has(index)
+    );
+    if (fallbackAssetIndex >= 0) {
+      nextBindings[page.id] = fallbackAssetIndex;
+      usedAssetIndexes.add(fallbackAssetIndex);
+    }
+  });
+
+  return nextBindings;
+};
+
 export const countAssignedProjectAssetBindings = (
   project: ProjectDocument,
   bindings: ProjectAssetBindings

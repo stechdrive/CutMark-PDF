@@ -22,8 +22,14 @@ import {
   hasCompleteProjectAssetBindings,
   ProjectAssetBindings,
   reassignProjectAssetBinding,
+  synchronizeProjectAssetBindings,
 } from './application/projectBindings';
 import { summarizeProjectAssetComparison } from './application/projectComparison';
+import {
+  insertLogicalPageAfter,
+  moveLogicalPage,
+  removeLogicalPage,
+} from './application/projectPages';
 
 // Hooks
 import { useDocumentViewer } from './hooks/useDocumentViewer';
@@ -252,8 +258,8 @@ export default function App() {
       return;
     }
 
-    setProjectBindings(
-      createSuggestedProjectAssetBindings(loadedProject, currentAssetHints)
+    setProjectBindings((prev) =>
+      synchronizeProjectAssetBindings(loadedProject, currentAssetHints, prev)
     );
   }, [currentAssetHints, loadedProject]);
 
@@ -430,6 +436,27 @@ export default function App() {
       createSuggestedProjectAssetBindings(loadedProject, currentAssetHints)
     );
   }, [currentAssetHints, loadedProject]);
+
+  const handleInsertLogicalPageAfter = useCallback((logicalPageId: string) => {
+    setLoadedProject((prev) => {
+      if (!prev) return prev;
+      return insertLogicalPageAfter(prev, logicalPageId);
+    });
+  }, []);
+
+  const handleRemoveLogicalPage = useCallback((logicalPageId: string) => {
+    setLoadedProject((prev) => {
+      if (!prev) return prev;
+      return removeLogicalPage(prev, logicalPageId);
+    });
+  }, []);
+
+  const handleMoveLogicalPage = useCallback((logicalPageId: string, direction: -1 | 1) => {
+    setLoadedProject((prev) => {
+      if (!prev) return prev;
+      return moveLogicalPage(prev, logicalPageId, direction);
+    });
+  }, []);
 
   const handleApplyLoadedProject = useCallback(() => {
     if (!loadedProject || !canApplyLoadedProject) {
@@ -802,6 +829,9 @@ export default function App() {
                 canApplyProject={canApplyLoadedProject}
                 canResetBindings={currentAssetHints.length > 0}
                 onBindingChange={handleProjectBindingChange}
+                onInsertLogicalPageAfter={handleInsertLogicalPageAfter}
+                onRemoveLogicalPage={handleRemoveLogicalPage}
+                onMoveLogicalPage={handleMoveLogicalPage}
                 onResetBindings={handleResetProjectBindings}
                 onApplyProject={handleApplyLoadedProject}
               />

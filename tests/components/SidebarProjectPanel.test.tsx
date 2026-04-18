@@ -62,6 +62,9 @@ describe('SidebarProjectPanel', () => {
         canApplyProject={true}
         canResetBindings={true}
         onBindingChange={vi.fn()}
+        onInsertLogicalPageAfter={vi.fn()}
+        onRemoveLogicalPage={vi.fn()}
+        onMoveLogicalPage={vi.fn()}
         onResetBindings={vi.fn()}
         onApplyProject={vi.fn()}
       />
@@ -80,6 +83,9 @@ describe('SidebarProjectPanel', () => {
   it('lets the user change a logical page assignment and reset suggestions', async () => {
     const user = userEvent.setup();
     const onBindingChange = vi.fn();
+    const onInsertLogicalPageAfter = vi.fn();
+    const onRemoveLogicalPage = vi.fn();
+    const onMoveLogicalPage = vi.fn();
     const onResetBindings = vi.fn();
 
     render(
@@ -101,6 +107,9 @@ describe('SidebarProjectPanel', () => {
         canApplyProject={true}
         canResetBindings={true}
         onBindingChange={onBindingChange}
+        onInsertLogicalPageAfter={onInsertLogicalPageAfter}
+        onRemoveLogicalPage={onRemoveLogicalPage}
+        onMoveLogicalPage={onMoveLogicalPage}
         onResetBindings={onResetBindings}
         onApplyProject={vi.fn()}
       />
@@ -114,6 +123,52 @@ describe('SidebarProjectPanel', () => {
 
     expect(onBindingChange).toHaveBeenCalledWith('page-2', 0);
     expect(onResetBindings).toHaveBeenCalled();
+  });
+
+  it('exposes logical page move, insert, and remove controls', async () => {
+    const user = userEvent.setup();
+    const onInsertLogicalPageAfter = vi.fn();
+    const onRemoveLogicalPage = vi.fn();
+    const onMoveLogicalPage = vi.fn();
+
+    render(
+      <SidebarProjectPanel
+        projectName="catalog-revision"
+        savedAt="2026-04-18T01:23:45.000Z"
+        comparison={createComparisonSummary()}
+        bindings={{
+          'page-1': 0,
+          'page-2': 1,
+          'page-3': 2,
+        }}
+        assignedCount={3}
+        currentAssets={[
+          { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+          { sourceKind: 'image', sourceLabel: '009_revised.png', pageNumber: 2 },
+          { sourceKind: 'image', sourceLabel: '003.png', pageNumber: 3 },
+        ]}
+        canApplyProject={true}
+        canResetBindings={true}
+        onBindingChange={vi.fn()}
+        onInsertLogicalPageAfter={onInsertLogicalPageAfter}
+        onRemoveLogicalPage={onRemoveLogicalPage}
+        onMoveLogicalPage={onMoveLogicalPage}
+        onResetBindings={vi.fn()}
+        onApplyProject={vi.fn()}
+      />
+    );
+
+    const moveButtons = screen.getAllByRole('button', { name: '前へ移動' });
+    const insertButtons = screen.getAllByRole('button', { name: '後ろに空ページを追加' });
+    const removeButtons = screen.getAllByRole('button', { name: 'この論理ページを削除' });
+
+    await user.click(moveButtons[1]);
+    await user.click(insertButtons[1]);
+    await user.click(removeButtons[1]);
+
+    expect(onMoveLogicalPage).toHaveBeenCalledWith('page-2', -1);
+    expect(onInsertLogicalPageAfter).toHaveBeenCalledWith('page-2');
+    expect(onRemoveLogicalPage).toHaveBeenCalledWith('page-2');
   });
 
   it('disables apply until every logical page is assigned', () => {
@@ -145,6 +200,9 @@ describe('SidebarProjectPanel', () => {
         canApplyProject={false}
         canResetBindings={false}
         onBindingChange={vi.fn()}
+        onInsertLogicalPageAfter={vi.fn()}
+        onRemoveLogicalPage={vi.fn()}
+        onMoveLogicalPage={vi.fn()}
         onResetBindings={vi.fn()}
         onApplyProject={onApplyProject}
       />
