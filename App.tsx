@@ -14,10 +14,12 @@ import {
 import { useDocumentViewer } from './hooks/useDocumentViewer';
 import { useTemplates } from './hooks/useTemplates';
 import { useAppSettings } from './hooks/useAppSettings';
+import { useDebugLogger } from './hooks/useDebugLogger';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useDebugPanel } from './hooks/useDebugPanel';
 import { useEditorWorkspace } from './hooks/useEditorWorkspace';
 import { useWorkspaceFileActions } from './hooks/useWorkspaceFileActions';
-import { normalizeError, safeJsonStringify, toFileInfo } from './utils/debugData';
+import { normalizeError } from './utils/debugData';
 
 // Components
 import { Header } from './components/Header';
@@ -31,17 +33,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString();
 
-type DebugLog = {
-  at: string;
-  level: 'info' | 'warn' | 'error';
-  message: string;
-  data?: unknown;
-};
-
-type DebugLogData = unknown | (() => unknown);
-
-const MAX_DEBUG_LOGS = 200;
-const IMAGE_FILE_LOG_LIMIT = 30;
 const DEFAULT_IMAGE_FONT_SIZE = 28;
 const IMAGE_A4_WIDTH_AT_150_DPI = 1240.5; // 8.27inch * 150dpi
 const FONT_SIZE_MIN = 12;
@@ -51,11 +42,6 @@ const countProjectCuts = (project: ProjectDocument) =>
   project.logicalPages.reduce((count, page) => count + page.cuts.length, 0);
 
 export default function App() {
-  const debugEnabled = useMemo(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('debug') === '1';
-  }, []);
-
   // --- Hooks ---
   const {
     settings, setSettings
@@ -93,72 +79,18 @@ export default function App() {
 
   // --- UI State ---
   const [mode, setMode] = useState<'edit' | 'template'>('edit');
-  const [debugOpen, setDebugOpen] = useState(false);
-  const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
-  const [debugCopyStatus, setDebugCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
-  const debugTextRef = useRef<HTMLTextAreaElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const pdfFontSizeAppliedRef = useRef(false);
   const pdfAutoFontSizeRef = useRef<number | null>(null);
-
-  const logDebug = useCallback((level: DebugLog['level'], message: string, data?: DebugLogData) => {
-    if (!debugEnabled) return;
-    const payload = typeof data === 'function' ? data() : data;
-    setDebugLogs(prev => {
-      const next = [
-        ...prev,
-        {
-          at: new Date().toISOString(),
-          level,
-          message,
-          data: payload,
-        },
-      ];
-      if (next.length > MAX_DEBUG_LOGS) {
-        return next.slice(next.length - MAX_DEBUG_LOGS);
-      }
-      return next;
-    });
-  }, [debugEnabled]);
-
-  useEffect(() => {
-    if (!debugEnabled) return;
-    const handleError = (event: ErrorEvent) => {
-      logDebug('error', 'window.error', () => ({
-        message: event.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno,
-        error: normalizeError(event.error),
-      }));
-    };
-    const handleRejection = (event: PromiseRejectionEvent) => {
-      logDebug('error', 'unhandledrejection', () => ({
-        reason: normalizeError(event.reason),
-      }));
-    };
-    window.addEventListener('error', handleError);
-    window.addEventListener('unhandledrejection', handleRejection);
-    return () => {
-      window.removeEventListener('error', handleError);
-      window.removeEventListener('unhandledrejection', handleRejection);
-    };
-  }, [debugEnabled, logDebug]);
-
-  useEffect(() => {
-    if (debugOpen) {
-      setDebugCopyStatus('idle');
-    }
-  }, [debugOpen]);
+  const {
+    debugEnabled,
+    debugLogs,
+    logDebug,
+  } = useDebugLogger();
 
   useEffect(() => {
     pdfFontSizeAppliedRef.current = false;
   }, [pdfFile]);
-
-  useEffect(() => {
-    if (!debugEnabled) {
-      setDebugOpen(false);
-    }
-  }, [debugEnabled]);
 
   const currentAssetHints = useMemo(() => {
     if (!docType) return [];
@@ -285,7 +217,40 @@ export default function App() {
   }, [docType, isLoadedProjectActive, settings.fontSize, setSettings]);
 
   const {
+    debugOpen,
+    debugCopyStatus,
+    debugTextRef,
+    debugReport,
+    openDebug,
+    closeDebug,
+    handleCopyDebugReport,
+  } = useDebugPanel({
+    debugEnabled,
+    debugLogs,
+    logDebug,
+    docType,
+    mode,
     isExporting,
+    currentPage,
+    numPages,
+    scale,
+    activeProjectCutCount: activeProject ? countProjectCuts(activeProject) : 0,
+    previewCutCount: previewCuts.length,
+    selectedCutId: effectiveSelectedCutId,
+    pdfFile,
+    imageFiles,
+    effectiveSettings,
+    effectiveTemplate,
+    isLoadedProjectActive,
+    canUndoHistory,
+    canRedoHistory,
+    activeHistoryIndex,
+    activeHistoryLength,
+    selectedLogicalPageId,
+    pdfjsVersion: (pdfjs as { version?: string }).version,
+    pdfWorkerSrc: pdfjs.GlobalWorkerOptions.workerSrc,
+  });
+  const {
     onPdfLoaded,
     onFolderLoaded,
     onFileDropped,
@@ -302,6 +267,7 @@ export default function App() {
     loadPdf,
     loadImages,
     onDrop: dragHandlers.onDrop,
+    setIsExporting,
     logDebug,
   });
 
@@ -313,138 +279,6 @@ export default function App() {
     onPagePrev: () => setCurrentPage(p => p - 1),
     onRowSnap: handleRowSnap
   });
-
-  const debugReport = useMemo(() => {
-    if (!debugEnabled) {
-      return 'Debug disabled';
-    }
-    const imageFileSummary = {
-      count: imageFiles.length,
-      totalBytes: imageFiles.reduce((sum, file) => sum + file.size, 0),
-      sampleNames: imageFiles.slice(0, IMAGE_FILE_LOG_LIMIT).map(file => file.name),
-      truncated: imageFiles.length > IMAGE_FILE_LOG_LIMIT,
-    };
-
-    const deviceMemory =
-      'deviceMemory' in navigator
-        ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory
-        : undefined;
-    const pdfjsVersion = (pdfjs as { version?: string }).version;
-
-    const reportSections = [
-      'CutMark PDF Debug Report',
-      `timestamp: ${new Date().toISOString()}`,
-      '',
-      '[App]',
-      `version: ${__APP_VERSION__}`,
-      `baseUrl: ${import.meta.env.BASE_URL}`,
-      `location: ${window.location.href}`,
-      '',
-      '[Environment]',
-      `userAgent: ${navigator.userAgent}`,
-      `language: ${navigator.language}`,
-      `platform: ${navigator.platform}`,
-      `deviceMemory: ${deviceMemory ?? 'n/a'}`,
-      `hardwareConcurrency: ${navigator.hardwareConcurrency ?? 'n/a'}`,
-      `screen: ${window.screen.width}x${window.screen.height}`,
-      `devicePixelRatio: ${window.devicePixelRatio}`,
-      '',
-      '[Document]',
-      `docType: ${docType ?? 'none'}`,
-      `mode: ${mode}`,
-      `isExporting: ${isExporting}`,
-      `currentPage: ${currentPage} / ${numPages}`,
-      `scale: ${scale}`,
-      `cuts: total=${activeProject ? countProjectCuts(activeProject) : 0}, currentPage=${previewCuts.length}`,
-      `selectedCutId: ${effectiveSelectedCutId ?? 'none'}`,
-      '',
-      '[PDF File]',
-      safeJsonStringify(toFileInfo(pdfFile)),
-      '',
-      '[Image Files]',
-      safeJsonStringify(imageFileSummary),
-      '',
-      '[Settings]',
-      safeJsonStringify(effectiveSettings),
-      '',
-      '[Template]',
-      safeJsonStringify(effectiveTemplate),
-      '',
-      '[History]',
-      isLoadedProjectActive
-        ? safeJsonStringify({
-            kind: 'project',
-            canUndo: canUndoHistory,
-            canRedo: canRedoHistory,
-            historyIndex: activeHistoryIndex,
-            historyLength: activeHistoryLength,
-            selectedLogicalPageId,
-          })
-        : safeJsonStringify({ historyIndex: activeHistoryIndex, historyLength: activeHistoryLength }),
-      '',
-      '[PDF.js]',
-      safeJsonStringify({
-        version: pdfjsVersion ?? 'unknown',
-        workerSrc: pdfjs.GlobalWorkerOptions.workerSrc ?? 'unknown',
-      }),
-      '',
-      '[Logs]',
-      safeJsonStringify(debugLogs),
-    ];
-
-    return reportSections.join('\n');
-  }, [
-    debugEnabled,
-    debugLogs,
-    docType,
-    mode,
-    isExporting,
-    currentPage,
-    numPages,
-    scale,
-    activeProject,
-    effectiveSelectedCutId,
-    isLoadedProjectActive,
-    pdfFile,
-    previewCuts.length,
-    imageFiles,
-    effectiveSettings,
-    effectiveTemplate,
-    activeHistoryIndex,
-    activeHistoryLength,
-    canRedoHistory,
-    canUndoHistory,
-    selectedLogicalPageId,
-  ]);
-
-  const handleCopyDebugReport = async () => {
-    try {
-      await navigator.clipboard.writeText(debugReport);
-      setDebugCopyStatus('copied');
-      return;
-    } catch (error) {
-      const fallbackTarget = debugTextRef.current;
-      if (!fallbackTarget) {
-        setDebugCopyStatus('failed');
-        logDebug('error', 'デバッグログのコピー失敗', () => ({ error: normalizeError(error) }));
-        return;
-      }
-      fallbackTarget.focus();
-      fallbackTarget.select();
-      try {
-        const ok = document.execCommand('copy');
-        setDebugCopyStatus(ok ? 'copied' : 'failed');
-        if (!ok) {
-          logDebug('error', 'デバッグログのコピー失敗', () => ({ error: normalizeError(error) }));
-        }
-      } catch (fallbackError) {
-        setDebugCopyStatus('failed');
-        logDebug('error', 'デバッグログのコピー失敗', () => ({
-          error: normalizeError(fallbackError),
-        }));
-      }
-    }
-  };
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 text-gray-800 font-sans overflow-hidden">
@@ -464,7 +298,7 @@ export default function App() {
         canRedo={canRedoHistory}
         onUndo={handleUndoAction}
         onRedo={handleRedoAction}
-        onOpenDebug={() => setDebugOpen(true)}
+        onOpenDebug={openDebug}
         showDebug={debugEnabled}
       />
 
@@ -546,9 +380,9 @@ export default function App() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-3xl bg-white rounded-lg shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-              <div className="font-bold text-sm text-gray-800">デバッグログ</div>
+                <div className="font-bold text-sm text-gray-800">デバッグログ</div>
               <button
-                onClick={() => setDebugOpen(false)}
+                onClick={closeDebug}
                 className="text-xs text-gray-500 hover:text-gray-700"
               >
                 閉じる

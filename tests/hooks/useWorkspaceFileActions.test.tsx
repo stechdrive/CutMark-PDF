@@ -48,6 +48,7 @@ const createOptions = () => ({
   loadPdf: vi.fn(),
   loadImages: vi.fn(),
   onDrop: vi.fn(),
+  setIsExporting: vi.fn(),
   logDebug: vi.fn(),
 });
 

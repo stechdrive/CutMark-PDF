@@ -1,4 +1,4 @@
-import { ChangeEvent, DragEvent, useCallback, useState } from 'react';
+import { ChangeEvent, DragEvent, useCallback } from 'react';
 import { saveMarkedPdf, saveImagesAsPdf } from '../services/pdfService';
 import { exportImagesAsZip } from '../services/imageExportService';
 import { AppSettings, Cut, DocType } from '../types';
@@ -20,6 +20,7 @@ interface UseWorkspaceFileActionsOptions {
   loadPdf: (file: File) => void;
   loadImages: (files: File[]) => void;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
+  setIsExporting: (next: boolean) => void;
   logDebug: (level: 'info' | 'warn' | 'error', message: string, data?: DebugLogData) => void;
 }
 
@@ -53,10 +54,9 @@ export const useWorkspaceFileActions = ({
   loadPdf,
   loadImages,
   onDrop,
+  setIsExporting,
   logDebug,
 }: UseWorkspaceFileActionsOptions) => {
-  const [isExporting, setIsExporting] = useState(false);
-
   const onPdfLoaded = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -149,6 +149,7 @@ export const useWorkspaceFileActions = ({
     isLoadedProjectActive,
     logDebug,
     pdfFile,
+    setIsExporting,
   ]);
 
   const handleExportImages = useCallback(async () => {
@@ -185,10 +186,10 @@ export const useWorkspaceFileActions = ({
     imageFiles,
     isLoadedProjectActive,
     logDebug,
+    setIsExporting,
   ]);
 
   return {
-    isExporting,
     onPdfLoaded,
     onFolderLoaded,
     onFileDropped,
