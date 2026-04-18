@@ -6,15 +6,24 @@
 - 配布先は `GitHub Pages` の静的サイト
 - 実行環境はブラウザのみで、サーバー処理はない
 - 読み込んだファイルや編集結果はブラウザ内で扱い、テンプレートは `localStorage` に保存する
+- プロジェクト保存は「論理ページ + カット配置 + 採番設定 + テンプレート状態」を保存し、素材自体は含めない
 
 ## 構成の見取り図
 
 - `App.tsx`
-  - 画面全体の状態連携、書き出し処理の入口、デバッグレポートを担当
+  - 画面の shell と controller の接続を担当
+- `hooks/useAppController.ts`
+  - ワークスペース、入出力、デバッグ、表示 props の合成を担当
 - `hooks/useDocumentViewer.ts`
   - PDF・画像の読み込み、ドラッグ＆ドロップ、ページ状態、EXIF回転補正を担当
-- `hooks/useCuts.ts`
-  - カット番号配置、連番進行、Undo/Redo履歴を担当
+- `hooks/useCurrentProjectSession.ts`
+  - 現在素材に対する論理ページ session、Undo/Redo、採番状態同期を担当
+- `hooks/useLoadedProjectSession.ts`
+  - 保存済みプロジェクトの読込後編集、割当、Undo/Redo を担当
+- `application/projectProjection.ts`
+  - `Cut[]` と `ProjectDocument` の相互投影を担当
+- `application/projectPresentation.ts`
+  - `ProjectDocument` から `AppSettings` / `Template` への投影を担当
 - `hooks/useTemplates.ts`
   - テンプレート編集と `localStorage` 永続化を担当
 - `services/pdfService.ts`
@@ -44,6 +53,7 @@
 3. 依存関係を触ったら `package-lock.json` の差分を必ず確認する
 4. 作業を渡す前、またはコミット前に `npm run check` を実行する
 5. UIや書き出しに影響する変更では、下の回帰チェックを行う
+6. プロジェクト保存や再適用に触る変更では、論理ページ割当の手動確認を行う
 
 ## 必須の確認コマンド
 
@@ -70,6 +80,7 @@
 - キーボードショートカット
 - 画像の DPI / EXIF 向き補正
 - プレビュー上のクリック行スナップ判定
+- 論理ページ保存、投影、素材割当
 
 ## 手動回帰チェック
 
@@ -102,6 +113,14 @@
   - 既存テンプレートへの上書きが意図どおり動く
   - 削除ができる
   - リロード後もテンプレートが残る
+- プロジェクト保存と差し替え
+  - 現在素材からプロジェクト保存ができる
+  - 保存済みプロジェクトを素材なしでも読める
+  - ページ数不一致時に比較状態へ入れる
+  - 論理ページと現在素材の手動割当ができる
+  - 論理ページの追加・削除・移動ができる
+  - 割当調整後に適用できる
+  - 任意位置から再採番して export に反映される
 - 書き出し
   - PDF入力からPDF書き出しができる
   - 画像入力からPDF書き出しができる
