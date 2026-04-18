@@ -93,6 +93,18 @@ describe('application/editorReducer', () => {
     ]);
   });
 
+  it('clears the selected logical page when the selected page is removed', () => {
+    const removed = editorReducer(createState(), {
+      type: 'removeLogicalPage',
+      logicalPageId: 'page-1',
+    });
+
+    expect(removed.selection).toEqual({
+      logicalPageId: null,
+      cutId: null,
+    });
+  });
+
   it('adds, moves, and deletes cuts inside logical pages', () => {
     const withCut = editorReducer(createState(), {
       type: 'addCutToLogicalPage',

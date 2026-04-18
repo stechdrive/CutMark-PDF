@@ -136,7 +136,7 @@ export const editorReducer = (
         bindings: nextBindings,
         selection:
           state.selection.logicalPageId === action.logicalPageId
-            ? { logicalPageId: logicalPages[0]?.id ?? null, cutId: null }
+            ? { logicalPageId: null, cutId: null }
             : state.selection,
       };
     }

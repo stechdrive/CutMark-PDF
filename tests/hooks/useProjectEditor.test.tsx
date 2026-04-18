@@ -195,6 +195,29 @@ describe('useProjectEditor', () => {
     });
   });
 
+  it('clears logical page selection when the selected page is removed', () => {
+    const { result } = renderHook(() =>
+      useProjectEditor([
+        { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+        { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+      ])
+    );
+
+    act(() => {
+      result.current.loadProject(project);
+    });
+
+    expect(result.current.selectedLogicalPageId).toBe('page-1');
+
+    act(() => {
+      result.current.removePage('page-1');
+    });
+
+    expect(result.current.selectedLogicalPageId).toBeNull();
+    expect(result.current.selectedLogicalPage).toBeNull();
+    expect(result.current.selectedAssetIndex).toBeNull();
+  });
+
   it('commits transactional template edits as a single undo step', () => {
     const { result } = renderHook(() =>
       useProjectEditor([
