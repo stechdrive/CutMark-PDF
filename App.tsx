@@ -14,8 +14,7 @@ import {
 
 // Hooks
 import { useDocumentViewer } from './hooks/useDocumentViewer';
-import { useLegacyCutEditor } from './hooks/useLegacyCutEditor';
-import { useLegacyProjectProjection } from './hooks/useLegacyProjectProjection';
+import { useCurrentProjectSession } from './hooks/useCurrentProjectSession';
 import { useTemplates } from './hooks/useTemplates';
 import { useAppSettings } from './hooks/useAppSettings';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -134,19 +133,6 @@ export default function App() {
     setNumPages, setCurrentPage, setScale, dragHandlers
   } = useDocumentViewer(handleDocumentReset);
 
-  const legacyCutEditor = useLegacyCutEditor({
-    currentPage,
-    settings,
-    numberingState,
-    setNumberingState,
-    getNextLabel,
-    getNextNumberingState,
-  });
-
-  useEffect(() => {
-    resetLegacyCutEditorRef.current = legacyCutEditor.resetCuts;
-  }, [legacyCutEditor.resetCuts]);
-
   const {
     templates, template, setTemplate, changeTemplate,
     saveTemplateByName, saveTemplateDraftByName, deleteTemplate, deleteTemplateById, distributeRows, upsertTemplate
@@ -236,6 +222,34 @@ export default function App() {
     });
   }, [docType, imageFiles, numPages, pdfFile]);
 
+  const currentProjectName = useMemo(() => {
+    if (docType === 'pdf') {
+      return pdfFile?.name;
+    }
+    if (docType === 'images') {
+      return imageFiles[0]?.webkitRelativePath.split('/')[0] || imageFiles[0]?.name;
+    }
+    return undefined;
+  }, [docType, imageFiles, pdfFile]);
+
+  const currentProjectSession = useCurrentProjectSession({
+    docType,
+    currentPage,
+    numPages,
+    currentAssetHints,
+    currentProjectName,
+    settings,
+    numberingState,
+    setNumberingState,
+    getNextLabel,
+    getNextNumberingState,
+    template,
+  });
+
+  useEffect(() => {
+    resetLegacyCutEditorRef.current = currentProjectSession.resetCuts;
+  }, [currentProjectSession.resetCuts]);
+
   const projectEditor = useProjectEditor(currentAssetHints);
   const loadedProject = projectEditor.project;
   const projectBindings = projectEditor.bindings;
@@ -295,7 +309,7 @@ export default function App() {
     loadedProject,
     settings,
     setSettings,
-    setLegacyNumberingStateWithHistory: legacyCutEditor.setNumberingStateWithHistory,
+    setLegacyNumberingStateWithHistory: currentProjectSession.setNumberingStateWithHistory,
     templateApi: {
       templates,
       template,
@@ -313,25 +327,6 @@ export default function App() {
       beginTransaction: beginProjectDraftTransaction,
       commitTransaction: commitProjectDraftTransaction,
     },
-  });
-  const currentProjectName = useMemo(() => {
-    if (docType === 'pdf') {
-      return pdfFile?.name;
-    }
-    if (docType === 'images') {
-      return imageFiles[0]?.webkitRelativePath.split('/')[0] || imageFiles[0]?.name;
-    }
-    return undefined;
-  }, [docType, imageFiles, pdfFile]);
-  const legacyProjectProjection = useLegacyProjectProjection({
-    docType,
-    cuts: legacyCutEditor.cuts,
-    settings,
-    template,
-    numPages,
-    currentPage,
-    currentAssetHints,
-    currentProjectName,
   });
   const workspace = useProjectWorkspace({
     docType,
@@ -351,7 +346,11 @@ export default function App() {
       selectedLogicalPageNumber: projectEditor.selectedLogicalPageNumber,
       selectedAssetIndex: projectEditor.selectedAssetIndex,
     },
-    legacyProjection: legacyProjectProjection,
+    legacyProjection: {
+      project: currentProjectSession.project,
+      bindings: currentProjectSession.bindings,
+      previewLogicalPage: currentProjectSession.previewLogicalPage,
+    },
   });
   const {
     projectComparison,
@@ -365,9 +364,9 @@ export default function App() {
     effectiveExportCuts,
     effectiveExportSettings,
   } = workspace;
-  const legacyProject = legacyProjectProjection.project;
+  const legacyProject = currentProjectSession.project;
   const activeCutEditor = useActiveCutEditor({
-    legacy: legacyCutEditor.cutEditorApi,
+    legacy: currentProjectSession.cutEditorApi,
     project: {
       project: loadedProject,
       settings: effectiveSettings,
