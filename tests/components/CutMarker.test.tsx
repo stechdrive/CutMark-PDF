@@ -7,9 +7,13 @@ import { createAppSettings, createCut } from '../../test/factories';
 const RenderCutMarker = ({
   onUpdatePosition,
   onDragEnd,
+  onSelect = vi.fn(),
+  isSelected = false,
 }: {
   onUpdatePosition: ReturnType<typeof vi.fn>;
   onDragEnd: ReturnType<typeof vi.fn>;
+  onSelect?: ReturnType<typeof vi.fn>;
+  isSelected?: boolean;
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -18,8 +22,8 @@ const RenderCutMarker = ({
       <CutMarker
         cut={createCut({ x: 0.1, y: 0.1, label: '001' })}
         settings={createAppSettings()}
-        isSelected={false}
-        onSelect={vi.fn()}
+        isSelected={isSelected}
+        onSelect={onSelect}
         onDelete={vi.fn()}
         onUpdatePosition={onUpdatePosition}
         onDragEnd={onDragEnd}
@@ -30,6 +34,41 @@ const RenderCutMarker = ({
 };
 
 describe('CutMarker', () => {
+  it('selects without starting a drag when clicked', () => {
+    const onUpdatePosition = vi.fn();
+    const onDragEnd = vi.fn();
+    const onSelect = vi.fn();
+
+    render(
+      <RenderCutMarker
+        onUpdatePosition={onUpdatePosition}
+        onDragEnd={onDragEnd}
+        onSelect={onSelect}
+      />
+    );
+
+    const marker = screen.getByText('001');
+
+    fireEvent.pointerDown(marker, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 100,
+      clientY: 100,
+      button: 0,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 102,
+      clientY: 101,
+      button: 0,
+    });
+
+    expect(onSelect).toHaveBeenCalledWith('cut-1');
+    expect(onUpdatePosition).not.toHaveBeenCalled();
+    expect(onDragEnd).not.toHaveBeenCalled();
+  });
+
   it('updates the cut position through pointer drag input', () => {
     const onUpdatePosition = vi.fn();
     const onDragEnd = vi.fn();

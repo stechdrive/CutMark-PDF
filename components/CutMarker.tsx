@@ -2,6 +2,8 @@ import React from 'react';
 import { Cut, AppSettings } from '../types';
 import { X } from 'lucide-react';
 
+const POINTER_DRAG_SLOP_PX = 6;
+
 interface CutMarkerProps {
   cut: Cut;
   settings: AppSettings;
@@ -37,6 +39,8 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
     const clientX = e.clientX;
     const clientY = e.clientY;
     const pointerId = e.pointerId;
+    const pointerTarget = e.currentTarget;
+    let isDragging = false;
 
     // Calculate initial mouse percentage relative to container
     const mouseX = (clientX - rect.left) / rect.width;
@@ -58,20 +62,34 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
 
     const handleMove = (ev: PointerEvent) => {
       if (ev.pointerId !== pointerId) return;
+      const movedDistance = Math.hypot(ev.clientX - clientX, ev.clientY - clientY);
+      if (!isDragging && movedDistance < POINTER_DRAG_SLOP_PX) {
+        return;
+      }
+
+      isDragging = true;
       ev.preventDefault(); // Prevent scrolling on mobile
       update(ev.clientX, ev.clientY);
     };
 
-    const handleUp = (ev: PointerEvent) => {
-      if (ev.pointerId !== pointerId) return;
+    const cleanup = () => {
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
       window.removeEventListener('pointercancel', handleUp);
-      // Notify App to commit history
-      onDragEnd();
+      if (pointerTarget.hasPointerCapture?.(pointerId)) {
+        pointerTarget.releasePointerCapture(pointerId);
+      }
     };
 
-    e.currentTarget.setPointerCapture?.(pointerId);
+    const handleUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      cleanup();
+      if (isDragging) {
+        onDragEnd();
+      }
+    };
+
+    pointerTarget.setPointerCapture?.(pointerId);
     window.addEventListener('pointermove', handleMove, { passive: false });
     window.addEventListener('pointerup', handleUp);
     window.addEventListener('pointercancel', handleUp);
