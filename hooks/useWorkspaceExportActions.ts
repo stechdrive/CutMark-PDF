@@ -112,9 +112,14 @@ export const useWorkspaceExportActions = ({
     setIsExporting(true);
     try {
       logDebug('info', '画像書き出し開始', () => ({ imageCount: imageFiles.length }));
-      await exportImagesAsZip(imageFiles, effectiveExportCuts, effectiveExportSettings, (current, total) => {
+      const didExport = await exportImagesAsZip(imageFiles, effectiveExportCuts, effectiveExportSettings, (current, total) => {
         console.log(`Processing ${current}/${total}`);
       });
+
+      if (didExport === false) {
+        logDebug('info', '画像書き出しキャンセル');
+        return;
+      }
 
       if (includeProjectFileOnExport) {
         exportProjectFile();

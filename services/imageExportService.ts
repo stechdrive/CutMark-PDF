@@ -1,5 +1,4 @@
-
-import JSZip from 'jszip';
+import { downloadZip } from 'client-zip';
 import { createCutsByPageIndex } from '../application/cutPageIndex';
 import { Cut, AppSettings } from '../types';
 import {
@@ -9,18 +8,7 @@ import {
   setBlobDpi,
 } from './imageProcessing';
 import { getImageFileMetadata } from './imageMetadata';
-
-// Native browser download function
-const saveAs = (blob: Blob, filename: string) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 100);
-};
+import { saveZipResponse } from './zipDownload';
 
 const yieldToBrowser = () =>
   new Promise<void>((resolve) => {
@@ -36,8 +24,7 @@ export const exportImagesAsZip = async (
   cuts: Cut[],
   settings: AppSettings,
   onProgress?: (current: number, total: number) => void
-): Promise<void> => {
-  const zip = new JSZip();
+): Promise<boolean> => {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
 
@@ -48,126 +35,111 @@ export const exportImagesAsZip = async (
   const total = imageFiles.length;
   const cutsByPageIndex = createCutsByPageIndex(cuts);
 
-  for (let i = 0; i < total; i++) {
-    const file = imageFiles[i];
-    if (onProgress) onProgress(i + 1, total);
-    
-    const metadata = await getImageFileMetadata(file);
-    if (!metadata.fileType) {
-      continue;
-    }
+  const buildEntries = async function* () {
+    for (let i = 0; i < total; i++) {
+      const file = imageFiles[i];
+      if (onProgress) onProgress(i + 1, total);
 
-    const fileType = metadata.fileType;
-    const orientation = metadata.orientation;
-    const adjustedDpi = metadata.dpi;
+      const metadata = await getImageFileMetadata(file);
+      if (!metadata.fileType) {
+        continue;
+      }
 
-    // Create source image (keep raw orientation; apply EXIF ourselves)
-    const { source, width: sourceWidth, height: sourceHeight, cleanup } = await loadImageSource(file);
-    const { width, height } = getOrientedDimensions(sourceWidth, sourceHeight, orientation);
+      const fileType = metadata.fileType;
+      const orientation = metadata.orientation;
+      const adjustedDpi = metadata.dpi;
 
-    // Resize canvas
-    canvas.width = width;
-    canvas.height = height;
+      const { source, width: sourceWidth, height: sourceHeight, cleanup } = await loadImageSource(file);
+      const { width, height } = getOrientedDimensions(sourceWidth, sourceHeight, orientation);
 
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, width, height);
+      canvas.width = width;
+      canvas.height = height;
 
-    // Draw image with EXIF orientation applied
-    ctx.save();
-    applyExifOrientation(ctx, orientation, sourceWidth, sourceHeight);
-    ctx.drawImage(source, 0, 0);
-    ctx.restore();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, width, height);
 
-    // Draw Cuts
-    const pageCuts = cutsByPageIndex.get(i) ?? [];
-    
-    // We use the raw pixel size of the image, so we use the raw fontSize setting.
-    // In the viewer, the image is scaled (CSS transform), but the CutMarker element uses settings.fontSize (px).
-    // This means the text size relative to the image pixels depends on the image size.
-    // e.g. 12px font on 1000px height image is 1.2%.
-    // In canvas, we draw 12px font on 1000px height image. It matches.
-    const textSize = settings.fontSize;
-    ctx.font = `bold ${textSize}px Helvetica, Arial, sans-serif`;
-    ctx.textBaseline = 'top';
+      ctx.save();
+      applyExifOrientation(ctx, orientation, sourceWidth, sourceHeight);
+      ctx.drawImage(source, 0, 0);
+      ctx.restore();
 
-    for (const cut of pageCuts) {
+      const pageCuts = cutsByPageIndex.get(i) ?? [];
+      const textSize = settings.fontSize;
+      ctx.font = `bold ${textSize}px Helvetica, Arial, sans-serif`;
+      ctx.textBaseline = 'top';
+
+      for (const cut of pageCuts) {
         const lines = cut.label.split('\n');
-        
-        // Measure text
+
         let maxTextWidth = 0;
-        const lineMetrics = lines.map(line => {
-            const m = ctx.measureText(line);
-            const w = m.width;
-            if (w > maxTextWidth) maxTextWidth = w;
-            return { text: line, width: w };
+        const lineMetrics = lines.map((line) => {
+          const measured = ctx.measureText(line);
+          const width = measured.width;
+          if (width > maxTextWidth) maxTextWidth = width;
+          return { text: line, width };
         });
 
         const padding = settings.backgroundPadding;
         const lineHeight = textSize;
         const boxWidth = maxTextWidth + (padding * 2);
         const boxHeight = (lines.length * lineHeight) + (padding * 2);
-
-        // Calculate position
         const boxTopY = cut.y * height;
         const rectX = (cut.x * width) - (boxWidth / 2);
         const rectY = boxTopY;
 
-        // Draw Background
         if (settings.useWhiteBackground) {
-            ctx.fillStyle = 'white';
-            ctx.fillRect(rectX, rectY, boxWidth, boxHeight);
+          ctx.fillStyle = 'white';
+          ctx.fillRect(rectX, rectY, boxWidth, boxHeight);
         }
 
-        // Draw Text
         lines.forEach((line, lineIndex) => {
-            const lw = lineMetrics[lineIndex].width;
-            const xOffset = (maxTextWidth - lw) / 2;
-            const lineX = rectX + padding + xOffset;
-            const lineY = rectY + padding + (lineIndex * lineHeight);
+          const lineWidth = lineMetrics[lineIndex].width;
+          const xOffset = (maxTextWidth - lineWidth) / 2;
+          const lineX = rectX + padding + xOffset;
+          const lineY = rectY + padding + (lineIndex * lineHeight);
 
-            // Draw Outline
-            if (settings.textOutlineWidth > 0) {
-                ctx.lineWidth = settings.textOutlineWidth * 2;
-                ctx.strokeStyle = 'white';
-                ctx.lineJoin = 'round';
-                ctx.lineCap = 'round';
-                ctx.strokeText(line, lineX, lineY);
-            }
+          if (settings.textOutlineWidth > 0) {
+            ctx.lineWidth = settings.textOutlineWidth * 2;
+            ctx.strokeStyle = 'white';
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.strokeText(line, lineX, lineY);
+          }
 
-            // Draw Fill
-            ctx.fillStyle = 'black';
-            ctx.fillText(line, lineX, lineY);
+          ctx.fillStyle = 'black';
+          ctx.fillText(line, lineX, lineY);
         });
-    }
+      }
 
-    // Cleanup
-    cleanup?.();
+      cleanup?.();
 
-    // Convert to Blob
-    const isPng = fileType === 'png';
-    let blob = await new Promise<Blob | null>(resolve => {
+      const isPng = fileType === 'png';
+      let blob = await new Promise<Blob | null>((resolve) => {
         if (isPng) {
-            canvas.toBlob(resolve, 'image/png');
+          canvas.toBlob(resolve, 'image/png');
         } else {
-            canvas.toBlob(resolve, 'image/jpeg', 0.8);
+          canvas.toBlob(resolve, 'image/jpeg', 0.8);
         }
-    });
+      });
 
-    // Inject DPI
-    if (blob && adjustedDpi) {
+      if (!blob) {
+        continue;
+      }
+
+      if (adjustedDpi) {
         blob = await setBlobDpi(blob, adjustedDpi, isPng ? 'png' : 'jpeg');
-    }
+      }
 
-    if (blob) {
-        zip.file(file.name, blob);
-    }
+      yield {
+        name: file.name,
+        lastModified: new Date(file.lastModified),
+        input: blob.stream(),
+      };
 
-    if ((i + 1) % 10 === 0) {
       await yieldToBrowser();
     }
-  }
+  };
 
-  // Generate ZIP
-  const zipContent = await zip.generateAsync({ type: 'blob' });
-  saveAs(zipContent, `marked_images.zip`);
+  const zipResponse = downloadZip(buildEntries());
+  return saveZipResponse(zipResponse, 'marked_images.zip');
 };

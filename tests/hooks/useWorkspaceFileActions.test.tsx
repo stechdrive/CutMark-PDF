@@ -260,4 +260,23 @@ describe('useWorkspaceFileActions', () => {
     expect(alertSpy).toHaveBeenCalledWith('カット番号ページの割付を完了してから書き出してください');
     expect(imageExportServiceMocks.exportImagesAsZip).not.toHaveBeenCalled();
   });
+
+  it('does not export the project file when image export is cancelled', async () => {
+    const options = {
+      ...createOptions(),
+      docType: 'images' as const,
+      imageFiles: [new File(['img'], '001.png', { type: 'image/png' })],
+      includeProjectFileOnExport: true,
+    };
+
+    imageExportServiceMocks.exportImagesAsZip.mockResolvedValue(false);
+
+    const { result } = renderHook(() => useWorkspaceFileActions(options));
+
+    await act(async () => {
+      await result.current.handleExportImages();
+    });
+
+    expect(options.exportProjectFile).not.toHaveBeenCalled();
+  });
 });
