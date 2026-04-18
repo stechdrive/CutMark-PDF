@@ -9,6 +9,7 @@ const createProjectOrganizerProps = () => ({
   projectName: 'Loaded project',
   savedAt: '2026-04-18T00:00:00.000Z',
   selectedLogicalPageId: 'page-1',
+  currentContePage: 1,
   organizer: {
     logicalPageCount: 1,
     contePageCount: 1,

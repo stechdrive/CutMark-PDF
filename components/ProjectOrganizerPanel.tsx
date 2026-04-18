@@ -7,6 +7,7 @@ export interface ProjectOrganizerPanelProps {
   projectName: string;
   savedAt: string;
   selectedLogicalPageId: string | null;
+  currentContePage: number | null;
   organizer: ProjectConteOrganizerSummary;
   canApplyProject: boolean;
   canResetBindings: boolean;
@@ -66,6 +67,7 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
   projectName,
   savedAt,
   selectedLogicalPageId,
+  currentContePage,
   organizer,
   canApplyProject,
   canResetBindings,
@@ -194,33 +196,42 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
           <div className="text-xs font-semibold text-slate-700">コンテ順のページ整理</div>
           <div className="space-y-3">
             {organizer.slots.map((slot) => (
-              <div
-                key={`conte-slot-${slot.assetIndex}`}
-                className={`rounded-xl border p-3 transition-colors ${
-                  dragOverAssetIndex === slot.assetIndex
-                    ? 'border-sky-400 bg-sky-100/70'
-                    : 'border-sky-100 bg-white/80'
-                }`}
-                onClick={() => onSelectContePage(slot.assetIndex, slot.logicalPageId)}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  if (!draggedLogicalPageId) return;
-                  event.dataTransfer.dropEffect = 'move';
-                  setDragOverAssetIndex(slot.assetIndex);
-                }}
-                onDragLeave={() => {
-                  setDragOverAssetIndex((current) =>
-                    current === slot.assetIndex ? null : current
-                  );
-                }}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  if (!draggedLogicalPageId) return;
-                  onMoveLogicalPageToAsset(draggedLogicalPageId, slot.assetIndex);
-                  setDraggedLogicalPageId(null);
-                  setDragOverAssetIndex(null);
-                }}
-              >
+              (() => {
+                const isActiveContePage = currentContePage === slot.contePageNumber;
+
+                return (
+                  <div
+                    key={`conte-slot-${slot.assetIndex}`}
+                    className={`relative overflow-hidden rounded-xl border p-3 transition-colors ${
+                      dragOverAssetIndex === slot.assetIndex
+                        ? 'border-sky-400 bg-sky-100/70'
+                        : isActiveContePage
+                          ? 'border-sky-300 bg-sky-50/90 ring-1 ring-sky-200 shadow-sm'
+                          : 'border-sky-100 bg-white/80'
+                    }`}
+                    onClick={() => onSelectContePage(slot.assetIndex, slot.logicalPageId)}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      if (!draggedLogicalPageId) return;
+                      event.dataTransfer.dropEffect = 'move';
+                      setDragOverAssetIndex(slot.assetIndex);
+                    }}
+                    onDragLeave={() => {
+                      setDragOverAssetIndex((current) =>
+                        current === slot.assetIndex ? null : current
+                      );
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      if (!draggedLogicalPageId) return;
+                      onMoveLogicalPageToAsset(draggedLogicalPageId, slot.assetIndex);
+                      setDraggedLogicalPageId(null);
+                      setDragOverAssetIndex(null);
+                    }}
+                  >
+                    {isActiveContePage && (
+                      <div className="pointer-events-none absolute inset-y-3 left-0 w-1 rounded-r-full bg-sky-500" />
+                    )}
                 <div className="flex items-start justify-between gap-2">
                   <div
                     ref={(element) => {
@@ -352,7 +363,9 @@ export const ProjectOrganizerPanel: React.FC<ProjectOrganizerPanelProps> = ({
                     </div>
                   )}
                 </button>
-              </div>
+                  </div>
+                );
+              })()
             ))}
           </div>
         </div>

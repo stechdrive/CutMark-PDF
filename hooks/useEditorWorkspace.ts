@@ -47,6 +47,7 @@ export const useEditorWorkspace = ({
     sessions,
     workspaceState,
     docType,
+    currentPage,
     numPages,
     currentAssetHints,
     templateApi,

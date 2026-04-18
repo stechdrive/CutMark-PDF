@@ -7,6 +7,7 @@ import { UseLoadedProjectSessionResult } from './useLoadedProjectSession';
 interface UseLoadedProjectOrganizerOptions {
   loadedProjectSession: UseLoadedProjectSessionResult;
   currentAssets: Array<AssetHint | null | undefined>;
+  currentContePage: number | null;
   canApplyProject: boolean;
   onSelectContePage: (assetIndex: number, logicalPageId: string | null) => void;
   onApplyProject: () => void;
@@ -15,6 +16,7 @@ interface UseLoadedProjectOrganizerOptions {
 export const useLoadedProjectOrganizer = ({
   loadedProjectSession,
   currentAssets,
+  currentContePage,
   canApplyProject,
   onSelectContePage,
   onApplyProject,
@@ -52,6 +54,7 @@ export const useLoadedProjectOrganizer = ({
       projectName: loadedProjectSession.project.meta.name,
       savedAt: loadedProjectSession.project.meta.savedAt,
       selectedLogicalPageId: loadedProjectSession.workspaceSession.selectedLogicalPageId,
+      currentContePage,
       organizer: createProjectConteOrganizerSummary(
         loadedProjectSession.project.logicalPages,
         loadedProjectSession.bindings,
@@ -76,6 +79,7 @@ export const useLoadedProjectOrganizer = ({
     };
   }, [
     canApplyProject,
+    currentContePage,
     currentAssets,
     loadedProjectSession,
     onApplyProject,

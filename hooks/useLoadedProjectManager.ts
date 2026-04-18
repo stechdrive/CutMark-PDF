@@ -11,6 +11,7 @@ interface UseLoadedProjectManagerOptions {
   loadedProjectSession: UseLoadedProjectSessionResult;
   docType: DocType | null;
   numPages: number;
+  currentPage: number;
   currentAssetHints: Array<AssetHint | null | undefined>;
   currentProject: ProjectDocument | null;
   currentProjectBindings: ProjectAssetBindings;
@@ -30,6 +31,7 @@ export const useLoadedProjectManager = ({
   loadedProjectSession,
   docType,
   numPages,
+  currentPage,
   currentAssetHints,
   currentProject,
   currentProjectBindings,
@@ -65,6 +67,7 @@ export const useLoadedProjectManager = ({
   const { projectOrganizerProps } = useLoadedProjectOrganizer({
     loadedProjectSession,
     currentAssets: currentAssetHints,
+    currentContePage: currentPage,
     canApplyProject: canApplyLoadedProject,
     onSelectContePage,
     onApplyProject: handleApplyLoadedProject,

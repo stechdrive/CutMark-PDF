@@ -133,6 +133,7 @@ describe('useLoadedProjectManager', () => {
         loadedProjectSession,
         docType: 'images',
         numPages: 1,
+        currentPage: 1,
         currentAssetHints,
         currentProject,
         currentProjectBindings,
@@ -164,6 +165,7 @@ describe('useLoadedProjectManager', () => {
     expect(organizerMocks.useLoadedProjectOrganizer).toHaveBeenCalledWith({
       loadedProjectSession,
       currentAssets: currentAssetHints,
+      currentContePage: 1,
       canApplyProject: true,
       onSelectContePage,
       onApplyProject: handleApplyLoadedProject,

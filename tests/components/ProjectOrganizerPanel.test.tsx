@@ -73,6 +73,7 @@ describe('ProjectOrganizerPanel', () => {
         projectName="catalog-revision"
         savedAt="2026-04-18T01:23:45.000Z"
         selectedLogicalPageId="page-2"
+        currentContePage={2}
         organizer={createOrganizer()}
         canApplyProject={false}
         canResetBindings={true}
@@ -95,6 +96,8 @@ describe('ProjectOrganizerPanel', () => {
     expect(screen.getByText('カット番号P2')).toBeInTheDocument();
     expect(screen.getByText('コンテP2')).toBeInTheDocument();
     expect(screen.getByText('未配置のカット番号ページ')).toBeInTheDocument();
+    expect(screen.getByText('コンテP2').closest('.rounded-xl')).toHaveClass('ring-1');
+    expect(screen.getByText('コンテP1').closest('.rounded-xl')).not.toHaveClass('ring-1');
     expect(screen.getByRole('button', { name: 'この割付を編集に反映' })).toBeDisabled();
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
   });
@@ -117,6 +120,7 @@ describe('ProjectOrganizerPanel', () => {
         projectName="catalog-revision"
         savedAt="2026-04-18T01:23:45.000Z"
         selectedLogicalPageId="page-2"
+        currentContePage={2}
         organizer={createOrganizer()}
         canApplyProject={true}
         canResetBindings={true}
@@ -199,6 +203,7 @@ describe('ProjectOrganizerPanel', () => {
         projectName="catalog-revision"
         savedAt="2026-04-18T01:23:45.000Z"
         selectedLogicalPageId="page-2"
+        currentContePage={2}
         organizer={createOrganizer()}
         canApplyProject={true}
         canResetBindings={true}

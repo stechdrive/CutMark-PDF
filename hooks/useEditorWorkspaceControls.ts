@@ -9,6 +9,7 @@ interface UseEditorWorkspaceControlsOptions {
   sessions: ReturnType<typeof useEditorSessions>;
   workspaceState: ReturnType<typeof useEditorWorkspaceState>;
   docType: UseEditorWorkspaceOptions['docType'];
+  currentPage: UseEditorWorkspaceOptions['currentPage'];
   numPages: UseEditorWorkspaceOptions['numPages'];
   currentAssetHints: UseEditorWorkspaceOptions['currentAssetHints'];
   templateApi: EditorWorkspaceTemplateApi;
@@ -20,6 +21,7 @@ export const useEditorWorkspaceControls = ({
   sessions,
   workspaceState,
   docType,
+  currentPage,
   numPages,
   currentAssetHints,
   templateApi,
@@ -30,6 +32,7 @@ export const useEditorWorkspaceControls = ({
     loadedProjectSession: sessions.loadedProjectSession,
     docType,
     numPages,
+    currentPage,
     currentAssetHints,
     currentProject: sessions.currentProjectSession.project,
     currentProjectBindings: workspaceState.workspace.activeProjectBindings as ProjectAssetBindings,

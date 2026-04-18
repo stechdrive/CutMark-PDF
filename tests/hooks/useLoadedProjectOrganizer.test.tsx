@@ -90,6 +90,7 @@ describe('useLoadedProjectOrganizer', () => {
           { sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 },
           { sourceKind: 'image' as const, sourceLabel: '009_revised.png', pageNumber: 2 },
         ],
+        currentContePage: 2,
         canApplyProject: false,
         onSelectContePage,
         onApplyProject,
@@ -98,6 +99,7 @@ describe('useLoadedProjectOrganizer', () => {
 
     expect(result.current.projectOrganizerProps).not.toBeNull();
     expect(result.current.projectOrganizerProps?.projectName).toBe(project.meta.name);
+    expect(result.current.projectOrganizerProps?.currentContePage).toBe(2);
     expect(result.current.projectOrganizerProps?.organizer.unplacedPages).toHaveLength(1);
 
     act(() => {
@@ -141,6 +143,7 @@ describe('useLoadedProjectOrganizer', () => {
       useLoadedProjectOrganizer({
         loadedProjectSession,
         currentAssets: [],
+        currentContePage: null,
         canApplyProject: false,
         onSelectContePage: vi.fn(),
         onApplyProject: vi.fn(),

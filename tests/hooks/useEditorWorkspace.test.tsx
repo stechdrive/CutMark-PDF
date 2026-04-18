@@ -164,6 +164,7 @@ describe('useEditorWorkspace', () => {
       sessions,
       workspaceState,
       docType: 'images',
+      currentPage: 1,
       numPages: 1,
       currentAssetHints: options.currentAssetHints,
       templateApi: options.templateApi,
