@@ -286,6 +286,8 @@ export default function App() {
     commitCutDrag,
     deleteCut: deleteProjectCut,
     renumberFromCut: renumberProjectFromCut,
+    beginTransaction: beginProjectDraftTransaction,
+    commitTransaction: commitProjectDraftTransaction,
     updateSettings: updateProjectSettings,
     updateTemplate: updateProjectTemplate,
     undo: undoProjectDraft,
@@ -323,14 +325,28 @@ export default function App() {
   );
   const setEffectiveSettings = useCallback((next: React.SetStateAction<AppSettings>) => {
     if (loadedProject) {
-      updateProjectSettings(next);
+      updateProjectSettings(next, { pushHistory: true });
+      return;
+    }
+    setSettings(next);
+  }, [loadedProject, setSettings, updateProjectSettings]);
+  const setEffectiveSettingsLive = useCallback((next: React.SetStateAction<AppSettings>) => {
+    if (loadedProject) {
+      updateProjectSettings(next, { pushHistory: false });
       return;
     }
     setSettings(next);
   }, [loadedProject, setSettings, updateProjectSettings]);
   const setEffectiveTemplate = useCallback((next: React.SetStateAction<Template>) => {
     if (loadedProject) {
-      updateProjectTemplate(next);
+      updateProjectTemplate(next, { pushHistory: true });
+      return;
+    }
+    setTemplate(next);
+  }, [loadedProject, setTemplate, updateProjectTemplate]);
+  const setEffectiveTemplateLive = useCallback((next: React.SetStateAction<Template>) => {
+    if (loadedProject) {
+      updateProjectTemplate(next, { pushHistory: false });
       return;
     }
     setTemplate(next);
@@ -341,7 +357,7 @@ export default function App() {
         ...current,
         nextNumber: next.nextNumber,
         branchChar: next.branchChar,
-      }));
+      }), { pushHistory: true });
       return;
     }
     setNumberingStateWithHistory(next);
@@ -354,7 +370,7 @@ export default function App() {
 
     const nextTemplate = templates.find((item) => item.id === id);
     if (!nextTemplate) return;
-    updateProjectTemplate(nextTemplate);
+    updateProjectTemplate(nextTemplate, { pushHistory: true });
   }, [changeTemplate, loadedProject, templates, updateProjectTemplate]);
   const handleSaveTemplate = useCallback((name: string) => {
     if (!loadedProject) {
@@ -364,7 +380,7 @@ export default function App() {
 
     const savedTemplate = saveTemplateDraftByName(effectiveTemplate, name);
     if (savedTemplate) {
-      updateProjectTemplate(savedTemplate);
+      updateProjectTemplate(savedTemplate, { pushHistory: true });
     }
   }, [
     effectiveTemplate,
@@ -381,7 +397,7 @@ export default function App() {
 
     const nextTemplate = deleteTemplateById(effectiveTemplate.id);
     if (nextTemplate) {
-      updateProjectTemplate(nextTemplate);
+      updateProjectTemplate(nextTemplate, { pushHistory: true });
     }
   }, [deleteTemplate, deleteTemplateById, effectiveTemplate.id, loadedProject, updateProjectTemplate]);
   const handleDistributeRows = useCallback(() => {
@@ -411,6 +427,14 @@ export default function App() {
       };
     });
   }, [distributeRows, loadedProject, setEffectiveTemplate]);
+  const handleProjectDraftInteractionStart = useCallback(() => {
+    if (!loadedProject) return;
+    beginProjectDraftTransaction();
+  }, [beginProjectDraftTransaction, loadedProject]);
+  const handleProjectDraftInteractionEnd = useCallback(() => {
+    if (!loadedProject) return;
+    commitProjectDraftTransaction();
+  }, [commitProjectDraftTransaction, loadedProject]);
   const effectiveSelectedCutId = loadedProject ? projectEditor.selectedCutId : selectedCutId;
   const previewCuts = useMemo(
     () =>
@@ -506,8 +530,7 @@ export default function App() {
         y,
         label: buildNumberLabel(currentNumbering, effectiveSettings.minDigits),
         isBranch: !!effectiveSettings.branchChar,
-      });
-      setEffectiveNumberingState(nextNumbering);
+      }, nextNumbering);
       return;
     }
 
@@ -534,14 +557,12 @@ export default function App() {
 
   const handleRenumberFromSelected = useCallback((cutId: string) => {
     if (loadedProject) {
-      const nextNumbering = renumberProjectFromCut(cutId, {
+      renumberProjectFromCut(cutId, {
         nextNumber: effectiveSettings.nextNumber,
         branchChar: effectiveSettings.branchChar,
         minDigits: effectiveSettings.minDigits,
         autoIncrement: effectiveSettings.autoIncrement,
       });
-      if (!nextNumbering) return;
-      setEffectiveNumberingState(nextNumbering);
       return;
     }
 
@@ -562,7 +583,6 @@ export default function App() {
     loadedProject,
     renumberFromCut,
     renumberProjectFromCut,
-    setEffectiveNumberingState,
     settings.autoIncrement,
     settings.branchChar,
     settings.minDigits,
@@ -1135,7 +1155,9 @@ export default function App() {
           
           mode={mode}
           template={effectiveTemplate}
-          setTemplate={setEffectiveTemplate}
+          setTemplate={loadedProject ? setEffectiveTemplateLive : setEffectiveTemplate}
+          onTemplateInteractionStart={loadedProject ? handleProjectDraftInteractionStart : undefined}
+          onTemplateInteractionEnd={loadedProject ? handleProjectDraftInteractionEnd : undefined}
           settings={effectiveSettings}
           onContentClick={createCutAt}
           onPdfLoadSuccess={(pages) => logDebug('info', 'PDF読み込み成功', () => ({ numPages: pages }))}
@@ -1188,6 +1210,9 @@ export default function App() {
           onRowSnap={handleRowSnap}
           settings={effectiveSettings}
           setSettings={setEffectiveSettings}
+          setLiveSettings={loadedProject ? setEffectiveSettingsLive : undefined}
+          onLiveSettingsStart={loadedProject ? handleProjectDraftInteractionStart : undefined}
+          onLiveSettingsEnd={loadedProject ? handleProjectDraftInteractionEnd : undefined}
           setNumberingState={loadedProject ? setEffectiveNumberingState : setNumberingStateWithHistory}
           onRenumberFromSelected={handleRenumberFromSelected}
         />

@@ -4,9 +4,16 @@ import { Template } from '../types';
 interface TemplateOverlayProps {
   template: Template;
   onChange: (template: Template) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
 }
 
-export const TemplateOverlay: React.FC<TemplateOverlayProps> = ({ template, onChange }) => {
+export const TemplateOverlay: React.FC<TemplateOverlayProps> = ({
+  template,
+  onChange,
+  onInteractionStart,
+  onInteractionEnd,
+}) => {
   const handleXDrag = (e: React.MouseEvent | React.TouchEvent) => {
     // Simplified drag logic - in a real app would use a more robust hook
     // For this demo, we assume the parent container is the reference
@@ -26,8 +33,10 @@ export const TemplateOverlay: React.FC<TemplateOverlayProps> = ({ template, onCh
       window.removeEventListener('touchmove', touchMove);
       window.removeEventListener('mouseup', stop);
       window.removeEventListener('touchend', stop);
+      onInteractionEnd?.();
     };
 
+    onInteractionStart?.();
     window.addEventListener('mousemove', mouseMove);
     window.addEventListener('touchmove', touchMove);
     window.addEventListener('mouseup', stop);
@@ -53,8 +62,10 @@ export const TemplateOverlay: React.FC<TemplateOverlayProps> = ({ template, onCh
       window.removeEventListener('touchmove', touchMove);
       window.removeEventListener('mouseup', stop);
       window.removeEventListener('touchend', stop);
+      onInteractionEnd?.();
     };
 
+    onInteractionStart?.();
     window.addEventListener('mousemove', mouseMove);
     window.addEventListener('touchmove', touchMove);
     window.addEventListener('mouseup', stop);

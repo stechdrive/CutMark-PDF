@@ -42,6 +42,8 @@ interface DocumentPreviewProps {
   mode: 'edit' | 'template';
   template: Template;
   setTemplate: React.Dispatch<React.SetStateAction<Template>>;
+  onTemplateInteractionStart?: () => void;
+  onTemplateInteractionEnd?: () => void;
   settings: AppSettings;
   
   // Events
@@ -76,6 +78,8 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   mode,
   template,
   setTemplate,
+  onTemplateInteractionStart,
+  onTemplateInteractionEnd,
   settings,
   onContentClick,
   onPdfLoadSuccess,
@@ -291,7 +295,12 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     />
                     {/* Overlays */}
                     {mode === 'template' ? (
-                        <TemplateOverlay template={template} onChange={setTemplate} />
+                        <TemplateOverlay
+                          template={template}
+                          onChange={setTemplate}
+                          onInteractionStart={onTemplateInteractionStart}
+                          onInteractionEnd={onTemplateInteractionEnd}
+                        />
                     ) : (
                         cuts.map((cut) => (
                         <CutMarker
@@ -336,7 +345,12 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     {activeImgSize && (
                         <>
                             {mode === 'template' ? (
-                                <TemplateOverlay template={template} onChange={setTemplate} />
+                                <TemplateOverlay
+                                  template={template}
+                                  onChange={setTemplate}
+                                  onInteractionStart={onTemplateInteractionStart}
+                                  onInteractionEnd={onTemplateInteractionEnd}
+                                />
                             ) : (
                                 cuts.map((cut) => (
                                 <CutMarker

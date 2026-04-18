@@ -117,6 +117,7 @@ export const useProjectEditor = (
 ) => {
   const [history, setHistory] = useState<HistoryState<EditorState> | null>(null);
   const dragBaseRef = useRef<EditorState | null>(null);
+  const transactionBaseRef = useRef<EditorState | null>(null);
   const previousAssetsRef = useRef(currentAssets);
 
   const editorState = history?.present ?? null;
@@ -212,6 +213,7 @@ export const useProjectEditor = (
   const loadProject = useCallback((projectDocument: ProjectDocument) => {
     setHistory(createHistoryState(createEditorStateFromProject(projectDocument, currentAssets)));
     dragBaseRef.current = null;
+    transactionBaseRef.current = null;
   }, [currentAssets]);
 
   const replaceProject = useCallback((
@@ -243,11 +245,13 @@ export const useProjectEditor = (
         },
       };
     });
+    transactionBaseRef.current = null;
   }, [bindings, currentAssets]);
 
   const clearProject = useCallback(() => {
     setHistory(null);
     dragBaseRef.current = null;
+    transactionBaseRef.current = null;
   }, []);
 
   const selectLogicalPage = useCallback((logicalPageId: LogicalPageId | null) => {
@@ -313,7 +317,8 @@ export const useProjectEditor = (
   }, [dispatch, editorState]);
 
   const addCutToSelectedPage = useCallback((
-    cut: Extract<EditorAction, { type: 'addCutToLogicalPage' }>['cut']
+    cut: Extract<EditorAction, { type: 'addCutToLogicalPage' }>['cut'],
+    nextNumbering?: Pick<AppSettings, 'nextNumber' | 'branchChar'>
   ) => {
     if (!editorState?.selection.logicalPageId) return;
 
@@ -325,6 +330,16 @@ export const useProjectEditor = (
       });
       return {
         ...nextState,
+        project: nextNumbering
+          ? {
+              ...nextState.project,
+              numbering: {
+                ...nextState.project.numbering,
+                nextNumber: nextNumbering.nextNumber,
+                branchChar: nextNumbering.branchChar,
+              },
+            }
+          : nextState.project,
         selection: {
           logicalPageId: state.selection.logicalPageId,
           cutId: cut.id,
@@ -387,8 +402,35 @@ export const useProjectEditor = (
     return nextPresent.project.numbering;
   }, [editorState]);
 
-  const updateSettings = useCallback((next: SetStateAction<AppSettings>) => {
-    replacePresent((state) => {
+  const beginTransaction = useCallback(() => {
+    if (!editorState || transactionBaseRef.current) return;
+    transactionBaseRef.current = editorState;
+  }, [editorState]);
+
+  const commitTransaction = useCallback(() => {
+    setHistory((prev) => {
+      const transactionBase = transactionBaseRef.current;
+      transactionBaseRef.current = null;
+      if (!prev || !transactionBase || prev.present === transactionBase) {
+        return prev;
+      }
+      return pushHistoryState(
+        {
+          past: prev.past,
+          present: transactionBase,
+          future: prev.future,
+        },
+        prev.present
+      );
+    });
+  }, []);
+
+  const updateSettings = useCallback((
+    next: SetStateAction<AppSettings>,
+    options: { pushHistory?: boolean } = {}
+  ) => {
+    const run = options.pushHistory === false ? replacePresent : pushPresent;
+    run((state) => {
       const nextSettings = resolveStateAction(toAppSettings(state.project), next);
       return {
         ...state,
@@ -399,10 +441,14 @@ export const useProjectEditor = (
         },
       };
     });
-  }, [replacePresent]);
+  }, [pushPresent, replacePresent]);
 
-  const updateTemplate = useCallback((next: SetStateAction<Template>) => {
-    replacePresent((state) => {
+  const updateTemplate = useCallback((
+    next: SetStateAction<Template>,
+    options: { pushHistory?: boolean } = {}
+  ) => {
+    const run = options.pushHistory === false ? replacePresent : pushPresent;
+    run((state) => {
       const nextTemplate = resolveStateAction(toTemplate(state.project), next);
       return {
         ...state,
@@ -412,16 +458,18 @@ export const useProjectEditor = (
         },
       };
     });
-  }, [replacePresent]);
+  }, [pushPresent, replacePresent]);
 
   const undo = useCallback(() => {
     setHistory((prev) => (prev ? undoHistory(prev) : prev));
     dragBaseRef.current = null;
+    transactionBaseRef.current = null;
   }, []);
 
   const redo = useCallback(() => {
     setHistory((prev) => (prev ? redoHistory(prev) : prev));
     dragBaseRef.current = null;
+    transactionBaseRef.current = null;
   }, []);
 
   return {
@@ -453,6 +501,8 @@ export const useProjectEditor = (
     commitCutDrag,
     deleteCut,
     renumberFromCut,
+    beginTransaction,
+    commitTransaction,
     updateSettings,
     updateTemplate,
     undo,

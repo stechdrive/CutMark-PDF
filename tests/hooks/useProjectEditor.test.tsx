@@ -194,4 +194,39 @@ describe('useProjectEditor', () => {
       rowPositions: [0.1, 0.5, 0.9],
     });
   });
+
+  it('commits transactional template edits as a single undo step', () => {
+    const { result } = renderHook(() =>
+      useProjectEditor([
+        { sourceKind: 'image', sourceLabel: '001.png', pageNumber: 1 },
+        { sourceKind: 'image', sourceLabel: '002.png', pageNumber: 2 },
+      ])
+    );
+
+    act(() => {
+      result.current.loadProject(project);
+    });
+
+    act(() => {
+      result.current.beginTransaction();
+      result.current.updateTemplate((current) => ({
+        ...current,
+        xPosition: 0.2,
+      }), { pushHistory: false });
+      result.current.updateTemplate((current) => ({
+        ...current,
+        xPosition: 0.3,
+      }), { pushHistory: false });
+      result.current.commitTransaction();
+    });
+
+    expect(result.current.project?.template.xPosition).toBe(0.3);
+    expect(result.current.canUndo).toBe(true);
+
+    act(() => {
+      result.current.undo();
+    });
+
+    expect(result.current.project?.template.xPosition).toBe(project.template.xPosition);
+  });
 });

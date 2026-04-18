@@ -24,6 +24,9 @@ interface SidebarProps {
   // Settings Props
   settings: AppSettings;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
+  setLiveSettings?: React.Dispatch<React.SetStateAction<AppSettings>>;
+  onLiveSettingsStart?: () => void;
+  onLiveSettingsEnd?: () => void;
   setNumberingState: (next: NumberingState) => void;
   onRenumberFromSelected: (cutId: string) => void;
 }
@@ -44,6 +47,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRowSnap,
   settings,
   setSettings,
+  setLiveSettings,
+  onLiveSettingsStart,
+  onLiveSettingsEnd,
   setNumberingState,
   onRenumberFromSelected,
 }) => {
@@ -81,6 +87,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <SidebarStyleSettings
           settings={settings}
           setSettings={setSettings}
+          setLiveSettings={setLiveSettings}
+          onLiveChangeStart={onLiveSettingsStart}
+          onLiveChangeEnd={onLiveSettingsEnd}
         />
       </div>
 

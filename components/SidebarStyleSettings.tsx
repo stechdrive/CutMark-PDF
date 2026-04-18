@@ -4,12 +4,20 @@ import { AppSettings } from '../types';
 interface SidebarStyleSettingsProps {
   settings: AppSettings;
   setSettings: React.Dispatch<React.SetStateAction<AppSettings>>;
+  setLiveSettings?: React.Dispatch<React.SetStateAction<AppSettings>>;
+  onLiveChangeStart?: () => void;
+  onLiveChangeEnd?: () => void;
 }
 
 export const SidebarStyleSettings: React.FC<SidebarStyleSettingsProps> = ({
   settings,
   setSettings,
+  setLiveSettings,
+  onLiveChangeStart,
+  onLiveChangeEnd,
 }) => {
+  const applyLiveSettings = setLiveSettings ?? setSettings;
+
   return (
     <div>
       <h3 className="text-sm font-semibold text-gray-900 mb-3">
@@ -26,8 +34,14 @@ export const SidebarStyleSettings: React.FC<SidebarStyleSettingsProps> = ({
             min="12"
             max="72"
             value={settings.fontSize}
+            onPointerDown={onLiveChangeStart}
+            onPointerUp={onLiveChangeEnd}
+            onPointerCancel={onLiveChangeEnd}
+            onKeyDown={onLiveChangeStart}
+            onKeyUp={onLiveChangeEnd}
+            onBlur={onLiveChangeEnd}
             onChange={(e) =>
-              setSettings({
+              applyLiveSettings({
                 ...settings,
                 fontSize: parseInt(e.target.value),
               })
@@ -47,8 +61,14 @@ export const SidebarStyleSettings: React.FC<SidebarStyleSettingsProps> = ({
             min="0"
             max={settings.fontSize}
             value={settings.textOutlineWidth}
+            onPointerDown={onLiveChangeStart}
+            onPointerUp={onLiveChangeEnd}
+            onPointerCancel={onLiveChangeEnd}
+            onKeyDown={onLiveChangeStart}
+            onKeyUp={onLiveChangeEnd}
+            onBlur={onLiveChangeEnd}
             onChange={(e) =>
-              setSettings({
+              applyLiveSettings({
                 ...settings,
                 textOutlineWidth: parseInt(e.target.value),
               })
@@ -129,8 +149,14 @@ export const SidebarStyleSettings: React.FC<SidebarStyleSettingsProps> = ({
                 min="0"
                 max="20"
                 value={settings.backgroundPadding}
+                onPointerDown={onLiveChangeStart}
+                onPointerUp={onLiveChangeEnd}
+                onPointerCancel={onLiveChangeEnd}
+                onKeyDown={onLiveChangeStart}
+                onKeyUp={onLiveChangeEnd}
+                onBlur={onLiveChangeEnd}
                 onChange={(e) =>
-                  setSettings({
+                  applyLiveSettings({
                     ...settings,
                     backgroundPadding: parseInt(e.target.value),
                   })
