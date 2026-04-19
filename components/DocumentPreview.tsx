@@ -103,6 +103,12 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   onImageLoadError,
 }) => {
   const isMobileLayout = layoutMode === 'mobile';
+  const previewStyle = isMobileLayout
+    ? {
+        padding: 'var(--preview-padding)',
+        paddingBottom: 'calc(var(--mobile-dock-h, 0px) + var(--preview-padding))',
+      }
+    : { padding: '1rem' };
   const {
     viewportRef,
     containerRef,
@@ -141,13 +147,14 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   return (
     <div
       ref={viewportRef}
-      className={`flex-1 relative overflow-auto flex flex-col items-center p-4 transition-colors ${
+      className={`flex-1 min-h-0 relative overflow-auto flex flex-col items-center transition-colors ${
         isDragging
           ? 'bg-blue-100 border-4 border-blue-400 border-dashed'
           : isMiddlePanning
             ? 'bg-gray-200 cursor-grabbing'
             : 'bg-gray-200'
       }`}
+      style={previewStyle}
       onDragEnter={dragHandlers.onDragEnter}
       onDragOver={dragHandlers.onDragOver}
       onDragLeave={dragHandlers.onDragLeave}

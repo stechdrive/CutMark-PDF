@@ -12,7 +12,8 @@ import { DocumentPreview } from './components/DocumentPreview';
 import { ExportOverlay } from './components/ExportOverlay';
 import { DebugModal } from './components/DebugModal';
 import { MobileWorkspaceShell } from './components/MobileWorkspaceShell';
-import { useIsMobileLayout } from './hooks/useIsMobileLayout';
+import { useMobileLayout } from './hooks/useMobileLayout';
+import { useViewportHeight } from './hooks/useViewportHeight';
 
 // Worker setup: GH-Pages でもローカルのワーカーを利用する
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -21,7 +22,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 export default function App() {
-  const isMobileLayout = useIsMobileLayout();
+  useViewportHeight();
+  const mobileLayout = useMobileLayout();
   const {
     headerProps,
     leftProjectPanel,
@@ -32,14 +34,24 @@ export default function App() {
   } = useAppController();
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100 text-gray-800 font-sans overflow-hidden">
-      <Header {...headerProps} />
+    <div
+      className="flex min-h-0 flex-col overflow-hidden bg-gray-100 text-gray-800 font-sans"
+      style={{ height: 'var(--app-height)' }}
+    >
+      <Header
+        {...headerProps}
+        isMobileUi={mobileLayout.isMobileUi}
+        isMobileCompact={mobileLayout.isMobileCompact}
+        isMobileTight={mobileLayout.isMobileTight}
+      />
 
-      <div className="flex flex-1 overflow-hidden relative">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
         <ExportOverlay {...exportOverlayProps} />
-        {isMobileLayout ? (
+        {mobileLayout.isMobileUi ? (
           <MobileWorkspaceShell
             mode={headerProps.mode}
+            isCompact={mobileLayout.isMobileCompact}
+            isTight={mobileLayout.isMobileTight}
             leftProjectPanel={leftProjectPanel}
             documentPreview={
               <DocumentPreview

@@ -23,8 +23,14 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="fixed inset-x-0 bottom-[4.75rem] z-50 px-3 pb-3">
-        <section className="flex max-h-[min(72vh,42rem)] min-h-[18rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div
+        className="fixed inset-x-0 z-50 px-3 pb-3"
+        style={{ bottom: 'calc(var(--mobile-dock-h, 0px) + 0.5rem)' }}
+      >
+        <section
+          className="flex min-h-[18rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+          style={{ maxHeight: 'calc(var(--app-height, 100dvh) - var(--mobile-dock-h, 0px) - 1.5rem)' }}
+        >
           <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-slate-900">{title}</div>
