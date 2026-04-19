@@ -4,30 +4,56 @@ const MOBILE_UI_MAX_WIDTH = 980;
 const MOBILE_COMPACT_MAX_WIDTH = 760;
 const MOBILE_TIGHT_MAX_WIDTH = 430;
 const COARSE_POINTER_QUERY = '(pointer: coarse)';
+const MOBILE_UI_SCALE_STORAGE_KEY = 'cutmark_mobile_ui_scale';
+const MIN_USER_UI_SCALE = 0.7;
+const MAX_USER_UI_SCALE = 2;
 
-export interface MobileLayoutState {
+interface MobileLayoutSnapshot {
   isMobileUi: boolean;
   isMobileCompact: boolean;
   isMobileTight: boolean;
   isCoarsePointer: boolean;
   viewportWidth: number;
   breakpointWidth: number;
-  uiScale: number;
+  autoUiScale: number;
 }
 
-const DEFAULT_STATE: MobileLayoutState = {
+export interface MobileLayoutState extends MobileLayoutSnapshot {
+  userUiScale: number;
+  uiScale: number;
+  setUserUiScale: (next: number) => void;
+  resetUserUiScale: () => void;
+}
+
+const DEFAULT_SNAPSHOT: MobileLayoutSnapshot = {
   isMobileUi: false,
   isMobileCompact: false,
   isMobileTight: false,
   isCoarsePointer: false,
   viewportWidth: 0,
   breakpointWidth: 0,
-  uiScale: 1,
+  autoUiScale: 1,
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const getViewportWidth = () => window.visualViewport?.width ?? window.innerWidth ?? 0;
+
+const clampUserUiScale = (value: number) => clamp(value, MIN_USER_UI_SCALE, MAX_USER_UI_SCALE);
+
+const loadUserUiScale = () => {
+  if (typeof window === 'undefined') {
+    return 1;
+  }
+
+  const raw = window.localStorage.getItem(MOBILE_UI_SCALE_STORAGE_KEY);
+  if (!raw) {
+    return 1;
+  }
+
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? clampUserUiScale(parsed) : 1;
+};
 
 export const getBreakpointWidth = (viewportWidth: number) => {
   const screenWidth = window.screen?.width;
@@ -37,9 +63,9 @@ export const getBreakpointWidth = (viewportWidth: number) => {
   return viewportWidth;
 };
 
-export const resolveMobileLayoutState = (): MobileLayoutState => {
+const resolveMobileLayoutSnapshot = (): MobileLayoutSnapshot => {
   if (typeof window === 'undefined') {
-    return DEFAULT_STATE;
+    return DEFAULT_SNAPSHOT;
   }
 
   const viewportWidth = getViewportWidth();
@@ -51,7 +77,7 @@ export const resolveMobileLayoutState = (): MobileLayoutState => {
   const isMobileUi = isCoarsePointer && viewportWidth > 0 && breakpointWidth < MOBILE_UI_MAX_WIDTH;
   const isMobileCompact = isMobileUi && breakpointWidth < MOBILE_COMPACT_MAX_WIDTH;
   const isMobileTight = isMobileUi && breakpointWidth < MOBILE_TIGHT_MAX_WIDTH;
-  const uiScale = isMobileUi ? clamp(breakpointWidth / 420, 0.9, 1) : 1;
+  const autoUiScale = isMobileUi ? clamp(breakpointWidth / 420, 0.9, 1) : 1;
 
   return {
     isMobileUi,
@@ -60,21 +86,22 @@ export const resolveMobileLayoutState = (): MobileLayoutState => {
     isCoarsePointer,
     viewportWidth,
     breakpointWidth,
-    uiScale,
+    autoUiScale,
   };
 };
 
-const isSameState = (left: MobileLayoutState, right: MobileLayoutState) =>
+const isSameSnapshot = (left: MobileLayoutSnapshot, right: MobileLayoutSnapshot) =>
   left.isMobileUi === right.isMobileUi &&
   left.isMobileCompact === right.isMobileCompact &&
   left.isMobileTight === right.isMobileTight &&
   left.isCoarsePointer === right.isCoarsePointer &&
   left.viewportWidth === right.viewportWidth &&
   left.breakpointWidth === right.breakpointWidth &&
-  left.uiScale === right.uiScale;
+  left.autoUiScale === right.autoUiScale;
 
 export const useMobileLayout = (): MobileLayoutState => {
-  const [state, setState] = useState(resolveMobileLayoutState);
+  const [snapshot, setSnapshot] = useState(resolveMobileLayoutSnapshot);
+  const [userUiScale, setUserUiScaleState] = useState(loadUserUiScale);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -83,9 +110,9 @@ export const useMobileLayout = (): MobileLayoutState => {
     }
 
     const syncState = () => {
-      setState((current) => {
-        const next = resolveMobileLayoutState();
-        return isSameState(current, next) ? current : next;
+      setSnapshot((current) => {
+        const next = resolveMobileLayoutSnapshot();
+        return isSameSnapshot(current, next) ? current : next;
       });
     };
 
@@ -123,14 +150,41 @@ export const useMobileLayout = (): MobileLayoutState => {
   }, []);
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (Math.abs(userUiScale - 1) < 0.001) {
+      window.localStorage.removeItem(MOBILE_UI_SCALE_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(MOBILE_UI_SCALE_STORAGE_KEY, userUiScale.toFixed(2));
+  }, [userUiScale]);
+
+  const setUserUiScale = (next: number) => {
+    setUserUiScaleState(clampUserUiScale(next));
+  };
+
+  const resetUserUiScale = () => {
+    setUserUiScaleState(1);
+  };
+
+  const uiScale = snapshot.isMobileUi
+    ? clamp(snapshot.autoUiScale * userUiScale, MIN_USER_UI_SCALE, MAX_USER_UI_SCALE)
+    : 1;
+
+  useEffect(() => {
     const root = document.documentElement;
-    root.dataset.mobileUi = state.isMobileUi ? 'true' : 'false';
-    root.dataset.mobileCompact = state.isMobileCompact ? 'true' : 'false';
-    root.dataset.mobileTight = state.isMobileTight ? 'true' : 'false';
-    root.style.setProperty('--ui-scale', String(state.uiScale));
-    root.style.setProperty('--mobile-viewport-width', `${state.viewportWidth}px`);
-    root.style.setProperty('--mobile-breakpoint-width', `${state.breakpointWidth}px`);
-  }, [state]);
+    root.dataset.mobileUi = snapshot.isMobileUi ? 'true' : 'false';
+    root.dataset.mobileCompact = snapshot.isMobileCompact ? 'true' : 'false';
+    root.dataset.mobileTight = snapshot.isMobileTight ? 'true' : 'false';
+    root.style.setProperty('--ui-scale', String(uiScale));
+    root.style.setProperty('--ui-scale-auto', String(snapshot.autoUiScale));
+    root.style.setProperty('--ui-scale-user', String(userUiScale));
+    root.style.setProperty('--mobile-viewport-width', `${snapshot.viewportWidth}px`);
+    root.style.setProperty('--mobile-breakpoint-width', `${snapshot.breakpointWidth}px`);
+  }, [snapshot, uiScale, userUiScale]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -139,10 +193,18 @@ export const useMobileLayout = (): MobileLayoutState => {
       root.dataset.mobileCompact = 'false';
       root.dataset.mobileTight = 'false';
       root.style.removeProperty('--ui-scale');
+      root.style.removeProperty('--ui-scale-auto');
+      root.style.removeProperty('--ui-scale-user');
       root.style.removeProperty('--mobile-viewport-width');
       root.style.removeProperty('--mobile-breakpoint-width');
     };
   }, []);
 
-  return state;
+  return {
+    ...snapshot,
+    userUiScale,
+    uiScale,
+    setUserUiScale,
+    resetUserUiScale,
+  };
 };

@@ -5,6 +5,7 @@ import { SidebarNumberingSettings } from './SidebarNumberingSettings';
 import { SidebarStyleSettings } from './SidebarStyleSettings';
 import { SidebarPaperSettingsPanel } from './SidebarPaperSettingsPanel';
 import { SidebarTemplateSelector } from './SidebarTemplateSelector';
+import { MobileUiScaleSettings } from './MobileUiScaleSettings';
 
 interface SidebarProps {
   layout?: 'desktop' | 'mobile';
@@ -28,6 +29,11 @@ interface SidebarProps {
   onLiveSettingsEnd?: () => void;
   setNumberingState: (next: NumberingState) => void;
   onRenumberFromSelected: (cutId: string) => void;
+  mobileAutoUiScale?: number;
+  mobileUserUiScale?: number;
+  mobileEffectiveUiScale?: number;
+  onMobileUiScaleChange?: (next: number) => void;
+  onResetMobileUiScale?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -48,8 +54,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLiveSettingsEnd,
   setNumberingState,
   onRenumberFromSelected,
+  mobileAutoUiScale,
+  mobileUserUiScale,
+  mobileEffectiveUiScale,
+  onMobileUiScaleChange,
+  onResetMobileUiScale,
 }) => {
   const isMobileLayout = layout === 'mobile';
+  const showMobileUiScaleSettings =
+    isMobileLayout &&
+    typeof mobileAutoUiScale === 'number' &&
+    typeof mobileUserUiScale === 'number' &&
+    typeof mobileEffectiveUiScale === 'number' &&
+    typeof onMobileUiScaleChange === 'function' &&
+    typeof onResetMobileUiScale === 'function';
 
   return (
     <div
@@ -59,15 +77,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       <div className={`flex-1 overflow-y-auto ${isMobileLayout ? 'p-3' : 'p-3'}`}>
         {mode === 'template' ? (
-          <SidebarPaperSettingsPanel
-            templates={templates}
-            template={template}
-            setTemplate={setTemplate}
-            changeTemplate={changeTemplate}
-            saveTemplateByName={saveTemplateByName}
-            deleteTemplate={deleteTemplate}
-            distributeRows={distributeRows}
-          />
+          <div className="space-y-4">
+            <SidebarPaperSettingsPanel
+              templates={templates}
+              template={template}
+              setTemplate={setTemplate}
+              changeTemplate={changeTemplate}
+              saveTemplateByName={saveTemplateByName}
+              deleteTemplate={deleteTemplate}
+              distributeRows={distributeRows}
+            />
+            {showMobileUiScaleSettings && (
+              <MobileUiScaleSettings
+                autoUiScale={mobileAutoUiScale}
+                userUiScale={mobileUserUiScale}
+                effectiveUiScale={mobileEffectiveUiScale}
+                onChange={onMobileUiScaleChange}
+                onReset={onResetMobileUiScale}
+              />
+            )}
+          </div>
         ) : (
           <div className="space-y-4">
             <SidebarTemplateSelector
@@ -98,6 +127,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onLiveChangeStart={onLiveSettingsStart}
               onLiveChangeEnd={onLiveSettingsEnd}
             />
+
+            {showMobileUiScaleSettings && (
+              <MobileUiScaleSettings
+                autoUiScale={mobileAutoUiScale}
+                userUiScale={mobileUserUiScale}
+                effectiveUiScale={mobileEffectiveUiScale}
+                onChange={onMobileUiScaleChange}
+                onReset={onResetMobileUiScale}
+              />
+            )}
           </div>
         )}
       </div>

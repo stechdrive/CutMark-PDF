@@ -59,7 +59,17 @@ export default function App() {
                 layoutMode="mobile"
               />
             }
-            sidebar={<Sidebar {...sidebarProps} layout="mobile" />}
+            sidebar={
+              <Sidebar
+                {...sidebarProps}
+                layout="mobile"
+                mobileAutoUiScale={mobileLayout.autoUiScale}
+                mobileUserUiScale={mobileLayout.userUiScale}
+                mobileEffectiveUiScale={mobileLayout.uiScale}
+                onMobileUiScaleChange={mobileLayout.setUserUiScale}
+                onResetMobileUiScale={mobileLayout.resetUserUiScale}
+              />
+            }
           />
         ) : (
           <>

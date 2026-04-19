@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Sidebar } from '../../components/Sidebar';
@@ -84,5 +84,36 @@ describe('Sidebar', () => {
     render(<Sidebar {...props} layout="mobile" />);
 
     expect(screen.queryByText(/CutMark PDF v/)).not.toBeInTheDocument();
+  });
+
+  it('shows the mobile ui scale section only in mobile layout and updates through callbacks', async () => {
+    const user = userEvent.setup();
+    const props = createSidebarProps('template');
+    const onMobileUiScaleChange = vi.fn();
+    const onResetMobileUiScale = vi.fn();
+
+    render(
+      <Sidebar
+        {...props}
+        layout="mobile"
+        mobileAutoUiScale={0.94}
+        mobileUserUiScale={1.08}
+        mobileEffectiveUiScale={1.02}
+        onMobileUiScaleChange={onMobileUiScaleChange}
+        onResetMobileUiScale={onResetMobileUiScale}
+      />
+    );
+
+    expect(screen.getByText('端末表示倍率')).toBeInTheDocument();
+    expect(screen.getByText('102%')).toBeInTheDocument();
+    expect(screen.getByText('自動 94% x 手動 108%')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '1.03' } });
+
+    expect(onMobileUiScaleChange).toHaveBeenCalledWith(1.03);
+
+    await user.click(screen.getByRole('button', { name: '自動に戻す' }));
+
+    expect(onResetMobileUiScale).toHaveBeenCalledTimes(1);
   });
 });

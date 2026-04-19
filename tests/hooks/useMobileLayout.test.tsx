@@ -119,4 +119,42 @@ describe('useMobileLayout', () => {
     expect(result.current.isMobileCompact).toBe(false);
     expect(result.current.isMobileTight).toBe(false);
   });
+
+  it('persists a user mobile ui scale override per device', () => {
+    const { result } = renderHook(() => useMobileLayout());
+
+    act(() => {
+      result.current.setUserUiScale(1.12);
+    });
+
+    expect(result.current.userUiScale).toBe(1.12);
+    expect(result.current.uiScale).toBeCloseTo(1.12, 5);
+    expect(window.localStorage.getItem('cutmark_mobile_ui_scale')).toBe('1.12');
+    expect(document.documentElement.style.getPropertyValue('--ui-scale-user')).toBe('1.12');
+  });
+
+  it('loads a saved user mobile ui scale override from localStorage', () => {
+    window.localStorage.setItem('cutmark_mobile_ui_scale', '1.08');
+
+    const { result } = renderHook(() => useMobileLayout());
+
+    expect(result.current.userUiScale).toBe(1.08);
+    expect(result.current.uiScale).toBeCloseTo(1.08, 5);
+  });
+
+  it('clamps the user mobile ui scale override to the expanded bounds', () => {
+    const { result } = renderHook(() => useMobileLayout());
+
+    act(() => {
+      result.current.setUserUiScale(0.4);
+    });
+
+    expect(result.current.userUiScale).toBe(0.7);
+
+    act(() => {
+      result.current.setUserUiScale(2.5);
+    });
+
+    expect(result.current.userUiScale).toBe(2);
+  });
 });
