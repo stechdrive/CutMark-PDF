@@ -146,7 +146,7 @@ export const SidebarNumberingSettings: React.FC<SidebarNumberingSettingsProps> =
 
         <div className="pt-1">
           <p className="mb-2 text-[11px] leading-4 text-gray-500">
-            既存のカット番号を 1 つ選ぶと、番号設定の「配置する番号」を開始番号にして、その番号以降を振り直します。ページをまたぐ順はページ順、同じページ内は現在の番号順です。
+            選択中のカット番号から、「配置する番号」を開始番号にして振り直します。
           </p>
           <button
             type="button"
@@ -162,7 +162,7 @@ export const SidebarNumberingSettings: React.FC<SidebarNumberingSettingsProps> =
             }`}
             title={
               canRenumber
-                ? '選択したカット以降を、番号設定の「配置する番号」を開始番号にして振り直します。ページをまたぐ順はページ順、同じページ内は現在の番号順です'
+                ? '選択中のカット番号から、番号設定の「配置する番号」を開始番号にして振り直します。ページをまたぐ順はページ順、同じページ内は現在の番号順です'
                 : '既存のカット番号を選択してください'
             }
           >

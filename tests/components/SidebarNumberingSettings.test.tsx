@@ -65,7 +65,7 @@ describe('SidebarNumberingSettings', () => {
 
     expect(
       screen.getByText(
-        '既存のカット番号を 1 つ選ぶと、番号設定の「配置する番号」を開始番号にして、その番号以降を振り直します。ページをまたぐ順はページ順、同じページ内は現在の番号順です。'
+        '選択中のカット番号から、「配置する番号」を開始番号にして振り直します。'
       )
     ).toBeInTheDocument();
 
