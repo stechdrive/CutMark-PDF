@@ -56,7 +56,7 @@ describe('CutMarker', () => {
       clientY: 100,
       button: 0,
     });
-    fireEvent.pointerUp(window, {
+    fireEvent.pointerUp(marker, {
       pointerId: 1,
       pointerType: 'mouse',
       clientX: 102,
@@ -67,6 +67,64 @@ describe('CutMarker', () => {
     expect(onSelect).toHaveBeenCalledWith('cut-1');
     expect(onUpdatePosition).not.toHaveBeenCalled();
     expect(onDragEnd).not.toHaveBeenCalled();
+  });
+
+  it('stops dragging after releasing the pointer on the marker itself', () => {
+    const onUpdatePosition = vi.fn();
+    const onDragEnd = vi.fn();
+
+    render(
+      <RenderCutMarker
+        onUpdatePosition={onUpdatePosition}
+        onDragEnd={onDragEnd}
+      />
+    );
+
+    const container = screen.getByTestId('container');
+    vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 1000,
+      width: 1000,
+      height: 1000,
+      toJSON: () => ({}),
+    });
+
+    const marker = screen.getByText('001');
+
+    fireEvent.pointerDown(marker, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 100,
+      clientY: 100,
+      button: 0,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 150,
+      clientY: 150,
+    });
+    fireEvent.pointerUp(marker, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 150,
+      clientY: 150,
+      button: 0,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 1,
+      pointerType: 'mouse',
+      clientX: 220,
+      clientY: 220,
+    });
+
+    expect(onUpdatePosition).toHaveBeenCalledTimes(1);
+    expect(onUpdatePosition).toHaveBeenCalledWith('cut-1', 0.15, 0.15);
+    expect(onDragEnd).toHaveBeenCalledTimes(1);
   });
 
   it('updates the cut position through pointer drag input', () => {

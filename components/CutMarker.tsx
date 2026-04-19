@@ -76,6 +76,9 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
       window.removeEventListener('pointercancel', handleUp);
+      pointerTarget.removeEventListener('pointerup', handleUp);
+      pointerTarget.removeEventListener('pointercancel', handleUp);
+      pointerTarget.removeEventListener('lostpointercapture', handleLostPointerCapture);
       if (pointerTarget.hasPointerCapture?.(pointerId)) {
         pointerTarget.releasePointerCapture(pointerId);
       }
@@ -89,10 +92,21 @@ export const CutMarker: React.FC<CutMarkerProps> = ({
       }
     };
 
+    const handleLostPointerCapture = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      cleanup();
+      if (isDragging) {
+        onDragEnd();
+      }
+    };
+
     pointerTarget.setPointerCapture?.(pointerId);
     window.addEventListener('pointermove', handleMove, { passive: false });
     window.addEventListener('pointerup', handleUp);
     window.addEventListener('pointercancel', handleUp);
+    pointerTarget.addEventListener('pointerup', handleUp);
+    pointerTarget.addEventListener('pointercancel', handleUp);
+    pointerTarget.addEventListener('lostpointercapture', handleLostPointerCapture);
   };
 
   return (

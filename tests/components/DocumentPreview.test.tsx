@@ -199,6 +199,93 @@ describe('DocumentPreview', () => {
     ).toBeInTheDocument();
   });
 
+  it('keeps the snap overlay hidden on desktop until a snap target is active', () => {
+    render(
+      <DocumentPreview
+        docType="images"
+        pdfFile={null}
+        currentImageUrl="blob:image"
+        numPages={2}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={vi.fn()}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={createTemplate()}
+        setTemplate={vi.fn()}
+        settings={createAppSettings()}
+        onContentClick={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Current page') as HTMLImageElement;
+    Object.defineProperty(image, 'naturalWidth', { value: 1000, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 1000, configurable: true });
+    fireEvent.load(image);
+
+    expect(screen.queryByTestId('snap-column-guide')).not.toBeInTheDocument();
+    expect(screen.queryByText('自動スナップ')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('snap-target-row')).not.toBeInTheDocument();
+  });
+
+  it('keeps the mobile snap guide and badge visible without showing a target row yet', () => {
+    render(
+      <DocumentPreview
+        layoutMode="mobile"
+        docType="images"
+        pdfFile={null}
+        currentImageUrl="blob:image"
+        numPages={2}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={vi.fn()}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={createTemplate()}
+        setTemplate={vi.fn()}
+        settings={createAppSettings()}
+        onContentClick={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Current page') as HTMLImageElement;
+    Object.defineProperty(image, 'naturalWidth', { value: 1000, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 1000, configurable: true });
+    fireEvent.load(image);
+
+    expect(screen.getByTestId('snap-column-guide')).toBeInTheDocument();
+    expect(screen.getByTestId('snap-overlay-badge')).toBeInTheDocument();
+    expect(screen.queryByTestId('snap-target-row')).not.toBeInTheDocument();
+  });
+
   it('highlights the snap column and target row while hovering near the snap area', () => {
     const template = createTemplate({
       xPosition: 0.1,
@@ -262,8 +349,79 @@ describe('DocumentPreview', () => {
       clientY: 540,
     });
 
+    expect(screen.getByTestId('snap-column-guide')).toBeInTheDocument();
     expect(screen.getByText('自動スナップ')).toBeInTheDocument();
-    expect(screen.queryByText('行 2')).not.toBeInTheDocument();
+    expect(screen.getByTestId('snap-target-row')).toBeInTheDocument();
+  });
+
+  it('shows the target row on mobile only when a snap target is active', () => {
+    const template = createTemplate({
+      xPosition: 0.1,
+      rowCount: 3,
+      rowPositions: [0.2, 0.5, 0.8],
+    });
+
+    const { container } = render(
+      <DocumentPreview
+        layoutMode="mobile"
+        docType="images"
+        pdfFile={null}
+        currentImageUrl="blob:image"
+        numPages={2}
+        setNumPages={vi.fn()}
+        currentPage={1}
+        setCurrentPage={vi.fn()}
+        scale={1}
+        setScale={vi.fn()}
+        isDragging={false}
+        dragHandlers={{
+          onDragEnter: vi.fn(),
+          onDragOver: vi.fn(),
+          onDragLeave: vi.fn(),
+        }}
+        onFileDropped={vi.fn()}
+        cuts={[]}
+        selectedCutId={null}
+        setSelectedCutId={vi.fn()}
+        deleteCut={vi.fn()}
+        updateCutPosition={vi.fn()}
+        handleCutDragEnd={vi.fn()}
+        mode="edit"
+        template={template}
+        setTemplate={vi.fn()}
+        settings={createAppSettings()}
+        onContentClick={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Current page') as HTMLImageElement;
+    Object.defineProperty(image, 'naturalWidth', { value: 1000, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 1000, configurable: true });
+    fireEvent.load(image);
+
+    const pageContainer = container.querySelector('.pdf-page-container') as HTMLElement;
+    vi.spyOn(pageContainer, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 1000,
+      bottom: 1000,
+      width: 1000,
+      height: 1000,
+      toJSON: () => ({}),
+    });
+
+    expect(screen.queryByTestId('snap-target-row')).not.toBeInTheDocument();
+
+    fireEvent.pointerMove(pageContainer, {
+      pointerId: 9,
+      pointerType: 'touch',
+      clientX: 95,
+      clientY: 540,
+    });
+
+    expect(screen.getByTestId('snap-target-row')).toBeInTheDocument();
   });
 
   it('places a cut from touch pointer input using row snap placement', () => {

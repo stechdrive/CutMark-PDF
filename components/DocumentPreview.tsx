@@ -103,6 +103,11 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
   onImageLoadError,
 }) => {
   const isMobileLayout = layoutMode === 'mobile';
+  const showPersistentMobileSnapGuide =
+    isMobileLayout &&
+    mode === 'edit' &&
+    settings.enableClickSnapToRows &&
+    template.rowPositions.length > 0;
   const previewStyle = isMobileLayout
     ? {
         padding: 'var(--preview-padding)',
@@ -143,6 +148,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
     onContentClick,
     containerRef,
   });
+  const showSnapOverlay = showPersistentMobileSnapGuide || (showSnapCandidate && snapTarget !== null);
 
   return (
     <div
@@ -227,7 +233,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                         />
                     ) : (
                         <>
-                          {showSnapCandidate && snapTarget && (
+                          {showSnapOverlay && (
                             <DocumentPreviewSnapOverlay
                               template={template}
                               snapTarget={snapTarget}
@@ -278,7 +284,7 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
                     {/* Overlays (Only show if image is loaded to have correct dimensions) */}
                     {activeImgSize && (
                         <>
-                            {showSnapCandidate && snapTarget && (
+                            {showSnapOverlay && (
                                 <DocumentPreviewSnapOverlay
                                   template={template}
                                   snapTarget={snapTarget}
