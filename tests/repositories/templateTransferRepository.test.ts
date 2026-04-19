@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  downloadSingleTemplateDocument,
+  downloadTemplateBundleDocument,
   parseTemplateImportDocument,
   sanitizeTemplateStorageValue,
 } from '../../repositories/templateTransferRepository';
@@ -91,5 +93,57 @@ describe('repositories/templateTransferRepository', () => {
       rowCount: 5,
       xPosition: 0.07,
     });
+  });
+
+  it('downloads a single template as template-name.json', () => {
+    const clickSpy = vi.fn();
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
+    const createElementSpy = vi.spyOn(document, 'createElement');
+    createElementSpy.mockImplementation((tagName: string) => {
+      const element = document.createElementNS('http://www.w3.org/1999/xhtml', tagName);
+      if (tagName.toLowerCase() === 'a') {
+        (element as HTMLAnchorElement).click = clickSpy;
+      }
+      return element as HTMLElement;
+    });
+
+    downloadSingleTemplateDocument({
+      id: 'template-1',
+      name: '3行 基本',
+      rowCount: 3,
+      xPosition: 0.12,
+      rowPositions: [0.1, 0.5, 0.9],
+    });
+
+    const anchor = appendSpy.mock.calls[0]?.[0] as HTMLAnchorElement;
+    expect(anchor.download).toBe('3行 基本.json');
+    expect(clickSpy).toHaveBeenCalled();
+  });
+
+  it('downloads a template bundle as cutmark-templates.json', () => {
+    const clickSpy = vi.fn();
+    const appendSpy = vi.spyOn(document.body, 'appendChild');
+    const createElementSpy = vi.spyOn(document, 'createElement');
+    createElementSpy.mockImplementation((tagName: string) => {
+      const element = document.createElementNS('http://www.w3.org/1999/xhtml', tagName);
+      if (tagName.toLowerCase() === 'a') {
+        (element as HTMLAnchorElement).click = clickSpy;
+      }
+      return element as HTMLElement;
+    });
+
+    downloadTemplateBundleDocument([
+      {
+        id: 'template-1',
+        name: '3行 基本',
+        rowCount: 3,
+        xPosition: 0.12,
+        rowPositions: [0.1, 0.5, 0.9],
+      },
+    ]);
+
+    const anchor = appendSpy.mock.calls[0]?.[0] as HTMLAnchorElement;
+    expect(anchor.download).toBe('cutmark-templates.json');
+    expect(clickSpy).toHaveBeenCalled();
   });
 });

@@ -224,7 +224,7 @@ export const downloadSingleTemplateDocument = (template: Template) => {
     version: TEMPLATE_DOCUMENT_VERSION,
     template: sanitizeTemplatePortableSnapshot(template),
   };
-  const filename = `${sanitizeFileNamePart(payload.template.name)}.cutmark-template.json`;
+  const filename = `${sanitizeFileNamePart(payload.template.name)}.json`;
   downloadTextFile(filename, JSON.stringify(payload, null, 2));
 };
 
@@ -235,7 +235,7 @@ export const downloadTemplateBundleDocument = (templates: Template[]) => {
     templates: templates.map((template) => sanitizeTemplatePortableSnapshot(template)),
   };
 
-  downloadTextFile('cutmark-templates.cutmark-template.json', JSON.stringify(payload, null, 2));
+  downloadTextFile('cutmark-templates.json', JSON.stringify(payload, null, 2));
 };
 
 export const sanitizeTemplateStorageValue = (value: unknown) => {
