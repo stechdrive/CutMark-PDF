@@ -88,6 +88,42 @@ describe('domain/numbering', () => {
     expect(result.nextNumbering).toEqual({ nextNumber: 12, branchChar: null });
   });
 
+  it('renumbers within a page by the current cut-number order instead of Y position', () => {
+    const result = renumberLogicalPagesFromCut(
+      [
+        createLogicalPage({
+          id: 'lp-1',
+          cuts: [
+            { id: 'cut-10', x: 0.2, y: 0.8, label: '010', isBranch: false },
+            { id: 'cut-11', x: 0.1, y: 0.1, label: '011', isBranch: false },
+            { id: 'cut-10a', x: 0.3, y: 0.5, label: '010\nA', isBranch: true },
+          ],
+        }),
+        createLogicalPage({
+          id: 'lp-2',
+          cuts: [{ id: 'cut-12', x: 0.1, y: 0.2, label: '012', isBranch: false }],
+        }),
+      ],
+      'cut-10',
+      {
+        nextNumber: 20,
+        branchChar: null,
+        autoIncrement: true,
+        minDigits: 3,
+      }
+    );
+
+    expect(result.found).toBe(true);
+    const labelMap = new Map(
+      result.logicalPages.flatMap((page) => page.cuts.map((cut) => [cut.id, cut.label]))
+    );
+    expect(labelMap.get('cut-10')).toBe('020');
+    expect(labelMap.get('cut-10a')).toBe('021');
+    expect(labelMap.get('cut-11')).toBe('022');
+    expect(labelMap.get('cut-12')).toBe('023');
+    expect(result.nextNumbering).toEqual({ nextNumber: 24, branchChar: null });
+  });
+
   it('renumbers from a logical page boundary and ignores earlier pages', () => {
     const result = renumberLogicalPagesFromPage(
       [

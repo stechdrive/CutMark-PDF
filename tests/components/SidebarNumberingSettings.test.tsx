@@ -63,7 +63,13 @@ describe('SidebarNumberingSettings', () => {
       />
     );
 
-    const disabledButton = screen.getByRole('button', { name: '選択カット以降を再採番' });
+    expect(
+      screen.getByText(
+        '既存のカット番号を 1 つ選ぶと、その番号以降を現在の「次の番号」から振り直します。ページをまたぐ順はページ順、同じページ内は現在の番号順です。'
+      )
+    ).toBeInTheDocument();
+
+    const disabledButton = screen.getByRole('button', { name: 'カット番号を振り直し' });
     expect(disabledButton).toBeDisabled();
 
     rerender(
@@ -76,7 +82,7 @@ describe('SidebarNumberingSettings', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: '選択カット以降を再採番' }));
+    await user.click(screen.getByRole('button', { name: 'カット番号を振り直し' }));
 
     expect(onRenumberFromSelected).toHaveBeenCalledWith('cut-42');
   });

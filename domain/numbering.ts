@@ -1,10 +1,61 @@
 import { Cut, NumberingState } from '../types';
 import { CutPlacement, LogicalPage, LogicalPageId, NumberingPolicy } from './project';
 
-const sortWithinPage = <T extends { x: number; y: number; id: string }>(a: T, b: T) => {
+const sortByPositionWithinPage = <T extends { x: number; y: number; id: string }>(a: T, b: T) => {
   if (a.y !== b.y) return a.y - b.y;
   if (a.x !== b.x) return a.x - b.x;
   return a.id.localeCompare(b.id);
+};
+
+interface ParsedCutLabelOrder {
+  numberPart: number;
+  branchPart: string | null;
+}
+
+const parseCutLabelOrder = (label: string): ParsedCutLabelOrder | null => {
+  const normalized = label.trim().replace(/\s+/g, '');
+  const match = normalized.match(/^(\d+)([A-Za-z]+)?$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    numberPart: Number.parseInt(match[1], 10),
+    branchPart: match[2]?.toUpperCase() ?? null,
+  };
+};
+
+const compareCutLabelOrder = (left: string, right: string) => {
+  const parsedLeft = parseCutLabelOrder(left);
+  const parsedRight = parseCutLabelOrder(right);
+
+  if (parsedLeft && parsedRight) {
+    if (parsedLeft.numberPart !== parsedRight.numberPart) {
+      return parsedLeft.numberPart - parsedRight.numberPart;
+    }
+
+    if (parsedLeft.branchPart !== parsedRight.branchPart) {
+      if (parsedLeft.branchPart === null) return -1;
+      if (parsedRight.branchPart === null) return 1;
+      return parsedLeft.branchPart.localeCompare(parsedRight.branchPart);
+    }
+
+    return 0;
+  }
+
+  if (parsedLeft) return -1;
+  if (parsedRight) return 1;
+  return 0;
+};
+
+const sortCutsForRenumberWithinPage = <T extends { x: number; y: number; id: string; label: string }>(
+  a: T,
+  b: T
+) => {
+  const labelOrder = compareCutLabelOrder(a.label, b.label);
+  if (labelOrder !== 0) return labelOrder;
+  return sortByPositionWithinPage(a, b);
 };
 
 export const formatNumberLabel = (number: number, minDigits: number) =>
@@ -46,7 +97,7 @@ export const isSameNumberingState = (
 
 export const sortFlatCutsForRenumber = (a: Cut, b: Cut) => {
   if (a.pageIndex !== b.pageIndex) return a.pageIndex - b.pageIndex;
-  return sortWithinPage(a, b);
+  return sortByPositionWithinPage(a, b);
 };
 
 export const renumberFlatCuts = (
@@ -94,7 +145,7 @@ export const renumberFlatCuts = (
 const flattenLogicalPageCuts = (logicalPages: LogicalPage[]) =>
   logicalPages.flatMap((page) =>
     [...page.cuts]
-      .sort(sortWithinPage)
+      .sort(sortCutsForRenumberWithinPage)
       .map((cut) => ({ logicalPageId: page.id, cut }))
   );
 
@@ -179,7 +230,7 @@ export const renumberLogicalPagesFromPage = (
 
   for (let pageIndex = startIndex; pageIndex < logicalPages.length; pageIndex++) {
     const page = logicalPages[pageIndex];
-    const orderedCuts = [...page.cuts].sort(sortWithinPage);
+    const orderedCuts = [...page.cuts].sort(sortCutsForRenumberWithinPage);
 
     for (const cut of orderedCuts) {
       updates.set(cut.id, {
@@ -199,4 +250,4 @@ export const renumberLogicalPagesFromPage = (
 
 export const sortCutPlacementsWithinPage = (
   cuts: CutPlacement[]
-) => [...cuts].sort(sortWithinPage);
+) => [...cuts].sort(sortByPositionWithinPage);
