@@ -366,9 +366,9 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
             onClick={distributeRows}
             disabled={template.rowCount <= 2}
             className="mt-2.5 flex w-full items-center justify-center gap-2 rounded border border-gray-200 bg-white py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-            title="1行目と最終行を基準に、間の行を等間隔に並べ直します。"
+            title="1行目と最終行を基準に、中間のカット番号を配置する基準線を均等に並べ直します。"
           >
-            <ArrowUpDown size={14} /> 縦位置を均等配置
+            <ArrowUpDown size={14} /> 行ガイドを均等配置
           </button>
         </div>
       </div>

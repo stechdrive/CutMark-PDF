@@ -51,7 +51,7 @@ describe('Sidebar', () => {
     expect(screen.getByText('番号設定')).toBeInTheDocument();
     expect(screen.getByText('表示スタイル')).toBeInTheDocument();
     expect(screen.queryByText('コンテ用紙設定')).not.toBeInTheDocument();
-    expect(screen.queryByText('縦位置を均等配置')).not.toBeInTheDocument();
+    expect(screen.queryByText('行ガイドを均等配置')).not.toBeInTheDocument();
     expect(screen.queryByText('行スナップ入力')).not.toBeInTheDocument();
 
     await user.selectOptions(
@@ -71,7 +71,7 @@ describe('Sidebar', () => {
     expect(
       screen.getByText('赤線と青線をドラッグして用紙枠を調整します。整えたら必要に応じて保存してください。')
     ).toBeInTheDocument();
-    expect(screen.getByText('縦位置を均等配置')).toBeInTheDocument();
+    expect(screen.getByText('行ガイドを均等配置')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /インポート/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /エクスポート/ })).toBeInTheDocument();
     expect(screen.queryByText('画面クリックで配置。カット番号列付近なら自動スナップ。')).not.toBeInTheDocument();
