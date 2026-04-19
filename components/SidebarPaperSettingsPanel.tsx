@@ -4,12 +4,18 @@ import {
   ArrowUpDown,
   Check,
   ChevronDown,
+  Download,
+  FolderUp,
   Minus,
   Plus,
   Save,
   Trash,
 } from 'lucide-react';
 import { Template } from '../types';
+import {
+  downloadSingleTemplateDocument,
+  downloadTemplateBundleDocument,
+} from '../repositories/templateTransferRepository';
 
 interface SidebarPaperSettingsPanelProps {
   templates: Template[];
@@ -19,6 +25,7 @@ interface SidebarPaperSettingsPanelProps {
   saveTemplateByName: (name: string) => void;
   deleteTemplate: () => void;
   distributeRows: () => void;
+  importTemplateDocument: (serialized: string) => { scope: 'single' | 'multiple'; templates: Template[] };
 }
 
 export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps> = ({
@@ -29,22 +36,29 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
   saveTemplateByName,
   deleteTemplate,
   distributeRows,
+  importTemplateDocument,
 }) => {
   const [localState, setLocalState] = useState(() => ({
     templateId: template.id,
     inputValue: template.name,
     isDropdownOpen: false,
+    isTransferMenuOpen: false,
     isDeleting: false,
     showSaveSuccess: false,
+    importStatus: '',
   }));
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const transferMenuRef = useRef<HTMLDivElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const isSameTemplate = localState.templateId === template.id;
   const inputValue = isSameTemplate ? localState.inputValue : template.name;
   const isDropdownOpen = isSameTemplate ? localState.isDropdownOpen : false;
+  const isTransferMenuOpen = isSameTemplate ? localState.isTransferMenuOpen : false;
   const isDeleting = isSameTemplate ? localState.isDeleting : false;
   const showSaveSuccess = isSameTemplate ? localState.showSaveSuccess : false;
+  const importStatus = isSameTemplate ? localState.importStatus : '';
 
   const updateLocalState = (updates: Partial<typeof localState>) => {
     setLocalState((prev) => ({
@@ -58,6 +72,9 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setLocalState((prev) => ({ ...prev, isDropdownOpen: false }));
+      }
+      if (transferMenuRef.current && !transferMenuRef.current.contains(event.target as Node)) {
+        setLocalState((prev) => ({ ...prev, isTransferMenuOpen: false }));
       }
     };
 
@@ -81,6 +98,54 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
   const handleSelect = (id: string) => {
     changeTemplate(id);
     updateLocalState({ isDropdownOpen: false, isDeleting: false });
+  };
+
+  const showImportStatus = (message: string, templateId: string, nextInputValue: string) => {
+    updateLocalState({
+      importStatus: message,
+      templateId,
+      inputValue: nextInputValue,
+      isDropdownOpen: false,
+      isTransferMenuOpen: false,
+      isDeleting: false,
+    });
+    window.setTimeout(() => {
+      setLocalState((prev) =>
+        prev.templateId === templateId
+          ? { ...prev, importStatus: '' }
+          : prev
+      );
+    }, 2500);
+  };
+
+  const handleImportButtonClick = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      const serialized = await file.text();
+      const imported = importTemplateDocument(serialized);
+      const importedTemplateId = imported.templates[0]?.id ?? template.id;
+      const importedTemplateName = imported.templates[0]?.name ?? template.name;
+      if (imported.templates.length > 0) {
+        setTemplate(imported.templates[0]);
+      }
+      showImportStatus(
+        imported.templates.length === 1
+          ? 'テンプレートをインポートしました'
+          : `${imported.templates.length}件のテンプレートをインポートしました`,
+        importedTemplateId,
+        importedTemplateName
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'テンプレート読込中にエラーが発生しました';
+      alert(message);
+    }
   };
 
   const handleDeleteClick = () => {
@@ -144,6 +209,68 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
             </div>
           )}
         </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={(event) => {
+              void handleImportFileChange(event);
+            }}
+          />
+          <button
+            type="button"
+            onClick={handleImportButtonClick}
+            className="inline-flex items-center justify-center gap-1.5 rounded border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 hover:text-blue-700"
+            title="テンプレート JSON をインポートします。単体か複数かは中身を見て自動判定します。"
+          >
+            <FolderUp size={14} /> インポート
+          </button>
+
+          <div className="relative" ref={transferMenuRef}>
+            <button
+              type="button"
+              onClick={() => updateLocalState({ isTransferMenuOpen: !isTransferMenuOpen })}
+              className="inline-flex items-center justify-center gap-1.5 rounded border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 hover:text-blue-700"
+              title="現在のテンプレート、または保存済みテンプレート一覧をエクスポートします。"
+            >
+              <Download size={14} /> エクスポート
+            </button>
+
+            {isTransferMenuOpen && (
+              <div className="absolute right-0 top-full z-50 mt-1 min-w-52 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadSingleTemplateDocument(template);
+                    updateLocalState({ isTransferMenuOpen: false });
+                  }}
+                  className="block w-full px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-blue-50"
+                >
+                  このテンプレートをエクスポート
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadTemplateBundleDocument(templates);
+                    updateLocalState({ isTransferMenuOpen: false });
+                  }}
+                  className="block w-full px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-blue-50"
+                >
+                  保存済みテンプレートを全部エクスポート
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {importStatus && (
+          <div className="rounded border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] leading-4 text-emerald-700">
+            {importStatus}
+          </div>
+        )}
 
         <div className="flex gap-2">
           {!isDeleting ? (

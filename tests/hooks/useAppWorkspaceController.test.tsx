@@ -59,6 +59,7 @@ describe('useAppWorkspaceController', () => {
       deleteTemplateById: vi.fn(),
       distributeRows: vi.fn(),
       upsertTemplate: vi.fn(),
+      importTemplateDocument: vi.fn(),
       currentAssetHints: [],
       currentProjectName: 'shots',
     };

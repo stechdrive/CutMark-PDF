@@ -69,6 +69,7 @@ interface UseAppShellPropsOptions {
     saveTemplateByName: ComponentProps<typeof Sidebar>['saveTemplateByName'];
     deleteTemplate: ComponentProps<typeof Sidebar>['deleteTemplate'];
     distributeRows: ComponentProps<typeof Sidebar>['distributeRows'];
+    importTemplateDocument: ComponentProps<typeof Sidebar>['importTemplateDocument'];
     onRowSnap: ComponentProps<typeof Sidebar>['onRowSnap'];
     settings: ComponentProps<typeof Sidebar>['settings'];
     setSettings: ComponentProps<typeof Sidebar>['setSettings'];
@@ -171,6 +172,7 @@ export const useAppShellProps = ({
     saveTemplateByName: sidebar.saveTemplateByName,
     deleteTemplate: sidebar.deleteTemplate,
     distributeRows: sidebar.distributeRows,
+    importTemplateDocument: sidebar.importTemplateDocument,
     onRowSnap: sidebar.onRowSnap,
     settings: sidebar.settings,
     setSettings: sidebar.setSettings,

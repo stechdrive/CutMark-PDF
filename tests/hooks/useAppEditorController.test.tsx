@@ -65,6 +65,7 @@ describe('useAppEditorController', () => {
       deleteTemplateById: vi.fn(() => template),
       distributeRows: vi.fn(),
       upsertTemplate: vi.fn(),
+      importTemplateDocument: vi.fn(),
       currentAssetHints: [{ sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 }],
       currentProjectName: 'shots',
     };

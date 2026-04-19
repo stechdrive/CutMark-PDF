@@ -82,6 +82,7 @@ describe('useAppPresentationController', () => {
         onDrop: vi.fn(),
       },
       templates: [template],
+      importTemplateDocument: vi.fn(),
       isLoadedProjectActive: true,
       selectedLogicalPageId: 'page-1',
       selectedLogicalPageNumber: 1,

@@ -139,4 +139,55 @@ describe('useTemplates', () => {
       expect(stored).toContainEqual(loadedTemplate);
     });
   });
+
+  it('imports a template document, renames duplicate names, and selects the first imported template', async () => {
+    const existingTemplate = createTemplate({
+      id: 'existing',
+      name: '持込テンプレート',
+      rowCount: 4,
+      rowPositions: [0.1, 0.3, 0.5, 0.7],
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([createTemplate(), existingTemplate]));
+
+    const { result } = renderHook(() => useTemplates());
+
+    let imported:
+      | { scope: 'single' | 'multiple'; templates: ReturnType<typeof useTemplates>['templates'] }
+      | undefined;
+
+    act(() => {
+      imported = result.current.importTemplateDocument(
+        JSON.stringify({
+          kind: 'cutmark-template-bundle',
+          version: 1,
+          templates: [
+            {
+              name: '持込テンプレート',
+              rowCount: 3,
+              xPosition: 0.22,
+              rowPositions: [0.1, 0.5, 0.9],
+            },
+            {
+              name: '持込テンプレート',
+              rowCount: 2,
+              xPosition: 0.3,
+              rowPositions: [0.2, 0.8],
+            },
+          ],
+        })
+      );
+    });
+
+    expect(imported?.scope).toBe('multiple');
+    expect(imported?.templates.map((template) => template.name)).toEqual([
+      '持込テンプレート (2)',
+      '持込テンプレート (3)',
+    ]);
+    expect(result.current.template.name).toBe('持込テンプレート (2)');
+
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+      expect(stored).toHaveLength(4);
+    });
+  });
 });

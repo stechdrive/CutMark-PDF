@@ -53,6 +53,7 @@ export const useAppDocumentController = () => {
     deleteTemplateById,
     distributeRows,
     upsertTemplate,
+    importTemplateDocument,
   } = useTemplates();
 
   const {
@@ -95,6 +96,7 @@ export const useAppDocumentController = () => {
     deleteTemplateById,
     distributeRows,
     upsertTemplate,
+    importTemplateDocument,
     currentAssetHints,
     currentProjectName,
   };

@@ -27,6 +27,7 @@ type AppPresentationWorkspace = Pick<
   | 'setScale'
   | 'dragHandlers'
   | 'templates'
+  | 'importTemplateDocument'
   | 'isLoadedProjectActive'
   | 'selectedLogicalPageId'
   | 'selectedLogicalPageNumber'
@@ -221,6 +222,7 @@ export const useAppPresentationController = ({
       saveTemplateByName: workspace.handleSaveTemplate,
       deleteTemplate: workspace.handleDeleteTemplate,
       distributeRows: workspace.handleDistributeRows,
+      importTemplateDocument: workspace.importTemplateDocument,
       onRowSnap: workspace.handleRowSnap,
       settings: workspace.effectiveSettings,
       setSettings: workspace.setEffectiveSettings,

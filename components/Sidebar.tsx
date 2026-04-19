@@ -20,6 +20,7 @@ interface SidebarProps {
   saveTemplateByName: (name: string) => void;
   deleteTemplate: () => void;
   distributeRows: () => void;
+  importTemplateDocument: (serialized: string) => { scope: 'single' | 'multiple'; templates: Template[] };
   onRowSnap: (index: number) => void;
   // Settings Props
   settings: AppSettings;
@@ -47,6 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   saveTemplateByName,
   deleteTemplate,
   distributeRows,
+  importTemplateDocument,
   settings,
   setSettings,
   setLiveSettings,
@@ -86,6 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               saveTemplateByName={saveTemplateByName}
               deleteTemplate={deleteTemplate}
               distributeRows={distributeRows}
+              importTemplateDocument={importTemplateDocument}
             />
             {showMobileUiScaleSettings && (
               <MobileUiScaleSettings

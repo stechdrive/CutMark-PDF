@@ -82,6 +82,7 @@ describe('useAppDocumentController', () => {
       deleteTemplateById: vi.fn(() => template),
       distributeRows: vi.fn(),
       upsertTemplate: vi.fn(),
+      importTemplateDocument: vi.fn(),
     };
     const metadata = {
       currentAssetHints: [{ sourceKind: 'image' as const, sourceLabel: '001.png', pageNumber: 1 }],
