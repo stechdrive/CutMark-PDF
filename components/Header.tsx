@@ -58,9 +58,8 @@ export const Header: React.FC<HeaderProps> = ({
   const isTight =
     isMobileUi &&
     (isMobileTight || (barWidth > 0 && barWidth < MOBILE_HEADER_TIGHT_WIDTH));
-  const importLabel = isTight ? '読込' : '読み込み';
-  const editLabel = isTight ? '番号' : '番号入力';
-  const templateLabel = isTight ? '用紙' : 'コンテ用紙設定';
+  const editLabel = '番号';
+  const templateLabel = '用紙';
   const exportMenuStyle = {
     width: isMobileUi ? 'min(18rem, calc(100vw - 1.5rem))' : '18rem',
   };
@@ -139,107 +138,105 @@ export const Header: React.FC<HeaderProps> = ({
   if (isMobileUi) {
     return (
       <div className="safe-area-top z-50 bg-slate-800 text-white shadow-md">
-        <div ref={barRef} className="flex flex-col gap-2 px-3 pb-3 pt-3">
-          <div className="flex items-center gap-2">
-            <div className="min-w-0 flex items-center gap-2 font-bold text-base">
-              <img src={logoUrl} alt="CutMark PDF" className="h-6 w-6 shrink-0" />
-              {!isTight && <span className="truncate">CutMark PDF</span>}
-            </div>
-
-            <div className="ml-auto flex items-center gap-1.5">
-              <button
-                onClick={() => importInputRef.current?.click()}
-                disabled={isExporting}
-                className="inline-flex items-center gap-2 rounded-xl bg-slate-700 px-3 text-sm transition-colors hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
-                style={{ minHeight: 'var(--header-action-h)' }}
-                title="PDF、連番画像、プロジェクトファイルを読み込む"
-              >
-                <Upload size={18} />
-                {!isTight && <span>{importLabel}</span>}
-              </button>
-              {importInput}
-
-              {docType && (
-                <div className="flex items-center gap-1 rounded-xl bg-slate-700/80 p-1">
-                  <button
-                    onClick={onUndo}
-                    disabled={!canUndo}
-                    className="rounded-lg p-2 transition-colors hover:bg-slate-600 disabled:opacity-30"
-                    title="元に戻す (Ctrl+Z)"
-                  >
-                    <RotateCcw size={18} />
-                  </button>
-                  <button
-                    onClick={onRedo}
-                    disabled={!canRedo}
-                    className="rounded-lg p-2 transition-colors hover:bg-slate-600 disabled:opacity-30"
-                    title="やり直す (Ctrl+Shift+Z)"
-                  >
-                    <RotateCw size={18} />
-                  </button>
-                </div>
-              )}
-            </div>
+        <div ref={barRef} className="flex items-center gap-2 px-2.5 pb-2.5 pt-3">
+          <div className="flex shrink-0 items-center gap-2 font-bold text-base">
+            <img src={logoUrl} alt="CutMark PDF" className="h-6 w-6 shrink-0" />
+            {!isCompact && !isTight && <span className="truncate text-sm">CutMark PDF</span>}
           </div>
 
-          <div className={`flex gap-2 ${isTight ? 'flex-col' : 'items-center'}`}>
-            <div className="flex min-w-0 flex-1 rounded-xl bg-slate-700 p-1">
+          <div className="min-w-0 flex-1">
+            <div className="flex rounded-xl bg-slate-700 p-1">
               <button
                 onClick={() => setMode('edit')}
-                className={`flex-1 rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`flex-1 rounded-lg px-2.5 py-1.5 transition-colors ${
                   mode === 'edit'
                     ? 'bg-blue-500 text-white font-medium'
                     : 'text-slate-300 hover:text-white'
-                }`}
+                } ${isTight ? 'text-xs' : 'text-sm'}`}
               >
                 {editLabel}
               </button>
               <button
                 onClick={() => setMode('template')}
-                className={`flex-1 rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`flex-1 rounded-lg px-2.5 py-1.5 transition-colors ${
                   mode === 'template'
                     ? 'bg-orange-500 text-white font-medium'
                     : 'text-slate-300 hover:text-white'
-                }`}
+                } ${isTight ? 'text-xs' : 'text-sm'}`}
               >
                 {templateLabel}
               </button>
             </div>
+          </div>
 
-            <div className={`flex items-center gap-2 ${isTight ? 'justify-end' : 'shrink-0'}`}>
-              <div className="relative">
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              onClick={() => importInputRef.current?.click()}
+              disabled={isExporting}
+              aria-label="読み込み"
+              className="inline-flex items-center justify-center rounded-xl bg-slate-700 px-2.5 text-sm transition-colors hover:bg-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ minHeight: 'var(--header-action-h)' }}
+              title="PDF、連番画像、プロジェクトファイルを読み込む"
+            >
+              <Upload size={18} />
+            </button>
+            {importInput}
+
+            {docType && (
+              <div className="flex items-center gap-0.5 rounded-xl bg-slate-700/80 p-0.5">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowExportMenu((current) => !current);
-                  }}
-                  disabled={!docType || isExporting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 text-sm font-medium transition-colors shadow-sm hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500"
-                  style={{ minHeight: 'var(--header-action-h)' }}
-                  title={
-                    docType
-                      ? 'PDFまたは連番画像を書き出します。必要ならプロジェクトファイルも一緒に保存できます'
-                      : '先にPDFまたは画像を読み込んでください'
-                  }
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                  className="rounded-lg p-1.5 transition-colors hover:bg-slate-600 disabled:opacity-30"
+                  title="元に戻す (Ctrl+Z)"
                 >
-                  <Save size={18} />
-                  <span>保存</span>
-                  {!isCompact && <ChevronDown size={14} />}
+                  <RotateCcw size={17} />
                 </button>
-
-                {showExportMenu && exportMenu}
+                <button
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                  className="rounded-lg p-1.5 transition-colors hover:bg-slate-600 disabled:opacity-30"
+                  title="やり直す (Ctrl+Shift+Z)"
+                >
+                  <RotateCw size={17} />
+                </button>
               </div>
+            )}
 
-              {showDebug && onOpenDebug && (
-                <button
-                  onClick={onOpenDebug}
-                  className="rounded-xl bg-slate-700 px-3 text-xs text-slate-200 transition-colors hover:bg-slate-600"
-                  style={{ minHeight: 'var(--header-action-h)' }}
-                >
-                  デバッグ
-                </button>
-              )}
+            <div className="relative">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowExportMenu((current) => !current);
+                }}
+                disabled={!docType || isExporting}
+                className={`inline-flex items-center rounded-xl bg-green-600 font-medium transition-colors shadow-sm hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 ${
+                  isTight ? 'gap-1 px-2.5 text-xs' : 'gap-1.5 px-3 text-sm'
+                }`}
+                style={{ minHeight: 'var(--header-action-h)' }}
+                title={
+                  docType
+                    ? 'PDFまたは連番画像を書き出します。必要ならプロジェクトファイルも一緒に保存できます'
+                    : '先にPDFまたは画像を読み込んでください'
+                }
+              >
+                <Save size={17} />
+                <span>保存</span>
+                {!isCompact && <ChevronDown size={13} />}
+              </button>
+
+              {showExportMenu && exportMenu}
             </div>
+
+            {showDebug && onOpenDebug && !isCompact && (
+              <button
+                onClick={onOpenDebug}
+                className="rounded-xl bg-slate-700 px-2.5 text-[11px] text-slate-200 transition-colors hover:bg-slate-600"
+                style={{ minHeight: 'var(--header-action-h)' }}
+              >
+                デバッグ
+              </button>
+            )}
           </div>
         </div>
       </div>

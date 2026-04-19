@@ -24,8 +24,9 @@ body {
 }
 
 :root[data-mobile-ui='true'] {
-  --header-action-h: calc(2.75rem * var(--ui-scale, 1));
-  --preview-padding: calc(0.9rem * var(--ui-scale, 1));
+  font-size: calc(16px * var(--ui-scale, 1));
+  --header-action-h: 2.75rem;
+  --preview-padding: 0.9rem;
 }
 
 :root[data-mobile-compact='true'] .mobile-compact-hide {
@@ -38,8 +39,9 @@ body {
 
 @media (pointer: coarse) and (max-width: 980px) {
   :root {
-    --header-action-h: calc(2.75rem * var(--ui-scale, 1));
-    --preview-padding: calc(0.9rem * var(--ui-scale, 1));
+    font-size: calc(16px * var(--ui-scale, 1));
+    --header-action-h: 2.75rem;
+    --preview-padding: 0.9rem;
   }
 }
 
