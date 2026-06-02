@@ -3,7 +3,7 @@
 ## プロジェクト概要
 
 - 構成は `Vite + React 19 + TypeScript`
-- 配布先は `GitHub Pages` の静的サイト
+- 配布先は `GitHub Pages` の静的サイトと、TauriによるWindowsデスクトップ版
 - 実行環境はブラウザのみで、サーバー処理はない
 - 読み込んだファイルや編集結果はブラウザ内で扱い、テンプレートは `localStorage` に保存する
 - プロジェクト保存は「論理ページ + カット配置 + 採番設定 + テンプレート状態」を保存し、素材自体は含めない
@@ -42,7 +42,9 @@
 3. 変更前の基準状態を確認する  
    `npm run check`
 4. 開発を始める  
-   `npm run dev`
+   Web版は `npm run dev:web`、Windowsデスクトップ版は `npm run tauri:dev`
+
+Tauri版をビルドする場合は Rust toolchain とWebView2 Runtimeが必要です。Windows 11では通常WebView2 Runtimeが入っています。
 
 このリポでは `npm install` より `npm ci` を優先します。`package-lock.json` とローカル状態を揃えやすく、依存関係のズレを減らせます。
 
@@ -60,9 +62,14 @@
 - `npm run lint`
 - `npm run typecheck`
 - `npm run test:run`
-- `npm run build`
+- `npm run build:web`
 
-まとめて確認する場合は `npm run check` を使います。開発完了時やデプロイ前の標準手順です。
+まとめて確認する場合は `npm run check` を使います。開発完了時やWeb版デプロイ前の標準手順です。
+
+Windowsデスクトップ版まで確認する場合は次を使います。
+
+- `npm run tauri:build`
+- `npm run release:checksums`
 
 ## テスト運用
 
@@ -136,6 +143,17 @@
   - `npm run check`
   - 最終差分の確認
   - `npm run deploy`
+
+## Windows デスクトップ版の運用
+
+- Windows版は Tauri v2 でビルドする
+- `src-tauri/` はアプリの殻だけを持ち、React本体やPDF処理はWeb版と共有する
+- Tauri専用処理は `adapters/` に閉じ込め、componentsやdomainへ散らさない
+- 配布形式はNSISの `setup.exe`
+- 署名は行わない
+- SmartScreen警告が出る可能性をREADMEとRelease noteに明記する
+- 配布物はGitHub Releasesだけを公式扱いにする
+- `npm run release:checksums` で `SHA256SUMS.txt` を生成し、Releaseへ添付する
 
 ## デバッグメモ
 

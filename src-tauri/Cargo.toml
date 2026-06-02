@@ -1,0 +1,27 @@
+[package]
+name = "cutmark-pdf"
+version = "2.6.2"
+description = "CutMark PDF desktop shell"
+authors = ["stechdrive"]
+license = "MIT"
+repository = "https://github.com/stechdrive/CutMark-PDF"
+edition = "2021"
+rust-version = "1.77.2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "cutmark_pdf_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.2", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.11.2", features = [] }
+tauri-plugin-dialog = "2.7.1"
+tauri-plugin-fs = "2.5.1"
+tauri-plugin-log = "2.8.0"

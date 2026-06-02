@@ -107,21 +107,18 @@ export const createProjectDownloadFileName = (name: string) => {
     : `${safeBaseName}${PROJECT_FILE_EXTENSION}`;
 };
 
-export const downloadProjectDocument = (
+export const createProjectSaveDocument = (
   project: ProjectDocument,
   fileName = createProjectDownloadFileName(project.meta.name)
 ) => {
-  const blob = new Blob([serializeProjectDocument(project)], {
-    type: 'application/json',
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  const serialized = serializeProjectDocument(project);
+
+  return {
+    fileName,
+    content: serialized,
+    mimeType: 'application/json',
+    extensions: [PROJECT_FILE_EXTENSION],
+  };
 };
 
 export const loadProjectDocumentFromFile = async (file: File) =>

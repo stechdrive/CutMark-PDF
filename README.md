@@ -8,6 +8,18 @@ PDF または連番画像の絵コンテにカット番号を配置し、ブラ�
 
 ![CutMark PDF スクリーンショット](./img/screenshot.jpg)
 
+## Windows デスクトップ版
+
+このリポジトリは GitHub Pages のWeb版と、TauriによるWindowsデスクトップ版を同じソースからビルドできます。
+
+```bash
+npm run tauri:dev
+npm run tauri:build
+npm run release:checksums
+```
+
+Windows版の配布物は `src-tauri/target/release/bundle/nsis/` に生成されます。OSSとして署名コストを持たない方針のため、Windows版は未署名で配布します。実行時にSmartScreen等の警告が出る場合があります。公式配布はGitHub Releasesのみとし、Releaseには `SHA256SUMS.txt` を添付します。
+
 ## できること
 
 - 1 つの PDF、または連番の `JPG / JPEG / PNG` を読み込む

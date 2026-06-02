@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   createProjectDownloadFileName,
-  downloadProjectDocument,
+  createProjectSaveDocument,
   loadProjectDocumentFromFile,
   parseProjectDocument,
   PROJECT_FILE_EXTENSION,
@@ -58,21 +58,12 @@ describe('repositories/projectRepository', () => {
     await expect(loadProjectDocumentFromFile(file)).resolves.toEqual(project);
   });
 
-  it('downloads a serialized project document', () => {
-    const appendSpy = vi.spyOn(document.body, 'appendChild');
-    const removeSpy = vi.spyOn(document.body, 'removeChild');
-    const createSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');
-    const revokeSpy = vi.spyOn(URL, 'revokeObjectURL');
-    const clickSpy = vi
-      .spyOn(HTMLAnchorElement.prototype, 'click')
-      .mockImplementation(() => {});
-
-    downloadProjectDocument(project);
-
-    expect(createSpy).toHaveBeenCalledTimes(1);
-    expect(appendSpy).toHaveBeenCalledTimes(1);
-    expect(clickSpy).toHaveBeenCalledTimes(1);
-    expect(removeSpy).toHaveBeenCalledTimes(1);
-    expect(revokeSpy).toHaveBeenCalledWith('blob:test');
+  it('creates a side-effect-free save document', () => {
+    expect(createProjectSaveDocument(project)).toEqual({
+      fileName: `Episode - 01${PROJECT_FILE_EXTENSION}`,
+      content: serializeProjectDocument(project),
+      mimeType: 'application/json',
+      extensions: [PROJECT_FILE_EXTENSION],
+    });
   });
 });

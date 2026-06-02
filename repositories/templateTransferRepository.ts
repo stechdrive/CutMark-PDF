@@ -201,41 +201,38 @@ export const parseTemplateImportDocument = (serialized: string): ParsedTemplateI
   throw new Error('テンプレート形式の JSON ではありません');
 };
 
-const downloadTextFile = (filename: string, content: string) => {
-  const blob = new Blob([content], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => {
-    URL.revokeObjectURL(url);
-  }, 0);
-};
-
 const sanitizeFileNamePart = (value: string) =>
   stripControlCharacters(value).replace(/[<>:"/\\|?*]/g, '').trim() || 'template';
 
-export const downloadSingleTemplateDocument = (template: Template) => {
+export const createSingleTemplateSaveDocument = (template: Template) => {
   const payload: SingleTemplateDocument = {
     kind: SINGLE_TEMPLATE_KIND,
     version: TEMPLATE_DOCUMENT_VERSION,
     template: sanitizeTemplatePortableSnapshot(template),
   };
   const filename = `${sanitizeFileNamePart(payload.template.name)}.json`;
-  downloadTextFile(filename, JSON.stringify(payload, null, 2));
+
+  return {
+    fileName: filename,
+    content: JSON.stringify(payload, null, 2),
+    mimeType: 'application/json',
+    extensions: ['.json'],
+  };
 };
 
-export const downloadTemplateBundleDocument = (templates: Template[]) => {
+export const createTemplateBundleSaveDocument = (templates: Template[]) => {
   const payload: TemplateBundleDocument = {
     kind: TEMPLATE_BUNDLE_KIND,
     version: TEMPLATE_DOCUMENT_VERSION,
     templates: templates.map((template) => sanitizeTemplatePortableSnapshot(template)),
   };
 
-  downloadTextFile('cutmark-templates.json', JSON.stringify(payload, null, 2));
+  return {
+    fileName: 'cutmark-templates.json',
+    content: JSON.stringify(payload, null, 2),
+    mimeType: 'application/json',
+    extensions: ['.json'],
+  };
 };
 
 export const sanitizeTemplateStorageValue = (value: unknown) => {

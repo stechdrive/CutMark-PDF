@@ -3,6 +3,7 @@ import { saveMarkedPdf, saveImagesAsPdf } from '../services/pdfService';
 import { exportImagesAsZip } from '../services/imageExportService';
 import { AppSettings, Cut, DocType } from '../types';
 import { normalizeError } from '../utils/debugData';
+import { saveBlobFile } from '../adapters/files/runtimeFileSave';
 
 type DebugLogData = unknown | (() => unknown);
 
@@ -14,22 +15,11 @@ interface UseWorkspaceExportActionsOptions {
   effectiveExportSettings: AppSettings;
   isLoadedProjectActive: boolean;
   canApplyLoadedProject: boolean;
-  exportProjectFile: () => void;
+  exportProjectFile: () => Promise<void>;
   includeProjectFileOnExport: boolean;
   setIsExporting: (next: boolean) => void;
   logDebug: (level: 'info' | 'warn' | 'error', message: string, data?: DebugLogData) => void;
 }
-
-const downloadBlob = (blob: Blob, filename: string) => {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
 
 export const useWorkspaceExportActions = ({
   docType,
@@ -68,10 +58,21 @@ export const useWorkspaceExportActions = ({
         return;
       }
 
-      downloadBlob(new Blob([pdfBytes], { type: 'application/pdf' }), filename);
+      const saveResult = await saveBlobFile({
+        blob: new Blob([pdfBytes], { type: 'application/pdf' }),
+        suggestedName: filename,
+        mimeType: 'application/pdf',
+        extensions: ['.pdf'],
+        description: 'PDF document',
+      });
+
+      if (saveResult.status === 'cancelled') {
+        logDebug('info', 'PDF書き出しキャンセル', () => ({ filename }));
+        return;
+      }
 
       if (includeProjectFileOnExport) {
-        exportProjectFile();
+        await exportProjectFile();
         logDebug('info', 'プロジェクトファイル同梱書き出し', () => ({ alongside: filename }));
       }
 
@@ -122,7 +123,7 @@ export const useWorkspaceExportActions = ({
       }
 
       if (includeProjectFileOnExport) {
-        exportProjectFile();
+        await exportProjectFile();
         logDebug('info', 'プロジェクトファイル同梱書き出し', () => ({ alongside: 'zip' }));
       }
 

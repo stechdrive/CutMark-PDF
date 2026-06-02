@@ -6,9 +6,10 @@ import {
 import { createTemplateFromProjectDocument } from '../application/projectPresentation';
 import { ProjectDocument, TemplateSnapshot } from '../domain/project';
 import {
-  downloadProjectDocument,
+  createProjectSaveDocument,
   loadProjectDocumentFromFile,
 } from '../repositories/projectRepository';
+import { saveTextFile } from '../adapters/files/runtimeFileSave';
 
 type DebugLogData = unknown | (() => unknown);
 
@@ -145,7 +146,7 @@ export const useProjectLifecycle = ({
     applyLoadedProjectToCurrentDocument(loadedProject, null, projectBindings);
   }, [applyLoadedProjectToCurrentDocument, canApplyLoadedProject, loadedProject, projectBindings]);
 
-  const handleSaveProject = useCallback(() => {
+  const handleSaveProject = useCallback(async () => {
     const projectSource = loadedProject ? loadedProject : currentProject;
     const bindingsForSave = loadedProject ? projectBindings : currentProjectBindings;
 
@@ -160,12 +161,28 @@ export const useProjectLifecycle = ({
       { touchSavedAt: true }
     );
 
+    const saveDocument = createProjectSaveDocument(project);
+    const saveResult = await saveTextFile({
+      text: saveDocument.content,
+      suggestedName: saveDocument.fileName,
+      mimeType: saveDocument.mimeType,
+      extensions: saveDocument.extensions,
+      description: 'CutMark project',
+    });
+
+    if (saveResult.status === 'cancelled') {
+      logDebug('info', 'プロジェクト保存キャンセル', () => ({
+        projectName: project.meta.name,
+      }));
+      return;
+    }
+
     if (loadedProject) {
       replaceEditorProject(project, projectBindings);
     } else {
       loadProjectIntoEditor(project);
     }
-    downloadProjectDocument(project);
+
     logDebug('info', 'プロジェクト保存', () => ({
       projectName: project.meta.name,
       logicalPages: project.logicalPages.length,

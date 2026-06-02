@@ -7,12 +7,20 @@ import { createAppSettings, createTemplate } from '../../test/factories';
 
 const repositoryMocks = vi.hoisted(() => ({
   loadProjectDocumentFromFile: vi.fn(),
-  downloadProjectDocument: vi.fn(),
+  createProjectSaveDocument: vi.fn(),
+}));
+
+const fileSaveMocks = vi.hoisted(() => ({
+  saveTextFile: vi.fn(),
 }));
 
 vi.mock('../../repositories/projectRepository', () => ({
   loadProjectDocumentFromFile: repositoryMocks.loadProjectDocumentFromFile,
-  downloadProjectDocument: repositoryMocks.downloadProjectDocument,
+  createProjectSaveDocument: repositoryMocks.createProjectSaveDocument,
+}));
+
+vi.mock('../../adapters/files/runtimeFileSave', () => ({
+  saveTextFile: fileSaveMocks.saveTextFile,
 }));
 
 const createProject = (name = 'Episode 01', pageCount = 1) =>
@@ -31,12 +39,20 @@ const createProject = (name = 'Episode 01', pageCount = 1) =>
 
 describe('useProjectLifecycle', () => {
   beforeEach(() => {
-    repositoryMocks.loadProjectDocumentFromFile.mockReset();
-    repositoryMocks.downloadProjectDocument.mockReset();
     vi.restoreAllMocks();
+    repositoryMocks.loadProjectDocumentFromFile.mockReset();
+    repositoryMocks.createProjectSaveDocument.mockReset();
+    repositoryMocks.createProjectSaveDocument.mockImplementation((project) => ({
+      fileName: `${project.meta.name}.cutmark`,
+      content: JSON.stringify(project),
+      mimeType: 'application/json',
+      extensions: ['.cutmark'],
+    }));
+    fileSaveMocks.saveTextFile.mockReset();
+    fileSaveMocks.saveTextFile.mockResolvedValue({ status: 'saved' });
   });
 
-  it('saves the current project through the shared project contract', () => {
+  it('saves the current project through the shared project contract', async () => {
     const currentProject = createProject('Current');
     const resolvedProject = {
       ...currentProject,
@@ -69,13 +85,20 @@ describe('useProjectLifecycle', () => {
       })
     );
 
-    act(() => {
-      result.current.handleSaveProject();
+    await act(async () => {
+      await result.current.handleSaveProject();
     });
 
     expect(loadProjectIntoEditor).toHaveBeenCalledWith(resolvedProject);
     expect(replaceEditorProject).not.toHaveBeenCalled();
-    expect(repositoryMocks.downloadProjectDocument).toHaveBeenCalledWith(resolvedProject);
+    expect(repositoryMocks.createProjectSaveDocument).toHaveBeenCalledWith(resolvedProject);
+    expect(fileSaveMocks.saveTextFile).toHaveBeenCalledWith({
+      text: JSON.stringify(resolvedProject),
+      suggestedName: 'Current.cutmark',
+      mimeType: 'application/json',
+      extensions: ['.cutmark'],
+      description: 'CutMark project',
+    });
     expect(logDebug).toHaveBeenCalledWith(
       'info',
       'プロジェクト保存',
@@ -83,7 +106,7 @@ describe('useProjectLifecycle', () => {
     );
   });
 
-  it('saves a loaded project even when no asset document is open', () => {
+  it('saves a loaded project even when no asset document is open', async () => {
     const loadedProject = createProject('Loaded');
     const resolvedProject = {
       ...loadedProject,
@@ -114,12 +137,12 @@ describe('useProjectLifecycle', () => {
       })
     );
 
-    act(() => {
-      result.current.handleSaveProject();
+    await act(async () => {
+      await result.current.handleSaveProject();
     });
 
     expect(replaceEditorProject).toHaveBeenCalledWith(resolvedProject, { 'page-1': null });
-    expect(repositoryMocks.downloadProjectDocument).toHaveBeenCalledWith(resolvedProject);
+    expect(repositoryMocks.createProjectSaveDocument).toHaveBeenCalledWith(resolvedProject);
   });
 
   it('loads a project file and applies it immediately when page counts match', async () => {

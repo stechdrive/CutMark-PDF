@@ -19,7 +19,7 @@ interface UseWorkspaceFileActionsOptions {
   loadPdf: (file: File) => void;
   loadImages: (files: File[]) => void;
   loadProjectFile: (file: File, importContext?: ProjectImportContext) => Promise<void>;
-  exportProjectFile: () => void;
+  exportProjectFile: () => Promise<void>;
   includeProjectFileOnExport: boolean;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
   setIsExporting: (next: boolean) => void;

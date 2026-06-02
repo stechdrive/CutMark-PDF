@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  downloadSingleTemplateDocument,
-  downloadTemplateBundleDocument,
+  createSingleTemplateSaveDocument,
+  createTemplateBundleSaveDocument,
   parseTemplateImportDocument,
   sanitizeTemplateStorageValue,
 } from '../../repositories/templateTransferRepository';
@@ -95,19 +95,8 @@ describe('repositories/templateTransferRepository', () => {
     });
   });
 
-  it('downloads a single template as template-name.json', () => {
-    const clickSpy = vi.fn();
-    const appendSpy = vi.spyOn(document.body, 'appendChild');
-    const createElementSpy = vi.spyOn(document, 'createElement');
-    createElementSpy.mockImplementation((tagName: string) => {
-      const element = document.createElementNS('http://www.w3.org/1999/xhtml', tagName);
-      if (tagName.toLowerCase() === 'a') {
-        (element as HTMLAnchorElement).click = clickSpy;
-      }
-      return element as HTMLElement;
-    });
-
-    downloadSingleTemplateDocument({
+  it('creates a single template save document', () => {
+    const saveDocument = createSingleTemplateSaveDocument({
       id: 'template-1',
       name: '3行 基本',
       rowCount: 3,
@@ -115,24 +104,21 @@ describe('repositories/templateTransferRepository', () => {
       rowPositions: [0.1, 0.5, 0.9],
     });
 
-    const anchor = appendSpy.mock.calls[0]?.[0] as HTMLAnchorElement;
-    expect(anchor.download).toBe('3行 基本.json');
-    expect(clickSpy).toHaveBeenCalled();
+    expect(saveDocument.fileName).toBe('3行 基本.json');
+    expect(saveDocument.mimeType).toBe('application/json');
+    expect(saveDocument.extensions).toEqual(['.json']);
+    expect(JSON.parse(saveDocument.content)).toMatchObject({
+      kind: 'cutmark-template',
+      version: 1,
+      template: {
+        name: '3行 基本',
+        rowCount: 3,
+      },
+    });
   });
 
-  it('downloads a template bundle as cutmark-templates.json', () => {
-    const clickSpy = vi.fn();
-    const appendSpy = vi.spyOn(document.body, 'appendChild');
-    const createElementSpy = vi.spyOn(document, 'createElement');
-    createElementSpy.mockImplementation((tagName: string) => {
-      const element = document.createElementNS('http://www.w3.org/1999/xhtml', tagName);
-      if (tagName.toLowerCase() === 'a') {
-        (element as HTMLAnchorElement).click = clickSpy;
-      }
-      return element as HTMLElement;
-    });
-
-    downloadTemplateBundleDocument([
+  it('creates a template bundle save document', () => {
+    const saveDocument = createTemplateBundleSaveDocument([
       {
         id: 'template-1',
         name: '3行 基本',
@@ -142,8 +128,18 @@ describe('repositories/templateTransferRepository', () => {
       },
     ]);
 
-    const anchor = appendSpy.mock.calls[0]?.[0] as HTMLAnchorElement;
-    expect(anchor.download).toBe('cutmark-templates.json');
-    expect(clickSpy).toHaveBeenCalled();
+    expect(saveDocument.fileName).toBe('cutmark-templates.json');
+    expect(saveDocument.mimeType).toBe('application/json');
+    expect(saveDocument.extensions).toEqual(['.json']);
+    expect(JSON.parse(saveDocument.content)).toMatchObject({
+      kind: 'cutmark-template-bundle',
+      version: 1,
+      templates: [
+        {
+          name: '3行 基本',
+          rowCount: 3,
+        },
+      ],
+    });
   });
 });

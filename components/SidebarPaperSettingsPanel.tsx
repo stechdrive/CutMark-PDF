@@ -13,9 +13,10 @@ import {
 } from 'lucide-react';
 import { Template } from '../types';
 import {
-  downloadSingleTemplateDocument,
-  downloadTemplateBundleDocument,
+  createSingleTemplateSaveDocument,
+  createTemplateBundleSaveDocument,
 } from '../repositories/templateTransferRepository';
+import { saveTextFile } from '../adapters/files/runtimeFileSave';
 
 interface SidebarPaperSettingsPanelProps {
   templates: Template[];
@@ -158,6 +159,27 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
     updateLocalState({ isDeleting: true });
   };
 
+  const exportTemplateDocument = async (document: {
+    fileName: string;
+    content: string;
+    mimeType: string;
+    extensions: string[];
+  }) => {
+    try {
+      await saveTextFile({
+        text: document.content,
+        suggestedName: document.fileName,
+        mimeType: document.mimeType,
+        extensions: document.extensions,
+        description: 'Template JSON',
+      });
+      updateLocalState({ isTransferMenuOpen: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'テンプレート書き出し中にエラーが発生しました';
+      alert(message);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div className="min-w-0">
@@ -244,8 +266,7 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
                 <button
                   type="button"
                   onClick={() => {
-                    downloadSingleTemplateDocument(template);
-                    updateLocalState({ isTransferMenuOpen: false });
+                    void exportTemplateDocument(createSingleTemplateSaveDocument(template));
                   }}
                   className="block w-full px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-blue-50"
                 >
@@ -254,8 +275,7 @@ export const SidebarPaperSettingsPanel: React.FC<SidebarPaperSettingsPanelProps>
                 <button
                   type="button"
                   onClick={() => {
-                    downloadTemplateBundleDocument(templates);
-                    updateLocalState({ isTransferMenuOpen: false });
+                    void exportTemplateDocument(createTemplateBundleSaveDocument(templates));
                   }}
                   className="block w-full px-3 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-blue-50"
                 >
