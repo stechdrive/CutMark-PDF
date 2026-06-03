@@ -10,6 +10,7 @@ import {
   loadProjectDocumentFromFile,
 } from '../repositories/projectRepository';
 import { saveTextFile } from '../adapters/files/runtimeFileSave';
+import { normalizeError, toFileInfo } from '../utils/debugData';
 
 type DebugLogData = unknown | (() => unknown);
 
@@ -46,27 +47,6 @@ export interface ProjectImportContext {
 
 const countProjectCuts = (project: ProjectDocument) =>
   project.logicalPages.reduce((count, page) => count + page.cuts.length, 0);
-
-const toFileInfo = (file: File | null) => {
-  if (!file) return null;
-  return {
-    name: file.name,
-    size: file.size,
-    type: file.type,
-    lastModified: new Date(file.lastModified).toISOString(),
-  };
-};
-
-const normalizeError = (error: unknown) => {
-  if (error instanceof Error) {
-    return {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    };
-  }
-  return error;
-};
 
 export const useProjectLifecycle = ({
   docType,

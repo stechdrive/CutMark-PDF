@@ -1,5 +1,5 @@
 param(
-  [string]$ArtifactDir = "src-tauri\target\release\bundle\nsis",
+  [string]$ArtifactDir = "src-tauri\target\release\bundle\release",
   [string]$OutputFile = "SHA256SUMS.txt"
 )
 
@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $resolvedArtifactDir = Resolve-Path -LiteralPath (Join-Path $repoRoot $ArtifactDir)
 $artifacts = Get-ChildItem -LiteralPath $resolvedArtifactDir -File |
-  Where-Object { $_.Extension -in ".exe", ".msi" } |
+  Where-Object { $_.Extension -in ".exe", ".msi", ".zip" } |
   Sort-Object Name
 
 if ($artifacts.Count -lt 1) {

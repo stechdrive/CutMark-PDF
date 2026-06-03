@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { normalizeError } from '../utils/debugData';
+import { normalizeError, redactSensitiveText } from '../utils/debugData';
 
 export type DebugLog = {
   at: string;
@@ -47,7 +47,7 @@ export const useDebugLogger = () => {
     const handleError = (event: ErrorEvent) => {
       logDebug('error', 'window.error', () => ({
         message: event.message,
-        filename: event.filename,
+        filename: redactSensitiveText(event.filename),
         lineno: event.lineno,
         colno: event.colno,
         error: normalizeError(event.error),

@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { saveMarkedPdf, saveImagesAsPdf } from '../services/pdfService';
 import { exportImagesAsZip } from '../services/imageExportService';
 import { AppSettings, Cut, DocType } from '../types';
-import { normalizeError } from '../utils/debugData';
+import { normalizeError, redactFileName } from '../utils/debugData';
 import { saveBlobFile } from '../adapters/files/runtimeFileSave';
 
 type DebugLogData = unknown | (() => unknown);
@@ -47,12 +47,12 @@ export const useWorkspaceExportActions = ({
 
       if (docType === 'pdf' && pdfFile) {
         filename = `marked_${pdfFile.name}`;
-        logDebug('info', 'PDF書き出し開始', () => ({ mode: 'pdf', filename }));
+        logDebug('info', 'PDF書き出し開始', () => ({ mode: 'pdf', filename: redactFileName(filename) }));
         const arrayBuffer = await pdfFile.arrayBuffer();
         pdfBytes = await saveMarkedPdf(arrayBuffer, effectiveExportCuts, effectiveExportSettings);
       } else if (docType === 'images' && imageFiles.length > 0) {
         filename = 'marked_images.pdf';
-        logDebug('info', 'PDF書き出し開始', () => ({ mode: 'images', filename }));
+        logDebug('info', 'PDF書き出し開始', () => ({ mode: 'images', filename: redactFileName(filename) }));
         pdfBytes = await saveImagesAsPdf(imageFiles, effectiveExportCuts, effectiveExportSettings);
       } else {
         return;
@@ -67,16 +67,16 @@ export const useWorkspaceExportActions = ({
       });
 
       if (saveResult.status === 'cancelled') {
-        logDebug('info', 'PDF書き出しキャンセル', () => ({ filename }));
+        logDebug('info', 'PDF書き出しキャンセル', () => ({ filename: redactFileName(filename) }));
         return;
       }
 
       if (includeProjectFileOnExport) {
         await exportProjectFile();
-        logDebug('info', 'プロジェクトファイル同梱書き出し', () => ({ alongside: filename }));
+        logDebug('info', 'プロジェクトファイル同梱書き出し', () => ({ alongside: redactFileName(filename) }));
       }
 
-      logDebug('info', 'PDF書き出し完了', () => ({ filename }));
+      logDebug('info', 'PDF書き出し完了', () => ({ filename: redactFileName(filename) }));
     } catch (error) {
       console.error(error);
       alert('PDF書き出し中にエラーが発生しました');

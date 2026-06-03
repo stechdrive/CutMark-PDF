@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "meta": {
+    "name": "CutMark PDF screenshot sample",
+    "savedAt": "2026-06-03T00:00:00.000Z"
+  },
+  "logicalPages": [
+    {
+      "id": "page-1",
+      "cuts": [
+        {
+          "id": "cut-001-a",
+          "x": 0.07,
+          "y": 0.0872,
+          "label": "001",
+          "isBranch": false
+        },
+        {
+          "id": "cut-002",
+          "x": 0.07,
+          "y": 0.2525,
+          "label": "002",
+          "isBranch": false
+        },
+        {
+          "id": "cut-003-a",
+          "x": 0.07,
+          "y": 0.4179,
+          "label": "003\nA",
+          "isBranch": true
+        },
+        {
+          "id": "cut-003-b",
+          "x": 0.07,
+          "y": 0.5832,
+          "label": "003\nB",
+          "isBranch": true
+        },
+        {
+          "id": "cut-004",
+          "x": 0.07,
+          "y": 0.7485,
+          "label": "004",
+          "isBranch": false
+        }
+      ],
+      "expectedAssetHint": {
+        "sourceKind": "image",
+        "sourceLabel": "screenshot-template.png"
+      }
+    }
+  ],
+  "numbering": {
+    "nextNumber": 5,
+    "branchChar": null,
+    "autoIncrement": true,
+    "minDigits": 3
+  },
+  "style": {
+    "fontSize": 28,
+    "useWhiteBackground": false,
+    "backgroundPadding": 4,
+    "textOutlineWidth": 2,
+    "enableClickSnapToRows": true
+  },
+  "template": {
+    "id": "default",
+    "name": "標準5行",
+    "rowCount": 5,
+    "xPosition": 0.07,
+    "rowPositions": [0.0872, 0.2525, 0.4179, 0.5832, 0.7485]
+  }
+}

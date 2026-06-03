@@ -163,9 +163,9 @@ export const useWorkspaceImportActions = ({
         projectFile: toFileInfo(plan.projectFile),
         pdfFile: toFileInfo(plan.pdfFile),
         imageCount: plan.imageFiles.length,
-        sampleImages: plan.imageFiles.slice(0, IMAGE_FILE_LOG_LIMIT).map((file) => file.name),
+        sampleImages: plan.imageFiles.slice(0, IMAGE_FILE_LOG_LIMIT).map((file) => toFileInfo(file)),
         truncated: plan.imageFiles.length > IMAGE_FILE_LOG_LIMIT,
-        ignoredFiles: plan.unsupportedFiles.map((file) => file.name),
+        ignoredFiles: plan.unsupportedFiles.map((file) => toFileInfo(file)),
       }));
 
       if (plan.assetType === 'pdf' && plan.pdfFile) {
@@ -180,7 +180,7 @@ export const useWorkspaceImportActions = ({
 
       if (plan.unsupportedFiles.length > 0) {
         logDebug('warn', '未対応ファイルを無視', () => ({
-          files: plan.unsupportedFiles.map((file) => file.name),
+          files: plan.unsupportedFiles.map((file) => toFileInfo(file)),
         }));
       }
     } catch (error) {

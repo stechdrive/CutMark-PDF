@@ -83,7 +83,7 @@ export const useDebugPanel = ({
     const imageFileSummary = {
       count: imageFiles.length,
       totalBytes: imageFiles.reduce((sum, file) => sum + file.size, 0),
-      sampleNames: imageFiles.slice(0, IMAGE_FILE_LOG_LIMIT).map((file) => file.name),
+      sampleFiles: imageFiles.slice(0, IMAGE_FILE_LOG_LIMIT).map((file) => toFileInfo(file)),
       truncated: imageFiles.length > IMAGE_FILE_LOG_LIMIT,
     };
     const deviceMemory =
