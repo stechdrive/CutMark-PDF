@@ -1,6 +1,6 @@
 [package]
 name = "cutmark-pdf"
-version = "2.6.2"
+version = "2.6.3"
 description = "CutMark PDF desktop shell"
 authors = ["stechdrive"]
 license = "MIT"
